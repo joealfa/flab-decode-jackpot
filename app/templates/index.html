@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Fortune Lab - Home{% endblock %}
+
+{% block content %}
+<div class="container hero-section">
+    <div class="hero-content">
+        <h1 class="hero-title">Decode the Jackpot</h1>
+        <p class="hero-subtitle">Advanced lottery analysis powered by data science</p>
+    </div>
+
+    <!-- Data Collection Section -->
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="fas fa-download"></i> Get Lottery Data</h2>
+        </div>
+        <div class="card-body">
+            <form id="scrapeForm" class="scrape-form">
+                <div class="form-group">
+                    <label for="gameType">
+                        <i class="fas fa-gamepad"></i> Game Type
+                    </label>
+                    <select id="gameType" name="gameType" class="form-control" required>
+                        <option value="">Select a game...</option>
+                        <option value="Lotto 6/42">Lotto 6/42</option>
+                        <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
+                        <option value="Super Lotto 6/49">Super Lotto 6/49</option>
+                        <option value="Grand Lotto 6/55">Grand Lotto 6/55</option>
+                        <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="startDate">
+                            <i class="fas fa-calendar-alt"></i> Start Date
+                        </label>
+                        <input type="date" id="startDate" name="startDate" class="form-control" value="2015-01-01" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="endDate">
+                            <i class="fas fa-calendar-check"></i> End Date
+                        </label>
+                        <input type="date" id="endDate" name="endDate" class="form-control" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-large" id="generateBtn">
+                    <i class="fas fa-download"></i> Get Data
+                </button>
+
+                <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Loading data... This may take a few moments.</p>
+                </div>
+
+                <div id="messageBox" class="message-box" style="display: none;"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Existing Results Section -->
+    {% if result_files %}
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="fas fa-folder-open"></i> Saved Results</h2>
+        </div>
+        <div class="card-body">
+            <div class="results-grid">
+                {% for file in result_files %}
+                <div class="result-card">
+                    <div class="result-icon">
+                        <i class="fas fa-file-chart"></i>
+                    </div>
+                    <div class="result-info">
+                        <h3>{{ file }}</h3>
+                        <div class="button-group">
+                            <a href="{{ url_for('analyze', filename=file) }}" class="btn btn-primary">
+                                <i class="fas fa-chart-bar"></i> Analyze Now
+                            </a>
+                            <button class="btn btn-secondary" onclick="viewHistory('{{ file }}')">
+                                <i class="fas fa-history"></i> History
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Features Section -->
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h3>Advanced Analytics</h3>
+            <p>Deep statistical analysis of historical lottery data</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-calendar-week"></i>
+            </div>
+            <h3>Day-Specific Insights</h3>
+            <p>Analyze patterns for each day of the week</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-brain"></i>
+            </div>
+            <h3>Smart Predictions</h3>
+            <p>AI-powered combination suggestions based on probability</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i class="fas fa-chart-pie"></i>
+            </div>
+            <h3>Visual Reports</h3>
+            <p>Beautiful charts and graphs for easy understanding</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set today's date as default end date
+document.getElementById('endDate').valueAsDate = new Date();
+
+// Handle form submission
+document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const form = e.target;
+    const formData = new FormData(form);
+
+    const data = {
+        game_type: formData.get('gameType'),
+        start_date: formData.get('startDate'),
+        end_date: formData.get('endDate')
+    };
+
+    // Show loading indicator
+    document.getElementById('loadingIndicator').style.display = 'block';
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('messageBox').style.display = 'none';
+
+    try {
+        const response = await fetch('/scrape', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        // Hide loading indicator
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('generateBtn').disabled = false;
+
+        // Show message
+        const messageBox = document.getElementById('messageBox');
+        messageBox.style.display = 'block';
+
+        if (result.success) {
+            const wasCached = result.cached || false;
+            messageBox.className = 'message-box success';
+            messageBox.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <p><strong>Success!</strong> ${wasCached ? 'Loaded' : 'Scraped'} ${result.total_draws} draws${wasCached ? ' from cache' : ''}.</p>
+                <a href="/analyze/${result.filename}" class="btn btn-primary">
+                    <i class="fas fa-chart-bar"></i> Analyze Now
+                </a>
+            `;
+        } else {
+            messageBox.className = 'message-box error';
+            messageBox.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i>
+                <p><strong>Error:</strong> ${result.error}</p>
+            `;
+        }
+    } catch (error) {
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('generateBtn').disabled = false;
+
+        const messageBox = document.getElementById('messageBox');
+        messageBox.style.display = 'block';
+        messageBox.className = 'message-box error';
+        messageBox.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i>
+            <p><strong>Error:</strong> ${error.message}</p>
+        `;
+    }
+});
+
+// View analysis history for a file
+async function viewHistory(filename) {
+    try {
+        const response = await fetch(`/api/analysis-history/${filename}`);
+        const result = await response.json();
+
+        if (result.success && result.reports.length > 0) {
+            // Build history modal HTML
+            let historyHTML = `
+                <div class="modal-overlay" id="historyModal" onclick="closeHistory(event)">
+                    <div class="modal-content" onclick="event.stopPropagation()">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-history"></i> Analysis History</h2>
+                            <button onclick="closeHistory()" class="modal-close">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>File:</strong> ${filename}</p>
+                            <p><strong>Total Reports:</strong> ${result.count}</p>
+                            <div class="reports-list">
+            `;
+
+            result.reports.forEach(report => {
+                historyHTML += `
+                    <div class="report-item">
+                        <div class="report-info">
+                            <i class="fas fa-file-alt"></i>
+                            <div>
+                                <strong>Analyzed:</strong> ${report.analyzed_at}<br>
+                                <small>Created: ${report.created_at}</small>
+                            </div>
+                        </div>
+                        <a href="/view-report/${report.filename}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    </div>
+                `;
+            });
+
+            historyHTML += `
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Append to body
+            document.body.insertAdjacentHTML('beforeend', historyHTML);
+        } else {
+            alert('No analysis history found for this file.');
+        }
+    } catch (error) {
+        alert('Error loading analysis history: ' + error.message);
+    }
+}
+
+function closeHistory(event) {
+    if (!event || event.target.id === 'historyModal' || event.type === 'click') {
+        const modal = document.getElementById('historyModal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+}
+</script>
+
+<style>
+.button-group {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.button-group .btn {
+    flex: 1;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 0;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    line-height: 1;
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: calc(80vh - 80px);
+    overflow-y: auto;
+}
+
+.reports-list {
+    margin-top: 20px;
+}
+
+.report-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: #f9f9f9;
+}
+
+.report-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.report-info i {
+    font-size: 1.5rem;
+    color: #667eea;
+}
+
+.btn-sm {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
