@@ -1,0 +1,1 @@
+{"task_id": "0a597260-5ef0-4529-b0a5-d4f13408605c", "status": "completed", "current": 100, "total": 100, "percentage": 100, "message": "Scraped 1618 draws successfully", "started_at": 1760737048.594636, "updated_at": 1760737161.932451, "result": {"success": true, "filename": "result_Grand_Lotto_6-55_20251018.json", "total_draws": 1618, "cached": false}}

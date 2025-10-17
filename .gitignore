@@ -14,7 +14,7 @@ instance/
 .webassets-cache
 
 # Data files
-app/data/*.json
+# app/data/*.json
 
 # Chrome driver
 chromedriver

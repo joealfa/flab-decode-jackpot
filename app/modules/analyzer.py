@@ -25,7 +25,12 @@ class LotteryAnalyzer:
         """
         self.data = data
         self.game_type = data['game_type']
-        self.results = data['results']
+        # Sort results by date (newest first)
+        self.results = sorted(
+            data['results'],
+            key=lambda x: datetime.strptime(x['date'], '%m/%d/%Y'),
+            reverse=True
+        )
         self.df = self._create_dataframe()
 
         # Extract max number from game type (e.g., "Lotto 6/42" -> 42)
@@ -378,8 +383,8 @@ class LotteryAnalyzer:
         return {
             'even_odd': f"{even_count}E-{odd_count}O",
             'high_low': f"{low_count}L-{high_count}H",
-            'sum': sum(combo),
-            'consecutive_pairs': consecutive
+            'sum': int(sum(combo)),  # Convert to native int
+            'consecutive_pairs': int(consecutive)  # Convert to native int
         }
 
     def _get_recent_pattern_preference(self, pattern_type: str) -> str:
@@ -694,6 +699,186 @@ class LotteryAnalyzer:
         spread_bonus = spread * 0.2
 
         total_score = (base_score * 0.7) + pattern_bonus + spread_bonus
+        return min(total_score * 100, 100)
+
+    def analyze_consecutive_draw_patterns(self) -> Dict:
+        """
+        Analyze patterns between consecutive draws to predict next draw.
+
+        Returns:
+            Dictionary with pattern analysis and predictions
+        """
+        if len(self.results) < 2:
+            return {'message': 'Insufficient data for consecutive draw analysis'}
+
+        patterns = {
+            'number_carryover': [],  # How many numbers repeat from previous draw
+            'number_gaps': [],  # Gaps between draws
+            'sum_differences': [],  # Difference in sums
+            'pattern_transitions': defaultdict(int),  # Even/odd pattern changes
+            'new_numbers_per_draw': []  # How many new numbers appear
+        }
+
+        # Analyze consecutive draws
+        for i in range(len(self.results) - 1):
+            current_draw = self.results[i]
+            next_draw = self.results[i + 1]
+
+            current_nums = set(current_draw['numbers'])
+            next_nums = set(next_draw['numbers'])
+
+            # Count carryover (repeated numbers)
+            carryover = len(current_nums & next_nums)
+            patterns['number_carryover'].append(carryover)
+
+            # Count new numbers
+            new_numbers = len(next_nums - current_nums)
+            patterns['new_numbers_per_draw'].append(new_numbers)
+
+            # Sum difference
+            sum_diff = abs(sum(next_draw['numbers']) - sum(current_draw['numbers']))
+            patterns['sum_differences'].append(sum_diff)
+
+            # Pattern transitions (even/odd)
+            curr_even = sum(1 for n in current_nums if n % 2 == 0)
+            next_even = sum(1 for n in next_nums if n % 2 == 0)
+            curr_pattern = f"{curr_even}E-{len(current_nums) - curr_even}O"
+            next_pattern = f"{next_even}E-{len(next_nums) - next_even}O"
+            transition = f"{curr_pattern} → {next_pattern}"
+            patterns['pattern_transitions'][transition] += 1
+
+        # Calculate statistics
+        analysis = {
+            'average_carryover': round(float(np.mean(patterns['number_carryover'])), 2),
+            'most_common_carryover': int(Counter(patterns['number_carryover']).most_common(1)[0][0]),
+            'average_new_numbers': round(float(np.mean(patterns['new_numbers_per_draw'])), 2),
+            'average_sum_difference': round(float(np.mean(patterns['sum_differences'])), 2),
+            'most_common_pattern_transition': max(patterns['pattern_transitions'].items(), key=lambda x: x[1])[0],
+            'carryover_distribution': {int(k): int(v) for k, v in Counter(patterns['number_carryover']).items()},
+            'pattern_transitions': {k: int(v) for k, v in patterns['pattern_transitions'].items()}
+        }
+
+        # Get most recent draw for prediction context
+        latest_draw = self.results[0]  # Assuming most recent is first
+        analysis['latest_draw'] = {
+            'date': latest_draw['date'],
+            'numbers': [int(n) for n in latest_draw['numbers']],  # Convert to native int
+            'sum': int(sum(latest_draw['numbers']))
+        }
+
+        return analysis
+
+    def generate_pattern_based_prediction(self, top_n: int = 5) -> List[Dict]:
+        """
+        Generate predictions based on consecutive draw patterns.
+
+        Args:
+            top_n: Number of predictions to generate
+
+        Returns:
+            List of pattern-based predictions
+        """
+        pattern_analysis = self.analyze_consecutive_draw_patterns()
+
+        if 'message' in pattern_analysis:
+            return []
+
+        # Get the latest draw
+        latest_draw = self.results[0]
+        latest_numbers = set(latest_draw['numbers'])
+
+        # Get frequency data
+        all_numbers = [num for result in self.results for num in result['numbers']]
+        number_freq = Counter(all_numbers)
+
+        # Expected carryover count
+        expected_carryover = int(round(pattern_analysis['average_carryover']))
+        expected_new = int(round(pattern_analysis['average_new_numbers']))
+
+        predictions = []
+        seen_combinations = set()
+        attempts = 0
+        max_attempts = top_n * 200
+
+        while len(predictions) < top_n and attempts < max_attempts:
+            attempts += 1
+
+            # Select numbers to carry over from latest draw
+            if expected_carryover > 0 and expected_carryover <= len(latest_numbers):
+                # Randomly select numbers to carry over
+                carryover_nums = set(np.random.choice(list(latest_numbers),
+                                                     size=min(expected_carryover, len(latest_numbers)),
+                                                     replace=False))
+            else:
+                carryover_nums = set()
+
+            # Fill remaining slots with new numbers based on frequency
+            remaining_slots = self.numbers_to_pick - len(carryover_nums)
+
+            # Get available numbers (excluding carryover)
+            available_numbers = [n for n in range(1, self.max_number + 1) if n not in carryover_nums]
+            available_freq = {n: number_freq.get(n, 0) for n in available_numbers}
+
+            # Weighted selection for new numbers
+            if available_numbers and remaining_slots > 0:
+                weights = [available_freq[n] + np.random.random() * 50 for n in available_numbers]
+                probs = np.array(weights) / sum(weights)
+
+                new_nums = set(np.random.choice(available_numbers,
+                                               size=min(remaining_slots, len(available_numbers)),
+                                               replace=False,
+                                               p=probs))
+            else:
+                new_nums = set()
+
+            combo = carryover_nums | new_nums
+
+            if len(combo) == self.numbers_to_pick:
+                combo_tuple = tuple(sorted(combo))
+
+                if combo_tuple not in seen_combinations:
+                    seen_combinations.add(combo_tuple)
+
+                    # Calculate score
+                    score = self._calculate_pattern_score(combo_tuple, latest_numbers, pattern_analysis)
+
+                    predictions.append({
+                        'numbers': [int(n) for n in combo_tuple],  # Convert to native int
+                        'pattern_score': round(float(score), 2),
+                        'carryover_count': int(len(combo & latest_numbers)),
+                        'new_count': int(len(combo - latest_numbers)),
+                        'analysis': self._analyze_combination(combo_tuple),
+                        'prediction_type': 'Pattern-Based'
+                    })
+
+        # Sort by score
+        predictions.sort(key=lambda x: x['pattern_score'], reverse=True)
+
+        return predictions[:top_n]
+
+    def _calculate_pattern_score(self, combo: Tuple, latest_numbers: set, pattern_analysis: Dict) -> float:
+        """Calculate score based on pattern analysis."""
+        combo_set = set(combo)
+
+        # Carryover score (how close to expected carryover)
+        actual_carryover = len(combo_set & latest_numbers)
+        expected_carryover = pattern_analysis['average_carryover']
+        carryover_diff = abs(actual_carryover - expected_carryover)
+        carryover_score = max(0, 1 - (carryover_diff / self.numbers_to_pick))
+
+        # Frequency score
+        all_numbers = [num for result in self.results for num in result['numbers']]
+        number_freq = Counter(all_numbers)
+        max_freq = max(number_freq.values())
+        freq_score = sum(number_freq.get(num, 0) for num in combo) / (len(combo) * max_freq)
+
+        # Pattern match score (even/odd balance)
+        even_count = sum(1 for num in combo if num % 2 == 0)
+        balance_score = 1.0 - abs(even_count - len(combo)/2) / len(combo)
+
+        # Combined score
+        total_score = (carryover_score * 0.4) + (freq_score * 0.3) + (balance_score * 0.3)
+
         return min(total_score * 100, 100)
 
     def get_chart_data(self) -> Dict:

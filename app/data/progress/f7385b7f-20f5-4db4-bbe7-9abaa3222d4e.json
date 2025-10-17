@@ -1,0 +1,1 @@
+{"task_id": "f7385b7f-20f5-4db4-bbe7-9abaa3222d4e", "status": "completed", "current": 100, "total": 100, "percentage": 100, "message": "Scraped 1613 draws successfully", "started_at": 1760738829.4277866, "updated_at": 1760738940.4393182, "result": {"success": true, "filename": "result_Lotto_6-42_20251018.json", "total_draws": 1613, "cached": false}}

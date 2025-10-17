@@ -143,7 +143,9 @@ class PCSOScraper:
         game_type: str,
         start_date: datetime,
         end_date: datetime,
-        save_path: str = "app/data"
+        save_path: str = "app/data",
+        progress_callback = None,
+        scraping_progress_callback = None
     ) -> Dict:
         """
         Scrape lottery results from PCSO website.
@@ -200,21 +202,31 @@ class PCSOScraper:
                 logger.info("Will proceed with scraping...")
 
         try:
+            total_steps = 9  # Total scraping steps before extraction
+
             # Set up driver
             logger.info("Step 1: Setting up WebDriver...")
+            if scraping_progress_callback:
+                scraping_progress_callback(1, total_steps, "Setting up browser...")
             self.driver = self._setup_driver()
 
             logger.info(f"Step 2: Navigating to PCSO website: {self.PCSO_URL}")
+            if scraping_progress_callback:
+                scraping_progress_callback(2, total_steps, "Navigating to PCSO website...")
             self.driver.get(self.PCSO_URL)
 
             # Wait for page to load
             logger.info("Step 3: Waiting for page to load...")
+            if scraping_progress_callback:
+                scraping_progress_callback(3, total_steps, "Waiting for page to load...")
             wait = WebDriverWait(self.driver, 30)
             wait.until(EC.presence_of_element_located((By.ID, self.SELECTORS['game_type'])))
             logger.info("Page loaded successfully")
 
             # Select game type
             logger.info(f"Step 4: Selecting game type: {game_type}")
+            if scraping_progress_callback:
+                scraping_progress_callback(4, total_steps, f"Selecting game type: {game_type}...")
             game_select = Select(self.driver.find_element(By.ID, self.SELECTORS['game_type']))
             game_select.select_by_visible_text(self.GAME_TYPES[game_type])
             logger.info(f"Game type '{game_type}' selected")
@@ -222,20 +234,28 @@ class PCSOScraper:
 
             # Select start date
             logger.info("Step 5: Selecting start date...")
+            if scraping_progress_callback:
+                scraping_progress_callback(5, total_steps, "Selecting start date...")
             self._select_date(start_date.month, start_date.day, start_date.year, 'start')
 
             # Select end date
             logger.info("Step 6: Selecting end date...")
+            if scraping_progress_callback:
+                scraping_progress_callback(6, total_steps, "Selecting end date...")
             self._select_date(end_date.month, end_date.day, end_date.year, 'end')
 
             # Click search button
             logger.info("Step 7: Clicking search button...")
+            if scraping_progress_callback:
+                scraping_progress_callback(7, total_steps, "Submitting search request...")
             search_button = self.driver.find_element(By.ID, self.SELECTORS['search_button'])
             search_button.click()
             logger.info("Search button clicked, waiting for results...")
 
             # Wait for results to load with better timeout handling
             logger.info("Step 8: Waiting for results table to load...")
+            if scraping_progress_callback:
+                scraping_progress_callback(8, total_steps, "Waiting for results to load...")
             time.sleep(3)  # Initial wait for page to start processing
 
             try:
@@ -250,7 +270,9 @@ class PCSOScraper:
 
             # Extract results
             logger.info("Step 9: Extracting lottery results from table...")
-            results = self._extract_results()
+            if scraping_progress_callback:
+                scraping_progress_callback(9, total_steps, "Results table loaded. Starting extraction...")
+            results = self._extract_results(progress_callback=progress_callback)
             logger.info(f"Successfully extracted {len(results)} lottery draws")
 
             # Prepare data structure
@@ -296,12 +318,15 @@ class PCSOScraper:
                     # Ignore SSL errors during cleanup (Python 3.14 RC2 bug)
                     logger.warning(f"Error closing driver (ignoring): {str(e)}")
 
-    def _extract_results(self) -> List[Dict]:
+    def _extract_results(self, progress_callback=None) -> List[Dict]:
         """
         Extract lottery results from the results table.
 
         PCSO table format:
         LOTTO GAME | COMBINATIONS | DRAW DATE | JACKPOT (PHP) | WINNERS
+
+        Args:
+            progress_callback: Optional callback function to report progress (current, total)
         """
         results = []
 
@@ -310,7 +335,8 @@ class PCSOScraper:
             logger.info("Locating results table...")
             table = self.driver.find_element(By.CSS_SELECTOR, '.search-lotto-result-div table tbody')
             rows = table.find_elements(By.TAG_NAME, 'tr')
-            logger.info(f"Found {len(rows)} rows in results table")
+            total_rows = len(rows)
+            logger.info(f"Found {total_rows} rows in results table")
 
             for idx, row in enumerate(rows, 1):
                 cols = row.find_elements(By.TAG_NAME, 'td')
@@ -357,9 +383,13 @@ class PCSOScraper:
 
                     results.append(result)
 
+                    # Report progress via callback
+                    if progress_callback:
+                        progress_callback(idx, total_rows)
+
                     # Log progress every 50 rows
                     if idx % 50 == 0:
-                        logger.info(f"Processed {idx}/{len(rows)} rows...")
+                        logger.info(f"Processed {idx}/{total_rows} rows...")
 
             logger.info(f"Successfully extracted {len(results)} lottery results")
             return results
