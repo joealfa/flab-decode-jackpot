@@ -1,0 +1,517 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis Dashboard - {{ data.game_type }}{% endblock %}
+
+{% block content %}
+<div class="container dashboard">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="header-content">
+            <h1>
+                <i class="fas fa-chart-line"></i>
+                {{ data.game_type }} Analysis
+            </h1>
+            <p class="subtitle">
+                {{ overall_stats.total_draws }} draws from {{ data.start_date }} to {{ data.end_date }}
+            </p>
+        </div>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Home
+        </a>
+    </div>
+
+    <!-- Top Predictions -->
+    <div class="card predictions-card">
+        <div class="card-header gradient-header">
+            <h2><i class="fas fa-lightbulb"></i> Top 5 Predicted Combinations</h2>
+            <p>Based on comprehensive probability analysis</p>
+        </div>
+        <div class="card-body">
+            <div class="predictions-grid">
+                {% for prediction in top_predictions %}
+                <div class="prediction-item rank-{{ loop.index }}">
+                    <div class="prediction-rank">#{{ loop.index }}</div>
+                    <div class="prediction-content">
+                        <div class="prediction-numbers">
+                            {% for num in prediction.numbers %}
+                            <span class="number-ball">{{ num }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="prediction-stats">
+                            <div class="stat">
+                                <span class="stat-label">Confidence</span>
+                                <span class="stat-value">{{ prediction.confidence_score }}%</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Pattern</span>
+                                <span class="stat-value">{{ prediction.analysis.even_odd }}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Sum</span>
+                                <span class="stat-value">{{ prediction.analysis.sum }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Winner-Optimized Predictions -->
+    <div class="card predictions-card winner-section">
+        <div class="card-header gradient-header-winner">
+            <h2><i class="fas fa-trophy"></i> Winner-Optimized Predictions</h2>
+            <p>Based on analysis of draws that had jackpot winners</p>
+        </div>
+        <div class="card-body">
+            <div class="predictions-grid">
+                {% for prediction in winning_predictions %}
+                <div class="prediction-item winner-pred rank-{{ loop.index }}">
+                    <div class="prediction-rank winner-rank">#{{ loop.index }}</div>
+                    <div class="prediction-content">
+                        <div class="prediction-numbers">
+                            {% for num in prediction.numbers %}
+                            <span class="number-ball winner-ball">{{ num }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="prediction-stats">
+                            <div class="stat">
+                                <span class="stat-label">Win Probability</span>
+                                <span class="stat-value winner-score">{{ prediction.win_probability_score }}%</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Pattern</span>
+                                <span class="stat-value">{{ prediction.analysis.even_odd }}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Type</span>
+                                <span class="stat-value winner-badge">{{ prediction.prediction_type }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Winner Analysis Stats -->
+    {% if overall_stats.winner_analysis and overall_stats.winner_analysis.total_winning_draws > 0 %}
+    <div class="card winner-stats-card">
+        <div class="card-header">
+            <h2><i class="fas fa-trophy-alt"></i> Winner Analysis</h2>
+        </div>
+        <div class="card-body">
+            <div class="stats-grid">
+                <div class="stat-card winner-stat">
+                    <div class="stat-icon winner-icon">
+                        <i class="fas fa-award"></i>
+                    </div>
+                    <h3>Total Winning Draws</h3>
+                    <p class="big-stat">{{ overall_stats.winner_analysis.total_winning_draws }}</p>
+                    <p class="stat-detail">Win Rate: {{ overall_stats.winner_analysis.win_rate }}%</p>
+                </div>
+
+                <div class="stat-card winner-stat">
+                    <div class="stat-icon winner-icon">
+                        <i class="fas fa-fire-alt"></i>
+                    </div>
+                    <h3>Hot Winning Numbers</h3>
+                    <div class="number-list">
+                        {% for num in overall_stats.winner_analysis.hot_winning_numbers[:6] %}
+                        <span class="number-tag winner">{{ num }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="stat-card winner-stat">
+                    <div class="stat-icon winner-icon">
+                        <i class="fas fa-calendar-star"></i>
+                    </div>
+                    <h3>Best Winning Days</h3>
+                    <div class="best-days">
+                        {% for day, count in overall_stats.winner_analysis.best_winning_days %}
+                        <div class="day-item">
+                            <span class="day-name">{{ day }}</span>
+                            <span class="day-count">{{ count }} wins</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="stat-card winner-stat">
+                    <div class="stat-icon winner-icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <h3>Best Winning Months</h3>
+                    <div class="best-months">
+                        {% for month, count in overall_stats.winner_analysis.best_winning_months %}
+                        <div class="month-item">
+                            <span class="month-name">
+                                {% if month == 1 %}January
+                                {% elif month == 2 %}February
+                                {% elif month == 3 %}March
+                                {% elif month == 4 %}April
+                                {% elif month == 5 %}May
+                                {% elif month == 6 %}June
+                                {% elif month == 7 %}July
+                                {% elif month == 8 %}August
+                                {% elif month == 9 %}September
+                                {% elif month == 10 %}October
+                                {% elif month == 11 %}November
+                                {% elif month == 12 %}December
+                                {% endif %}
+                            </span>
+                            <span class="month-count">{{ count }} wins</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Win Probability -->
+            {% if overall_stats.winner_analysis.next_win_probability and overall_stats.winner_analysis.next_win_probability.average_days_between_wins %}
+            <div class="win-probability-section">
+                <h3><i class="fas fa-clock"></i> Next Win Probability</h3>
+                <div class="probability-grid">
+                    <div class="prob-card">
+                        <span class="prob-label">Last Win</span>
+                        <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.last_win_date }}</span>
+                    </div>
+                    <div class="prob-card">
+                        <span class="prob-label">Days Since</span>
+                        <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.days_since_last_win }} days</span>
+                    </div>
+                    <div class="prob-card">
+                        <span class="prob-label">Average Gap</span>
+                        <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.average_days_between_wins }} days</span>
+                    </div>
+                    <div class="prob-card highlight">
+                        <span class="prob-label">Probability Status</span>
+                        <span class="prob-value status">{{ overall_stats.winner_analysis.next_win_probability.probability_status }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Winning Patterns -->
+            <div class="winning-patterns">
+                <h3><i class="fas fa-pattern"></i> Winning Patterns</h3>
+                <div class="pattern-grid">
+                    <div class="pattern-card">
+                        <h4>Even/Odd in Wins</h4>
+                        <p class="pattern-highlight">{{ overall_stats.winner_analysis.winning_even_odd_patterns.most_common_pattern }}</p>
+                        <small>Appeared in {{ overall_stats.winner_analysis.winning_even_odd_patterns.most_common_count }} winning draws</small>
+                    </div>
+                    <div class="pattern-card">
+                        <h4>High/Low in Wins</h4>
+                        <p class="pattern-highlight">{{ overall_stats.winner_analysis.winning_high_low_patterns.most_common_pattern }}</p>
+                        <small>Appeared in {{ overall_stats.winner_analysis.winning_high_low_patterns.most_common_count }} winning draws</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body">
+            <div class="empty-state">
+                <i class="fas fa-info-circle"></i>
+                <p>No winning draws found in the dataset. Analysis is based on all draws.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Overall Statistics -->
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="fas fa-chart-bar"></i> Overall Statistics</h2>
+        </div>
+        <div class="card-body">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <h3>Hot Numbers</h3>
+                    <div class="number-list">
+                        {% for num in overall_stats.hot_numbers %}
+                        <span class="number-tag hot">{{ num }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-snowflake"></i>
+                    </div>
+                    <h3>Cold Numbers</h3>
+                    <div class="number-list">
+                        {% for num in overall_stats.cold_numbers %}
+                        <span class="number-tag cold">{{ num }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <h3>Even/Odd Pattern</h3>
+                    <p class="pattern-text">Most Common: <strong>{{ overall_stats.even_odd_analysis.most_common_pattern }}</strong></p>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-sort-amount-up"></i>
+                    </div>
+                    <h3>High/Low Pattern</h3>
+                    <p class="pattern-text">Most Common: <strong>{{ overall_stats.high_low_analysis.most_common_pattern }}</strong></p>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="charts-row">
+                <div class="chart-container">
+                    <h3>Number Frequency Distribution</h3>
+                    <canvas id="frequencyChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Sum Distribution</h3>
+                    <canvas id="sumChart"></canvas>
+                </div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-container">
+                    <h3>Even/Odd Patterns</h3>
+                    <canvas id="evenOddChart"></canvas>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Day of Week Distribution</h3>
+                    <canvas id="dayChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Day-Specific Analysis -->
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="fas fa-calendar-week"></i> Day-Specific Analysis</h2>
+        </div>
+        <div class="card-body">
+            <div class="days-tabs">
+                <button class="day-tab active" data-day="Monday">Monday</button>
+                <button class="day-tab" data-day="Tuesday">Tuesday</button>
+                <button class="day-tab" data-day="Wednesday">Wednesday</button>
+                <button class="day-tab" data-day="Thursday">Thursday</button>
+                <button class="day-tab" data-day="Friday">Friday</button>
+                <button class="day-tab" data-day="Saturday">Saturday</button>
+                <button class="day-tab" data-day="Sunday">Sunday</button>
+            </div>
+
+            {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+            <div class="day-content" id="day-{{ day }}" {% if day != 'Monday' %}style="display: none;"{% endif %}>
+                {% if day_analysis[day].total_draws > 0 %}
+                <div class="day-stats">
+                    <div class="day-header">
+                        <h3>{{ day }}</h3>
+                        <span class="badge">{{ day_analysis[day].total_draws }} draws</span>
+                    </div>
+
+                    <div class="day-grid">
+                        <div class="day-section">
+                            <h4><i class="fas fa-fire"></i> Hot Numbers for {{ day }}</h4>
+                            <div class="number-list">
+                                {% for num in day_analysis[day].hot_numbers %}
+                                <span class="number-tag hot">{{ num }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="day-section">
+                            <h4><i class="fas fa-star"></i> Top Predictions for {{ day }}</h4>
+                            <div class="day-predictions">
+                                {% for pred in day_analysis[day].predicted_combinations %}
+                                <div class="day-prediction">
+                                    <span class="pred-rank">#{{ loop.index }}</span>
+                                    <div class="pred-numbers">
+                                        {% for num in pred.numbers %}
+                                        <span class="number-ball small">{{ num }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    <span class="pred-confidence">{{ pred.confidence_score }}%</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>No draws found for {{ day }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Detailed Statistics -->
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="fas fa-list"></i> Detailed Statistics</h2>
+        </div>
+        <div class="card-body">
+            <div class="detailed-stats">
+                <div class="detail-row">
+                    <span class="detail-label">Total Draws:</span>
+                    <span class="detail-value">{{ overall_stats.total_draws }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Average Sum:</span>
+                    <span class="detail-value">{{ "%.2f"|format(overall_stats.sum_analysis.average_sum) }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Sum Range:</span>
+                    <span class="detail-value">{{ overall_stats.sum_analysis.min_sum }} - {{ overall_stats.sum_analysis.max_sum }}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Draws with Consecutive Numbers:</span>
+                    <span class="detail-value">{{ overall_stats.consecutive_analysis.draws_with_consecutive }} ({{ "%.1f"|format(overall_stats.consecutive_analysis.percentage_with_consecutive) }}%)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Chart data from Flask
+const chartData = {{ chart_data | tojson | safe }};
+
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+    // Frequency Chart
+    new Chart(document.getElementById('frequencyChart'), {
+        type: 'bar',
+        data: {
+            labels: chartData.number_frequency.labels,
+            datasets: [{
+                label: 'Frequency',
+                data: chartData.number_frequency.values,
+                backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                borderColor: 'rgba(99, 102, 241, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // Sum Distribution Chart
+    new Chart(document.getElementById('sumChart'), {
+        type: 'line',
+        data: {
+            labels: chartData.sum_distribution.labels,
+            datasets: [{
+                label: 'Frequency',
+                data: chartData.sum_distribution.values,
+                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                borderColor: 'rgba(16, 185, 129, 1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // Even/Odd Chart
+    new Chart(document.getElementById('evenOddChart'), {
+        type: 'pie',
+        data: {
+            labels: chartData.even_odd_patterns.labels,
+            datasets: [{
+                data: chartData.even_odd_patterns.values,
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(99, 102, 241, 0.8)',
+                    'rgba(139, 92, 246, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true
+        }
+    });
+
+    // Day Distribution Chart
+    new Chart(document.getElementById('dayChart'), {
+        type: 'bar',
+        data: {
+            labels: chartData.day_distribution.labels,
+            datasets: [{
+                label: 'Number of Draws',
+                data: chartData.day_distribution.values,
+                backgroundColor: 'rgba(139, 92, 246, 0.8)',
+                borderColor: 'rgba(139, 92, 246, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+});
+
+// Day tabs functionality
+document.querySelectorAll('.day-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        const day = this.dataset.day;
+
+        // Update active tab
+        document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+
+        // Show corresponding content
+        document.querySelectorAll('.day-content').forEach(content => {
+            content.style.display = 'none';
+        });
+        document.getElementById('day-' + day).style.display = 'block';
+    });
+});
+</script>
+{% endblock %}
