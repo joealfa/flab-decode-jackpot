@@ -51,12 +51,85 @@
                 </button>
 
                 <div id="loadingIndicator" class="loading-indicator" style="display: none;">
-                    <div class="spinner"></div>
-                    <p>Loading data... This may take a few moments.</p>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <p id="progressText">Preparing to load data...</p>
+                        <div class="progress-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Please do not:</strong> close this tab, refresh the page, or navigate away.
+                            <br>
+                            <small>Interrupting the process may cause data corruption or incomplete results.</small>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="messageBox" class="message-box" style="display: none;"></div>
             </form>
+        </div>
+    </div>
+
+    <!-- Add Actual Result Section -->
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="fas fa-clipboard-check"></i> Add Actual Draw Result</h2>
+            <p class="subtitle">Add latest draw results before analyzing to include them in predictions</p>
+        </div>
+        <div class="card-body">
+            <button class="btn btn-primary" onclick="toggleAddResultForm()">
+                <i class="fas fa-plus-circle"></i> Add New Result
+            </button>
+
+            <div id="addResultForm" style="display: none; margin-top: 20px;">
+                <form id="actualResultForm" onsubmit="submitActualResult(event)">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="resultGameType">Game Type</label>
+                            <select id="resultGameType" required class="form-control">
+                                <option value="">Select Game Type</option>
+                                <option value="Lotto 6/42">Lotto 6/42</option>
+                                <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
+                                <option value="Super Lotto 6/49">Super Lotto 6/49</option>
+                                <option value="Grand Lotto 6/55">Grand Lotto 6/55</option>
+                                <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="resultDrawDate">Draw Date</label>
+                            <input type="date" id="resultDrawDate" required class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Winning Numbers (6 numbers)</label>
+                        <div class="number-inputs">
+                            <input type="number" class="number-input" min="1" max="58" required placeholder="1">
+                            <input type="number" class="number-input" min="1" max="58" required placeholder="2">
+                            <input type="number" class="number-input" min="1" max="58" required placeholder="3">
+                            <input type="number" class="number-input" min="1" max="58" required placeholder="4">
+                            <input type="number" class="number-input" min="1" max="58" required placeholder="5">
+                            <input type="number" class="number-input" min="1" max="58" required placeholder="6">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="resultJackpot">Jackpot (Optional)</label>
+                            <input type="text" id="resultJackpot" class="form-control" placeholder="e.g., 50,000,000.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="resultWinners">Winners (Optional)</label>
+                            <input type="text" id="resultWinners" class="form-control" placeholder="e.g., 2">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Add Result to Dataset
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="toggleAddResultForm()">
+                        Cancel
+                    </button>
+                </form>
+                <div id="addResultMessage" style="display: none; margin-top: 15px;"></div>
+            </div>
         </div>
     </div>
 
@@ -74,12 +147,14 @@
                         <i class="fas fa-file-chart"></i>
                     </div>
                     <div class="result-info">
-                        <h3>{{ file }}</h3>
+                        <h3>{{ file.game_type }}</h3>
+                        <p class="result-date"><i class="fas fa-calendar"></i> {{ file.date }}</p>
+                        <p class="result-filename"><small>{{ file.filename }}</small></p>
                         <div class="button-group">
-                            <a href="{{ url_for('analyze', filename=file) }}" class="btn btn-primary">
+                            <a href="{{ url_for('analyze', filename=file.filename) }}" class="btn btn-primary">
                                 <i class="fas fa-chart-bar"></i> Analyze Now
                             </a>
-                            <button class="btn btn-secondary" onclick="viewHistory('{{ file }}')">
+                            <button class="btn btn-secondary" onclick="viewHistory('{{ file.filename }}')">
                                 <i class="fas fa-history"></i> History
                             </button>
                         </div>
@@ -144,7 +219,7 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
         end_date: formData.get('endDate')
     };
 
-    // Show loading indicator
+    // Show loading indicator with progress bar
     document.getElementById('loadingIndicator').style.display = 'block';
     document.getElementById('generateBtn').disabled = true;
     document.getElementById('messageBox').style.display = 'none';
@@ -160,25 +235,16 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
 
         const result = await response.json();
 
-        // Hide loading indicator
-        document.getElementById('loadingIndicator').style.display = 'none';
-        document.getElementById('generateBtn').disabled = false;
-
-        // Show message
-        const messageBox = document.getElementById('messageBox');
-        messageBox.style.display = 'block';
-
-        if (result.success) {
-            const wasCached = result.cached || false;
-            messageBox.className = 'message-box success';
-            messageBox.innerHTML = `
-                <i class="fas fa-check-circle"></i>
-                <p><strong>Success!</strong> ${wasCached ? 'Loaded' : 'Scraped'} ${result.total_draws} draws${wasCached ? ' from cache' : ''}.</p>
-                <a href="/analyze/${result.filename}" class="btn btn-primary">
-                    <i class="fas fa-chart-bar"></i> Analyze Now
-                </a>
-            `;
+        if (result.success && result.task_id) {
+            // Start polling for progress
+            pollProgress(result.task_id);
         } else {
+            scrapingInProgress = false; // Clear the flag
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('generateBtn').disabled = false;
+
+            const messageBox = document.getElementById('messageBox');
+            messageBox.style.display = 'block';
             messageBox.className = 'message-box error';
             messageBox.innerHTML = `
                 <i class="fas fa-exclamation-circle"></i>
@@ -186,6 +252,7 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
             `;
         }
     } catch (error) {
+        scrapingInProgress = false; // Clear the flag
         document.getElementById('loadingIndicator').style.display = 'none';
         document.getElementById('generateBtn').disabled = false;
 
@@ -262,9 +329,249 @@ function closeHistory(event) {
         }
     }
 }
+
+// Toggle add result form
+function toggleAddResultForm() {
+    const form = document.getElementById('addResultForm');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+
+    // Clear message when toggling
+    document.getElementById('addResultMessage').style.display = 'none';
+}
+
+// Submit actual result
+async function submitActualResult(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const numberInputs = form.querySelectorAll('.number-input');
+    const numbers = Array.from(numberInputs).map(input => parseInt(input.value));
+
+    // Validate numbers
+    if (numbers.length !== 6) {
+        alert('Please enter exactly 6 numbers');
+        return;
+    }
+
+    if (new Set(numbers).size !== 6) {
+        alert('Please enter unique numbers (no duplicates)');
+        return;
+    }
+
+    const gameType = document.getElementById('resultGameType').value;
+    const drawDate = document.getElementById('resultDrawDate').value;
+    const jackpot = document.getElementById('resultJackpot').value || 'N/A';
+    const winners = document.getElementById('resultWinners').value || 'N/A';
+
+    const data = {
+        game_type: gameType,
+        draw_date: drawDate,
+        numbers: numbers,
+        jackpot: jackpot,
+        winners: winners
+    };
+
+    try {
+        const response = await fetch('/api/submit-actual-result', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        const messageBox = document.getElementById('addResultMessage');
+        messageBox.style.display = 'block';
+
+        if (result.success) {
+            messageBox.className = 'message-box success';
+            messageBox.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                <p><strong>Success!</strong> ${result.message}</p>
+                <p>Total draws in dataset: ${result.total_draws}</p>
+                <p><small>You can now analyze this dataset to include the new result in predictions.</small></p>
+            `;
+
+            // Clear form
+            form.reset();
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                toggleAddResultForm();
+            }, 5000);
+        } else {
+            messageBox.className = 'message-box error';
+            messageBox.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i>
+                <p><strong>Error:</strong> ${result.error}</p>
+            `;
+        }
+    } catch (error) {
+        const messageBox = document.getElementById('addResultMessage');
+        messageBox.style.display = 'block';
+        messageBox.className = 'message-box error';
+        messageBox.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i>
+            <p><strong>Error:</strong> ${error.message}</p>
+        `;
+    }
+}
+
+// Track if scraping is in progress
+let scrapingInProgress = false;
+
+// Warn user before leaving during scraping
+window.addEventListener('beforeunload', function (e) {
+    if (scrapingInProgress) {
+        e.preventDefault();
+        e.returnValue = 'Data scraping is in progress. Leaving now may cause data corruption. Are you sure you want to leave?';
+        return e.returnValue;
+    }
+});
+
+// Poll for real-time progress updates
+async function pollProgress(taskId) {
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+
+    // Set scraping in progress flag
+    scrapingInProgress = true;
+
+    const pollInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`/api/progress/${taskId}`);
+            const result = await response.json();
+
+            if (result.success && result.progress) {
+                const progress = result.progress;
+
+                // Update progress bar
+                progressFill.style.width = progress.percentage + '%';
+                progressText.textContent = progress.message;
+
+                // Check if completed or failed
+                if (progress.status === 'completed') {
+                    clearInterval(pollInterval);
+                    scrapingInProgress = false; // Clear the flag
+
+                    // Show completion
+                    setTimeout(() => {
+                        document.getElementById('loadingIndicator').style.display = 'none';
+                        document.getElementById('generateBtn').disabled = false;
+
+                        // Show success message
+                        const messageBox = document.getElementById('messageBox');
+                        messageBox.style.display = 'block';
+                        messageBox.className = 'message-box success';
+
+                        if (progress.result) {
+                            const wasCached = progress.result.cached || false;
+                            messageBox.innerHTML = `
+                                <i class="fas fa-check-circle"></i>
+                                <p><strong>Success!</strong> ${wasCached ? 'Loaded' : 'Scraped'} ${progress.result.total_draws} draws${wasCached ? ' from cache' : ''}.</p>
+                                <a href="/analyze/${progress.result.filename}" class="btn btn-primary">
+                                    <i class="fas fa-chart-bar"></i> Analyze Now
+                                </a>
+                            `;
+                        } else {
+                            messageBox.innerHTML = `
+                                <i class="fas fa-check-circle"></i>
+                                <p><strong>Success!</strong> ${progress.message}</p>
+                            `;
+                        }
+                    }, 500);
+
+                } else if (progress.status === 'failed') {
+                    clearInterval(pollInterval);
+                    scrapingInProgress = false; // Clear the flag
+
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    document.getElementById('generateBtn').disabled = false;
+
+                    const messageBox = document.getElementById('messageBox');
+                    messageBox.style.display = 'block';
+                    messageBox.className = 'message-box error';
+                    messageBox.innerHTML = `
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p><strong>Error:</strong> ${progress.message}</p>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error('Error polling progress:', error);
+        }
+    }, 500); // Poll every 500ms
+}
 </script>
 
 <style>
+.progress-container {
+    width: 100%;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 30px;
+    background-color: #e0e0e0;
+    border-radius: 15px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    transition: width 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+#progressText {
+    color: #667eea;
+    font-weight: 600;
+    margin: 0 0 15px 0;
+}
+
+.progress-warning {
+    background: #fef3c7;
+    border: 2px solid #f59e0b;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    text-align: center;
+    color: #92400e;
+    line-height: 1.6;
+}
+
+.progress-warning i {
+    color: #f59e0b;
+    font-size: 1.2rem;
+    margin-right: 5px;
+}
+
+.progress-warning strong {
+    color: #92400e;
+    font-size: 1rem;
+}
+
+.progress-warning small {
+    color: #78350f;
+    font-size: 0.85rem;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 .button-group {
     display: flex;
     gap: 10px;
@@ -273,6 +580,89 @@ function closeHistory(event) {
 
 .button-group .btn {
     flex: 1;
+}
+
+.number-inputs {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.number-input {
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    text-align: center;
+    font-weight: bold;
+    transition: border-color 0.2s;
+}
+
+.number-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-control {
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.subtitle {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 5px;
+}
+
+.result-date {
+    color: #667eea;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 8px 0;
+}
+
+.result-date i {
+    margin-right: 5px;
+}
+
+.result-filename {
+    color: #999;
+    font-size: 0.8rem;
+    margin: 5px 0 10px 0;
+    font-family: 'Courier New', monospace;
+}
+
+.result-info h3 {
+    color: #333;
+    font-size: 1.2rem;
+    margin-bottom: 5px;
 }
 
 .modal-overlay {

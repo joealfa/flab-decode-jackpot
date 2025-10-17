@@ -6,10 +6,14 @@ Main Flask Application
 import os
 import json
 import logging
+import uuid
+import threading
+import numpy as np
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 from app.modules.scraper import PCSOScraper
 from app.modules.analyzer import LotteryAnalyzer
+from app.modules.progress_tracker import ProgressTracker
 
 # Configure logging
 logging.basicConfig(
@@ -27,20 +31,151 @@ app = Flask(__name__,
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'fortune-lab-secret-key-2024')
 app.config['DATA_PATH'] = 'app/data'
 
+# Initialize progress tracker
+progress_tracker = ProgressTracker()
+
+
+def convert_to_serializable(obj):
+    """Convert NumPy types to native Python types for JSON serialization."""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_to_serializable(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_to_serializable(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(convert_to_serializable(item) for item in obj)
+    else:
+        return obj
+
 
 @app.route('/')
 def index():
     """Main dashboard page."""
-    # Get list of available result files
+    # Get list of available result files with metadata
     data_path = app.config['DATA_PATH']
     result_files = []
 
     if os.path.exists(data_path):
         for filename in os.listdir(data_path):
-            if filename.endswith('.json'):
-                result_files.append(filename)
+            if filename.endswith('.json') and filename.startswith('result_'):
+                # Parse filename: result_GameType_Date.json
+                # Example: result_Super_Lotto_6-49_20251018.json
+                parts = filename.replace('result_', '').replace('.json', '')
+
+                # Split to get game type and date
+                parts_list = parts.split('_')
+                if len(parts_list) >= 2:
+                    # Last part is the date
+                    date_str = parts_list[-1]
+                    # Everything else is game type
+                    game_type_parts = parts_list[:-1]
+                    game_type_raw = '_'.join(game_type_parts)
+
+                    # Format game type (replace underscores with spaces, keep dashes for number format)
+                    game_type = game_type_raw.replace('_', ' ').replace('-', '/')
+
+                    # Format date from YYYYMMDD to YYYY-MM-DD
+                    try:
+                        if len(date_str) == 8:
+                            year = date_str[:4]
+                            month = date_str[4:6]
+                            day = date_str[6:8]
+                            formatted_date = f"{year}-{month}-{day}"
+                        else:
+                            formatted_date = date_str
+                    except:
+                        formatted_date = date_str
+
+                    result_files.append({
+                        'filename': filename,
+                        'game_type': game_type,
+                        'date': formatted_date,
+                        'mtime': os.path.getmtime(os.path.join(data_path, filename))
+                    })
+
+    # Sort by modification time (newest first)
+    result_files.sort(key=lambda x: x['mtime'], reverse=True)
 
     return render_template('index.html', result_files=result_files)
+
+
+def scrape_data_thread(task_id, game_type, start_date, end_date, data_path):
+    """Background thread for scraping data."""
+    try:
+        progress_tracker.create_task(task_id)
+        progress_tracker.update_progress(task_id, 0, 100, "Initializing scraper...")
+
+        scraper = PCSOScraper(headless=True)
+
+        # Phase tracking
+        phase = {'current': 'scraping'}
+
+        # Create progress callback for extraction phase
+        def on_extraction_progress(current, total):
+            # Calculate progress: scraping is 0-50%, extraction is 50-100%
+            extraction_percentage = (current / total) * 50  # 50% of total progress
+            overall_progress = 50 + extraction_percentage
+
+            progress_tracker.update_progress(
+                task_id,
+                int(overall_progress),
+                100,
+                f"Extracting results: {current}/{total} rows processed..."
+            )
+
+        # Create progress callback for scraping phase
+        def on_scraping_progress(step, total_steps, message):
+            # Scraping phase is 0-50%
+            scraping_percentage = (step / total_steps) * 50
+
+            progress_tracker.update_progress(
+                task_id,
+                int(scraping_percentage),
+                100,
+                message
+            )
+
+        progress_tracker.update_progress(task_id, 5, 100, "Starting browser and navigating to PCSO website...")
+
+        result = scraper.scrape_lottery_data(
+            game_type=game_type,
+            start_date=start_date,
+            end_date=end_date,
+            save_path=data_path,
+            progress_callback=on_extraction_progress,
+            scraping_progress_callback=on_scraping_progress
+        )
+
+        was_cached = result.get('cached', False)
+
+        progress_tracker.complete_task(
+            task_id,
+            f"{'Loaded' if was_cached else 'Scraped'} {result['total_draws']} draws successfully"
+        )
+
+        # Store result in progress data for retrieval
+        progress_file = os.path.join(progress_tracker.progress_dir, f"{task_id}.json")
+        with open(progress_file, 'r') as f:
+            data = json.load(f)
+
+        data['result'] = {
+            'success': True,
+            'filename': result['filename'],
+            'total_draws': result['total_draws'],
+            'cached': was_cached
+        }
+
+        with open(progress_file, 'w') as f:
+            json.dump(data, f)
+
+    except Exception as e:
+        logger.error(f"Error in scraping thread: {str(e)}", exc_info=True)
+        progress_tracker.fail_task(task_id, str(e))
 
 
 @app.route('/scrape', methods=['POST'])
@@ -48,6 +183,7 @@ def scrape_data():
     """
     Endpoint to trigger data scraping.
     Expects JSON with: game_type, start_date, end_date
+    Returns task_id for progress tracking
     """
     logger.info("Received scrape request")
 
@@ -79,29 +215,21 @@ def scrape_data():
                 'error': 'Start date must be before end date'
             }), 400
 
-        # Create scraper and fetch data
-        logger.info(f"Initializing scraper for {game_type}")
-        scraper = PCSOScraper(headless=True)
+        # Generate unique task ID
+        task_id = str(uuid.uuid4())
 
-        logger.info("Starting data scraping...")
-        result = scraper.scrape_lottery_data(
-            game_type=game_type,
-            start_date=start_date,
-            end_date=end_date,
-            save_path=app.config['DATA_PATH']
+        # Start scraping in background thread
+        thread = threading.Thread(
+            target=scrape_data_thread,
+            args=(task_id, game_type, start_date, end_date, app.config['DATA_PATH'])
         )
-
-        logger.info(f"Scraping completed successfully. Total draws: {result['total_draws']}")
-
-        # Check if data was loaded from cache or freshly scraped
-        was_cached = result.get('cached', False)
+        thread.daemon = True
+        thread.start()
 
         return jsonify({
             'success': True,
-            'message': 'Data loaded from cache' if was_cached else 'Data scraped successfully',
-            'filename': result['filename'],
-            'total_draws': result['total_draws'],
-            'cached': was_cached
+            'task_id': task_id,
+            'message': 'Scraping started'
         })
 
     except ValueError as e:
@@ -116,6 +244,23 @@ def scrape_data():
             'success': False,
             'error': f'Error scraping data: {str(e)}'
         }), 500
+
+
+@app.route('/api/progress/<task_id>')
+def get_progress(task_id):
+    """Get progress for a scraping task."""
+    progress = progress_tracker.get_progress(task_id)
+
+    if not progress:
+        return jsonify({
+            'success': False,
+            'error': 'Task not found'
+        }), 404
+
+    return jsonify({
+        'success': True,
+        'progress': progress
+    })
 
 
 @app.route('/analyze/<filename>')
@@ -142,6 +287,8 @@ def analyze(filename):
         day_analysis = analyzer.get_all_days_analysis()
         top_predictions = analyzer.generate_top_predictions(top_n=5)
         winning_predictions = analyzer.generate_winning_predictions(top_n=5)
+        pattern_predictions = analyzer.generate_pattern_based_prediction(top_n=5)
+        pattern_analysis = analyzer.analyze_consecutive_draw_patterns()
         chart_data = analyzer.get_chart_data()
 
         # Save analysis report
@@ -158,8 +305,13 @@ def analyze(filename):
             'day_analysis': day_analysis,
             'top_predictions': top_predictions,
             'winning_predictions': winning_predictions,
+            'pattern_predictions': pattern_predictions,
+            'pattern_analysis': pattern_analysis,
             'chart_data': chart_data
         }
+
+        # Convert all NumPy types to native Python types
+        analysis_report = convert_to_serializable(analysis_report)
 
         # Save report to analysis directory
         analysis_dir = os.path.join(app.config['DATA_PATH'], 'analysis')
@@ -182,6 +334,8 @@ def analyze(filename):
                              day_analysis=day_analysis,
                              top_predictions=top_predictions,
                              winning_predictions=winning_predictions,
+                             pattern_predictions=pattern_predictions,
+                             pattern_analysis=pattern_analysis,
                              chart_data=chart_data,
                              filename=filename,
                              report_filename=report_filename)
@@ -362,6 +516,8 @@ def view_report(report_filename):
                              day_analysis=report['day_analysis'],
                              top_predictions=report['top_predictions'],
                              winning_predictions=report['winning_predictions'],
+                             pattern_predictions=report.get('pattern_predictions', []),
+                             pattern_analysis=report.get('pattern_analysis', {}),
                              chart_data=report['chart_data'],
                              filename=source_file,
                              report_filename=report_filename,
@@ -371,6 +527,198 @@ def view_report(report_filename):
     except Exception as e:
         logger.error(f"Error viewing report: {str(e)}", exc_info=True)
         return f"Error viewing report: {str(e)}", 500
+
+
+@app.route('/api/submit-actual-result', methods=['POST'])
+def submit_actual_result():
+    """Submit actual draw result for accuracy comparison and add to dataset."""
+    try:
+        data = request.get_json()
+
+        game_type = data.get('game_type')
+        draw_date_str = data.get('draw_date')
+        numbers = data.get('numbers')
+        jackpot = data.get('jackpot', 'N/A')
+        winners = data.get('winners', 'N/A')
+
+        if not all([game_type, draw_date_str, numbers]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields'
+            }), 400
+
+        # Validate numbers
+        if not isinstance(numbers, list) or len(numbers) != 6:
+            return jsonify({
+                'success': False,
+                'error': 'Numbers must be an array of 6 integers'
+            }), 400
+
+        # Parse draw date
+        try:
+            draw_date = datetime.strptime(draw_date_str, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid date format. Use YYYY-MM-DD'
+            }), 400
+
+        # Find the latest result file for this game type
+        data_path = app.config['DATA_PATH']
+        result_files = []
+        game_slug = game_type.replace(' ', '_').replace('/', '-')
+
+        for filename in os.listdir(data_path):
+            if filename.startswith(f"result_{game_slug}_") and filename.endswith('.json'):
+                filepath = os.path.join(data_path, filename)
+                mtime = os.path.getmtime(filepath)
+                result_files.append((filename, filepath, mtime))
+
+        if not result_files:
+            return jsonify({
+                'success': False,
+                'error': f'No result files found for {game_type}'
+            }), 404
+
+        # Get the latest result file
+        result_files.sort(key=lambda x: x[2], reverse=True)
+        latest_result_file = result_files[0][1]
+
+        # Load the result file
+        with open(latest_result_file, 'r', encoding='utf-8') as f:
+            result_data = json.load(f)
+
+        # Create new draw entry
+        actual_numbers = sorted([int(n) for n in numbers])
+        new_draw = {
+            'game': game_type,
+            'date': draw_date.strftime('%m/%d/%Y'),
+            'day_of_week': draw_date.strftime('%A'),
+            'numbers': actual_numbers,
+            'jackpot': jackpot,
+            'winners': winners
+        }
+
+        # Check if this draw already exists
+        existing_draw = None
+        for idx, draw in enumerate(result_data['results']):
+            if draw['date'] == new_draw['date']:
+                existing_draw = idx
+                break
+
+        if existing_draw is not None:
+            # Update existing draw
+            result_data['results'][existing_draw] = new_draw
+            logger.info(f"Updated existing draw for {new_draw['date']}")
+        else:
+            # Add new draw (insert at the beginning for most recent)
+            result_data['results'].insert(0, new_draw)
+            result_data['total_draws'] = len(result_data['results'])
+            logger.info(f"Added new draw for {new_draw['date']}")
+
+        # Update end date if necessary
+        result_data['end_date'] = max(
+            result_data.get('end_date', draw_date.strftime('%Y-%m-%d')),
+            draw_date.strftime('%Y-%m-%d')
+        )
+
+        # Save updated result file
+        with open(latest_result_file, 'w', encoding='utf-8') as f:
+            json.dump(result_data, f, indent=2, ensure_ascii=False)
+
+        # Load the latest analysis report for comparison
+        analysis_dir = os.path.join(data_path, 'analysis')
+        accuracy_results = None
+
+        if os.path.exists(analysis_dir):
+            analysis_files = []
+
+            for filename in os.listdir(analysis_dir):
+                if filename.startswith(f"analysis_result_{game_slug}_") and filename.endswith('.json'):
+                    filepath = os.path.join(analysis_dir, filename)
+                    mtime = os.path.getmtime(filepath)
+                    analysis_files.append((filename, filepath, mtime))
+
+            if analysis_files:
+                # Get the latest analysis file
+                analysis_files.sort(key=lambda x: x[2], reverse=True)
+                latest_analysis_file = analysis_files[0][1]
+
+                # Load the analysis
+                with open(latest_analysis_file, 'r', encoding='utf-8') as f:
+                    analysis_data = json.load(f)
+
+                # Perform accuracy comparison
+                accuracy_results = {
+                    'actual_numbers': actual_numbers,
+                    'draw_date': draw_date_str,
+                    'game_type': game_type,
+                    'top_predictions_comparison': [],
+                    'winning_predictions_comparison': [],
+                    'pattern_predictions_comparison': []
+                }
+
+                # Check top predictions
+                for idx, pred in enumerate(analysis_data.get('top_predictions', []), 1):
+                    predicted_numbers = sorted(pred['numbers'])
+                    matches = len(set(actual_numbers) & set(predicted_numbers))
+
+                    accuracy_results['top_predictions_comparison'].append({
+                        'rank': idx,
+                        'predicted_numbers': predicted_numbers,
+                        'matches': matches,
+                        'confidence_score': pred.get('confidence_score', 0)
+                    })
+
+                # Check winning predictions
+                for idx, pred in enumerate(analysis_data.get('winning_predictions', []), 1):
+                    predicted_numbers = sorted(pred['numbers'])
+                    matches = len(set(actual_numbers) & set(predicted_numbers))
+
+                    accuracy_results['winning_predictions_comparison'].append({
+                        'rank': idx,
+                        'predicted_numbers': predicted_numbers,
+                        'matches': matches,
+                        'win_probability_score': pred.get('win_probability_score', 0)
+                    })
+
+                # Check pattern predictions
+                for idx, pred in enumerate(analysis_data.get('pattern_predictions', []), 1):
+                    predicted_numbers = sorted(pred['numbers'])
+                    matches = len(set(actual_numbers) & set(predicted_numbers))
+
+                    accuracy_results['pattern_predictions_comparison'].append({
+                        'rank': idx,
+                        'predicted_numbers': predicted_numbers,
+                        'matches': matches,
+                        'pattern_score': pred.get('pattern_score', 0)
+                    })
+
+                # Save accuracy results
+                accuracy_dir = os.path.join(data_path, 'accuracy')
+                os.makedirs(accuracy_dir, exist_ok=True)
+
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                accuracy_filename = f"accuracy_{game_slug}_{timestamp}.json"
+                accuracy_filepath = os.path.join(accuracy_dir, accuracy_filename)
+
+                with open(accuracy_filepath, 'w', encoding='utf-8') as f:
+                    json.dump(accuracy_results, f, indent=2, ensure_ascii=False)
+
+        return jsonify({
+            'success': True,
+            'message': f'Actual result {"updated" if existing_draw is not None else "added"} successfully',
+            'accuracy_results': accuracy_results,
+            'result_file': os.path.basename(latest_result_file),
+            'total_draws': result_data['total_draws']
+        })
+
+    except Exception as e:
+        logger.error(f"Error submitting actual result: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @app.route('/health')

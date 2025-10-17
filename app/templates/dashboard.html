@@ -21,12 +21,15 @@
     </div>
 
     <!-- Top Predictions -->
-    <div class="card predictions-card">
-        <div class="card-header gradient-header">
-            <h2><i class="fas fa-lightbulb"></i> Top 5 Predicted Combinations</h2>
-            <p>Based on comprehensive probability analysis</p>
+    <div class="card predictions-card accordion-card">
+        <div class="card-header gradient-header accordion-header" onclick="toggleAccordion(this)">
+            <div>
+                <h2><i class="fas fa-lightbulb"></i> Top 5 Predicted Combinations</h2>
+                <p>Based on comprehensive probability analysis</p>
+            </div>
+            <i class="fas fa-chevron-down accordion-icon"></i>
         </div>
-        <div class="card-body">
+        <div class="card-body accordion-content active">
             <div class="predictions-grid">
                 {% for prediction in top_predictions %}
                 <div class="prediction-item rank-{{ loop.index }}">
@@ -59,12 +62,15 @@
     </div>
 
     <!-- Winner-Optimized Predictions -->
-    <div class="card predictions-card winner-section">
-        <div class="card-header gradient-header-winner">
-            <h2><i class="fas fa-trophy"></i> Winner-Optimized Predictions</h2>
-            <p>Based on analysis of draws that had jackpot winners</p>
+    <div class="card predictions-card winner-section accordion-card">
+        <div class="card-header gradient-header-winner accordion-header" onclick="toggleAccordion(this)">
+            <div>
+                <h2><i class="fas fa-trophy"></i> Winner-Optimized Predictions</h2>
+                <p>Based on analysis of draws that had jackpot winners</p>
+            </div>
+            <i class="fas fa-chevron-down accordion-icon"></i>
         </div>
-        <div class="card-body">
+        <div class="card-body accordion-content active">
             <div class="predictions-grid">
                 {% for prediction in winning_predictions %}
                 <div class="prediction-item winner-pred rank-{{ loop.index }}">
@@ -96,13 +102,177 @@
         </div>
     </div>
 
+    <!-- Pattern Analysis Report -->
+    {% if pattern_analysis and pattern_analysis.latest_draw %}
+    <div class="card pattern-analysis-card accordion-card">
+        <div class="card-header gradient-header-pattern accordion-header" onclick="toggleAccordion(this)">
+            <div>
+                <h2><i class="fas fa-chart-line"></i> Consecutive Draw Pattern Analysis</h2>
+                <p>Analysis of how numbers transition from one draw to the next</p>
+            </div>
+            <i class="fas fa-chevron-down accordion-icon"></i>
+        </div>
+        <div class="card-body accordion-content">
+            <div class="pattern-analysis-content">
+                <!-- Latest Draw Info -->
+                <div class="analysis-section">
+                    <h3><i class="fas fa-calendar-check"></i> Most Recent Draw</h3>
+                    <div class="latest-draw-box">
+                        <div class="draw-date">
+                            <i class="fas fa-clock"></i> {{ pattern_analysis.latest_draw.date }}
+                        </div>
+                        <div class="draw-numbers">
+                            {% for num in pattern_analysis.latest_draw.numbers %}
+                            <span class="number-ball-large">{{ num }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="draw-sum">
+                            Sum: <strong>{{ pattern_analysis.latest_draw.sum }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Carryover Analysis -->
+                <div class="analysis-section">
+                    <h3><i class="fas fa-exchange-alt"></i> Number Carryover Patterns</h3>
+                    <p class="section-description">How many numbers typically repeat from one draw to the next</p>
+                    <div class="pattern-metrics">
+                        <div class="metric-card">
+                            <div class="metric-icon"><i class="fas fa-chart-bar"></i></div>
+                            <div class="metric-content">
+                                <span class="metric-label">Average Carryover</span>
+                                <span class="metric-value">{{ pattern_analysis.average_carryover }}</span>
+                                <span class="metric-description">numbers per draw</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon"><i class="fas fa-trophy"></i></div>
+                            <div class="metric-content">
+                                <span class="metric-label">Most Common</span>
+                                <span class="metric-value">{{ pattern_analysis.most_common_carryover }}</span>
+                                <span class="metric-description">numbers repeated</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon"><i class="fas fa-plus-circle"></i></div>
+                            <div class="metric-content">
+                                <span class="metric-label">Average New Numbers</span>
+                                <span class="metric-value">{{ pattern_analysis.average_new_numbers }}</span>
+                                <span class="metric-description">fresh numbers per draw</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Carryover Distribution -->
+                    <div class="distribution-section">
+                        <h4>Carryover Distribution</h4>
+                        <div class="distribution-bars">
+                            {% for count, frequency in pattern_analysis.carryover_distribution.items()|sort %}
+                            <div class="distribution-item">
+                                <span class="dist-label">{{ count }} numbers</span>
+                                <div class="dist-bar-container">
+                                    <div class="dist-bar" style="width: {{ (frequency / pattern_analysis.carryover_distribution.values()|max * 100)|round }}%">
+                                        <span class="dist-value">{{ frequency }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pattern Transitions -->
+                <div class="analysis-section">
+                    <h3><i class="fas fa-arrows-alt-h"></i> Even/Odd Pattern Transitions</h3>
+                    <p class="section-description">How even/odd patterns change between consecutive draws</p>
+                    <div class="transition-highlight">
+                        <div class="highlight-label">Most Common Transition</div>
+                        <div class="highlight-value">{{ pattern_analysis.most_common_pattern_transition }}</div>
+                    </div>
+
+                    <div class="transitions-grid">
+                        {% for transition, count in (pattern_analysis.pattern_transitions.items()|list|sort(attribute=1, reverse=True))[:10] %}
+                        <div class="transition-card">
+                            <span class="transition-pattern">{{ transition }}</span>
+                            <span class="transition-count">{{ count }} times</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Sum Differences -->
+                <div class="analysis-section">
+                    <h3><i class="fas fa-calculator"></i> Sum Variation Between Draws</h3>
+                    <div class="metric-card highlight-metric">
+                        <div class="metric-icon"><i class="fas fa-chart-area"></i></div>
+                        <div class="metric-content">
+                            <span class="metric-label">Average Sum Difference</span>
+                            <span class="metric-value">{{ pattern_analysis.average_sum_difference }}</span>
+                            <span class="metric-description">points change between consecutive draws</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pattern-Based Predictions -->
+    {% if pattern_predictions %}
+    <div class="card predictions-card pattern-section accordion-card">
+        <div class="card-header gradient-header-pattern accordion-header" onclick="toggleAccordion(this)">
+            <div>
+                <h2><i class="fas fa-chart-network"></i> Pattern-Based Predictions</h2>
+                <p>Based on consecutive draw pattern analysis</p>
+            </div>
+            <i class="fas fa-chevron-down accordion-icon"></i>
+        </div>
+        <div class="card-body accordion-content active">
+
+            <div class="predictions-grid" style="margin-top: 20px;">
+                {% for prediction in pattern_predictions %}
+                <div class="prediction-item pattern-pred rank-{{ loop.index }}">
+                    <div class="prediction-rank pattern-rank">#{{ loop.index }}</div>
+                    <div class="prediction-content">
+                        <div class="prediction-numbers">
+                            {% for num in prediction.numbers %}
+                            <span class="number-ball pattern-ball">{{ num }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="prediction-stats">
+                            <div class="stat">
+                                <span class="stat-label">Pattern Score</span>
+                                <span class="stat-value pattern-score">{{ prediction.pattern_score }}%</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Carryover</span>
+                                <span class="stat-value">{{ prediction.carryover_count }} nums</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">New</span>
+                                <span class="stat-value">{{ prediction.new_count }} nums</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-label">Type</span>
+                                <span class="stat-value pattern-badge">{{ prediction.prediction_type }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Winner Analysis Stats -->
     {% if overall_stats.winner_analysis and overall_stats.winner_analysis.total_winning_draws > 0 %}
-    <div class="card winner-stats-card">
-        <div class="card-header">
+    <div class="card winner-stats-card accordion-card">
+        <div class="card-header accordion-header" onclick="toggleAccordion(this)">
             <h2><i class="fas fa-trophy-alt"></i> Winner Analysis</h2>
+            <i class="fas fa-chevron-down accordion-icon"></i>
         </div>
-        <div class="card-body">
+        <div class="card-body accordion-content">
             <div class="stats-grid">
                 <div class="stat-card winner-stat">
                     <div class="stat-icon winner-icon">
@@ -225,11 +395,12 @@
     {% endif %}
 
     <!-- Overall Statistics -->
-    <div class="card">
-        <div class="card-header">
+    <div class="card accordion-card">
+        <div class="card-header accordion-header" onclick="toggleAccordion(this)">
             <h2><i class="fas fa-chart-bar"></i> Overall Statistics</h2>
+            <i class="fas fa-chevron-down accordion-icon"></i>
         </div>
-        <div class="card-body">
+        <div class="card-body accordion-content">
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon">
@@ -300,11 +471,12 @@
     </div>
 
     <!-- Day-Specific Analysis -->
-    <div class="card">
-        <div class="card-header">
+    <div class="card accordion-card">
+        <div class="card-header accordion-header" onclick="toggleAccordion(this)">
             <h2><i class="fas fa-calendar-week"></i> Day-Specific Analysis</h2>
+            <i class="fas fa-chevron-down accordion-icon"></i>
         </div>
-        <div class="card-body">
+        <div class="card-body accordion-content">
             <div class="days-tabs">
                 <button class="day-tab active" data-day="Monday">Monday</button>
                 <button class="day-tab" data-day="Tuesday">Tuesday</button>
@@ -364,11 +536,12 @@
     </div>
 
     <!-- Detailed Statistics -->
-    <div class="card">
-        <div class="card-header">
+    <div class="card accordion-card">
+        <div class="card-header accordion-header" onclick="toggleAccordion(this)">
             <h2><i class="fas fa-list"></i> Detailed Statistics</h2>
+            <i class="fas fa-chevron-down accordion-icon"></i>
         </div>
-        <div class="card-body">
+        <div class="card-body accordion-content">
             <div class="detailed-stats">
                 <div class="detail-row">
                     <span class="detail-label">Total Draws:</span>
@@ -497,6 +670,31 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// Accordion functionality
+function toggleAccordion(headerElement) {
+    const card = headerElement.closest('.accordion-card');
+    const content = card.querySelector('.accordion-content');
+    const icon = headerElement.querySelector('.accordion-icon');
+
+    // Toggle the content
+    content.classList.toggle('active');
+
+    // Rotate the icon
+    icon.classList.toggle('rotated');
+
+    // Smooth scroll to card if opening and not in viewport
+    if (content.classList.contains('active')) {
+        setTimeout(() => {
+            const rect = card.getBoundingClientRect();
+            const isInViewport = rect.top >= 0 && rect.bottom <= window.innerHeight;
+
+            if (!isInViewport) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }, 300);
+    }
+}
+
 // Day tabs functionality
 document.querySelectorAll('.day-tab').forEach(tab => {
     tab.addEventListener('click', function() {
@@ -513,5 +711,536 @@ document.querySelectorAll('.day-tab').forEach(tab => {
         document.getElementById('day-' + day).style.display = 'block';
     });
 });
+
+// Display comparison results (kept for historical viewing if needed)
+function displayComparisonResults(results) {
+    const container = document.getElementById('comparisonResults');
+
+    let html = `
+        <div class="comparison-container">
+            <h3><i class="fas fa-check-circle"></i> Prediction Accuracy Analysis</h3>
+            <div class="actual-result">
+                <h4>Actual Draw Result</h4>
+                <div class="number-list">
+                    ${results.actual_numbers.map(num => `<span class="number-ball">${num}</span>`).join('')}
+                </div>
+                <p><strong>Date:</strong> ${results.draw_date}</p>
+            </div>
+
+            <div class="comparison-section">
+                <h4><i class="fas fa-lightbulb"></i> Top Predictions Comparison</h4>
+                <div class="comparison-grid">
+                    ${results.top_predictions_comparison.map(pred => `
+                        <div class="comparison-item ${pred.matches >= 3 ? 'good-match' : ''}">
+                            <span class="rank-badge">#${pred.rank}</span>
+                            <div class="pred-numbers">
+                                ${pred.predicted_numbers.map(num => `
+                                    <span class="number-ball ${results.actual_numbers.includes(num) ? 'matched' : ''}">${num}</span>
+                                `).join('')}
+                            </div>
+                            <div class="match-info">
+                                <span class="matches-badge">${pred.matches}/6 matches</span>
+                                <span class="confidence-text">${pred.confidence_score}% confidence</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div class="comparison-section">
+                <h4><i class="fas fa-trophy"></i> Winning Predictions Comparison</h4>
+                <div class="comparison-grid">
+                    ${results.winning_predictions_comparison.map(pred => `
+                        <div class="comparison-item ${pred.matches >= 3 ? 'good-match' : ''}">
+                            <span class="rank-badge winner">#${pred.rank}</span>
+                            <div class="pred-numbers">
+                                ${pred.predicted_numbers.map(num => `
+                                    <span class="number-ball ${results.actual_numbers.includes(num) ? 'matched' : ''}">${num}</span>
+                                `).join('')}
+                            </div>
+                            <div class="match-info">
+                                <span class="matches-badge">${pred.matches}/6 matches</span>
+                                <span class="confidence-text">${pred.win_probability_score}% win score</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            ${results.pattern_predictions_comparison && results.pattern_predictions_comparison.length > 0 ? `
+            <div class="comparison-section">
+                <h4><i class="fas fa-chart-network"></i> Pattern Predictions Comparison</h4>
+                <div class="comparison-grid">
+                    ${results.pattern_predictions_comparison.map(pred => `
+                        <div class="comparison-item ${pred.matches >= 3 ? 'good-match' : ''}">
+                            <span class="rank-badge" style="background: #f59e0b;">#${pred.rank}</span>
+                            <div class="pred-numbers">
+                                ${pred.predicted_numbers.map(num => `
+                                    <span class="number-ball ${results.actual_numbers.includes(num) ? 'matched' : ''}">${num}</span>
+                                `).join('')}
+                            </div>
+                            <div class="match-info">
+                                <span class="matches-badge">${pred.matches}/6 matches</span>
+                                <span class="confidence-text">${pred.pattern_score}% pattern score</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+        </div>
+    `;
+
+    container.innerHTML = html;
+    container.style.display = 'block';
+    container.scrollIntoView({ behavior: 'smooth' });
+}
 </script>
+
+<style>
+/* Accordion Styles */
+.accordion-card {
+    transition: all 0.3s ease;
+}
+
+.accordion-header {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
+
+.accordion-header:hover {
+    opacity: 0.95;
+}
+
+.accordion-icon {
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+    color: currentColor;
+}
+
+.accordion-icon.rotated {
+    transform: rotate(180deg);
+}
+
+.accordion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, padding 0.4s ease;
+    padding: 0;
+}
+
+.accordion-content.active {
+    max-height: 10000px;
+    padding: 30px;
+}
+
+/* Ensure header children don't interfere with click */
+.accordion-header > div {
+    pointer-events: none;
+}
+
+.accordion-header h2,
+.accordion-header p {
+    pointer-events: none;
+}
+
+.comparison-container {
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.actual-result {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.comparison-section {
+    margin-top: 20px;
+}
+
+.comparison-grid {
+    display: grid;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.comparison-item {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s;
+}
+
+.comparison-item.good-match {
+    border-color: #10b981;
+    background: #f0fdf4;
+}
+
+.rank-badge {
+    background: #667eea;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+.rank-badge.winner {
+    background: #f59e0b;
+}
+
+.pred-numbers {
+    display: flex;
+    gap: 5px;
+    flex: 1;
+}
+
+.number-ball.matched {
+    background: #10b981 !important;
+    color: white;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.match-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    align-items: flex-end;
+}
+
+.matches-badge {
+    background: #10b981;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.confidence-text {
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.gradient-header-pattern {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+}
+
+.pattern-section {
+    border: 2px solid #f59e0b;
+}
+
+.pattern-info {
+    background: #fffbeb;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.pattern-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.pattern-stat {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-value-large {
+    display: block;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #f59e0b;
+    margin: 10px 0;
+}
+
+.stat-value-small {
+    display: block;
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 5px;
+}
+
+.number-list-small {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    margin: 10px 0;
+    flex-wrap: wrap;
+}
+
+.pattern-rank {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.pattern-ball {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.pattern-score {
+    color: #f59e0b;
+    font-weight: bold;
+}
+
+.pattern-badge {
+    background: #f59e0b;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+/* Pattern Analysis Report Styles */
+.pattern-analysis-content {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.analysis-section {
+    background: #fffbeb;
+    padding: 25px;
+    border-radius: 12px;
+    border-left: 4px solid #f59e0b;
+}
+
+.analysis-section h3 {
+    color: #d97706;
+    margin-bottom: 10px;
+    font-size: 1.3rem;
+}
+
+.analysis-section h4 {
+    color: #d97706;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.section-description {
+    color: #666;
+    font-size: 0.95rem;
+    margin-bottom: 20px;
+}
+
+.latest-draw-box {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.draw-date {
+    color: #666;
+    font-size: 0.95rem;
+    margin-bottom: 15px;
+}
+
+.draw-numbers {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.number-ball-large {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+}
+
+.draw-sum {
+    color: #666;
+    font-size: 1rem;
+    margin-top: 15px;
+}
+
+.pattern-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.metric-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.metric-icon {
+    font-size: 2rem;
+    color: #f59e0b;
+}
+
+.metric-content {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.metric-label {
+    font-size: 0.85rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #f59e0b;
+}
+
+.metric-description {
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.highlight-metric {
+    max-width: 400px;
+    border: 2px solid #f59e0b;
+}
+
+.distribution-section {
+    margin-top: 20px;
+}
+
+.distribution-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.distribution-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.dist-label {
+    min-width: 100px;
+    font-weight: 600;
+    color: #666;
+}
+
+.dist-bar-container {
+    flex: 1;
+    background: #f3f4f6;
+    border-radius: 8px;
+    overflow: hidden;
+    height: 30px;
+}
+
+.dist-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 10px;
+    transition: width 0.3s ease;
+}
+
+.dist-value {
+    color: white;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.transition-highlight {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.highlight-label {
+    font-size: 0.9rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+.highlight-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #f59e0b;
+}
+
+.transitions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.transition-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+}
+
+.transition-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.transition-pattern {
+    font-weight: bold;
+    color: #333;
+    font-size: 0.95rem;
+}
+
+.transition-count {
+    color: #f59e0b;
+    font-size: 0.85rem;
+}
+</style>
+
 {% endblock %}
