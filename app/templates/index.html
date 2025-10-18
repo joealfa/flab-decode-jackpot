@@ -151,9 +151,9 @@
                         <p class="result-date"><i class="fas fa-calendar"></i> {{ file.date }}</p>
                         <p class="result-filename"><small>{{ file.filename }}</small></p>
                         <div class="button-group">
-                            <a href="{{ url_for('analyze', filename=file.filename) }}" class="btn btn-primary">
+                            <button class="btn btn-primary" onclick="openAnalysisModal('{{ file.filename }}')">
                                 <i class="fas fa-chart-bar"></i> Analyze Now
-                            </a>
+                            </button>
                             <button class="btn btn-secondary" onclick="viewHistory('{{ file.filename }}')">
                                 <i class="fas fa-history"></i> History
                             </button>
@@ -297,9 +297,9 @@ async function viewHistory(filename) {
                                 <small>Created: ${report.created_at}</small>
                             </div>
                         </div>
-                        <a href="/view-report/${report.filename}" class="btn btn-secondary btn-sm">
+                        <button onclick="closeHistory(); openReportModal('${report.filename}')" class="btn btn-secondary btn-sm">
                             <i class="fas fa-eye"></i> View
-                        </a>
+                        </button>
                     </div>
                 `;
             });
@@ -471,9 +471,9 @@ async function pollProgress(taskId) {
                             messageBox.innerHTML = `
                                 <i class="fas fa-check-circle"></i>
                                 <p><strong>Success!</strong> ${wasCached ? 'Loaded' : 'Scraped'} ${progress.result.total_draws} draws${wasCached ? ' from cache' : ''}.</p>
-                                <a href="/analyze/${progress.result.filename}" class="btn btn-primary">
+                                <button onclick="openAnalysisModal('${progress.result.filename}')" class="btn btn-primary">
                                     <i class="fas fa-chart-bar"></i> Analyze Now
-                                </a>
+                                </button>
                             `;
                         } else {
                             messageBox.innerHTML = `
@@ -504,6 +504,278 @@ async function pollProgress(taskId) {
         }
     }, 500); // Poll every 500ms
 }
+
+// Open analysis modal
+async function openAnalysisModal(filename) {
+    try {
+        // Show loading state
+        const loadingModal = `
+            <div class="modal-overlay" id="analysisModal">
+                <div class="modal-content analysis-modal-content">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-chart-line"></i> Loading Analysis...</h2>
+                        <button onclick="closeAnalysisModal()" class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="loading-state">
+                            <i class="fas fa-spinner fa-spin fa-3x"></i>
+                            <p>Analyzing lottery data...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', loadingModal);
+
+        // Fetch analysis data
+        const response = await fetch(`/analyze/${filename}`);
+        const html = await response.text();
+
+        // Parse the HTML to extract dashboard content
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const dashboardContent = doc.querySelector('.container.dashboard');
+
+        // Remove the "Back to Home" button from dashboard header
+        const backButton = dashboardContent.querySelector('.dashboard-header .btn');
+        if (backButton) {
+            backButton.remove();
+        }
+
+        // Update modal with actual content
+        const modal = document.getElementById('analysisModal');
+        const modalContent = modal.querySelector('.modal-content');
+
+        // Get the title from dashboard
+        const dashboardTitle = dashboardContent.querySelector('.dashboard-header h1');
+        const dashboardSubtitle = dashboardContent.querySelector('.dashboard-header .subtitle');
+
+        modalContent.innerHTML = `
+            <div class="modal-header">
+                <div class="header-content">
+                    ${dashboardTitle ? dashboardTitle.outerHTML : '<h2><i class="fas fa-chart-line"></i> Analysis Dashboard</h2>'}
+                    ${dashboardSubtitle ? dashboardSubtitle.outerHTML : ''}
+                </div>
+                <button onclick="closeAnalysisModal()" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                ${dashboardContent.innerHTML}
+            </div>
+        `;
+
+        // Re-execute any scripts from the dashboard (for Chart.js)
+        const scripts = doc.querySelectorAll('script');
+        scripts.forEach(script => {
+            if (script.textContent.includes('Chart') || script.textContent.includes('toggleAccordion')) {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                modal.appendChild(newScript);
+            }
+        });
+
+        // Copy over inline styles
+        const styles = doc.querySelectorAll('style');
+        styles.forEach(style => {
+            const newStyle = document.createElement('style');
+            newStyle.textContent = style.textContent;
+            modal.appendChild(newStyle);
+        });
+
+        // Re-initialize day tabs functionality
+        setTimeout(() => {
+            const dayTabs = modal.querySelectorAll('.day-tab');
+            dayTabs.forEach(tab => {
+                const day = tab.dataset.day;
+                const dayContent = modal.querySelector('#day-' + day);
+
+                // Check if this day has draws
+                const hasDraws = dayContent && dayContent.querySelector('.day-stats');
+
+                if (!hasDraws) {
+                    // Disable the tab if no draws found
+                    tab.disabled = true;
+                    tab.style.opacity = '0.5';
+                    tab.style.cursor = 'not-allowed';
+                    tab.title = `No draws found for ${day}`;
+                } else {
+                    // Add click event only for enabled tabs
+                    tab.addEventListener('click', function() {
+                        if (this.disabled) return;
+
+                        const day = this.dataset.day;
+
+                        // Update active tab
+                        modal.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+
+                        // Show corresponding content
+                        modal.querySelectorAll('.day-content').forEach(content => {
+                            content.style.display = 'none';
+                        });
+                        const dayContent = modal.querySelector('#day-' + day);
+                        if (dayContent) {
+                            dayContent.style.display = 'block';
+                        }
+                    });
+                }
+            });
+
+            // Auto-select first enabled tab
+            const firstEnabledTab = modal.querySelector('.day-tab:not([disabled])');
+            if (firstEnabledTab && !modal.querySelector('.day-tab.active')) {
+                firstEnabledTab.click();
+            }
+        }, 100);
+
+    } catch (error) {
+        console.error('Error loading analysis:', error);
+        alert('Error loading analysis: ' + error.message);
+        closeAnalysisModal();
+    }
+}
+
+function closeAnalysisModal() {
+    const modal = document.getElementById('analysisModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Open report modal (same as analysis modal but for historical reports)
+async function openReportModal(reportFilename) {
+    try {
+        // Show loading state
+        const loadingModal = `
+            <div class="modal-overlay" id="analysisModal">
+                <div class="modal-content analysis-modal-content">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-chart-line"></i> Loading Report...</h2>
+                        <button onclick="closeAnalysisModal()" class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="loading-state">
+                            <i class="fas fa-spinner fa-spin fa-3x"></i>
+                            <p>Loading analysis report...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', loadingModal);
+
+        // Fetch report data
+        const response = await fetch(`/view-report/${reportFilename}`);
+        const html = await response.text();
+
+        // Parse the HTML to extract dashboard content
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const dashboardContent = doc.querySelector('.container.dashboard');
+
+        // Remove the "Back to Home" button from dashboard header
+        const backButton = dashboardContent.querySelector('.dashboard-header .btn');
+        if (backButton) {
+            backButton.remove();
+        }
+
+        // Update modal with actual content
+        const modal = document.getElementById('analysisModal');
+        const modalContent = modal.querySelector('.modal-content');
+
+        // Get the title from dashboard
+        const dashboardTitle = dashboardContent.querySelector('.dashboard-header h1');
+        const dashboardSubtitle = dashboardContent.querySelector('.dashboard-header .subtitle');
+
+        modalContent.innerHTML = `
+            <div class="modal-header">
+                <div class="header-content">
+                    ${dashboardTitle ? dashboardTitle.outerHTML : '<h2><i class="fas fa-chart-line"></i> Analysis Report</h2>'}
+                    ${dashboardSubtitle ? dashboardSubtitle.outerHTML : ''}
+                </div>
+                <button onclick="closeAnalysisModal()" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                ${dashboardContent.innerHTML}
+            </div>
+        `;
+
+        // Re-execute any scripts from the dashboard (for Chart.js)
+        const scripts = doc.querySelectorAll('script');
+        scripts.forEach(script => {
+            if (script.textContent.includes('Chart') || script.textContent.includes('toggleAccordion')) {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                modal.appendChild(newScript);
+            }
+        });
+
+        // Copy over inline styles
+        const styles = doc.querySelectorAll('style');
+        styles.forEach(style => {
+            const newStyle = document.createElement('style');
+            newStyle.textContent = style.textContent;
+            modal.appendChild(newStyle);
+        });
+
+        // Re-initialize day tabs functionality
+        setTimeout(() => {
+            const dayTabs = modal.querySelectorAll('.day-tab');
+            dayTabs.forEach(tab => {
+                const day = tab.dataset.day;
+                const dayContent = modal.querySelector('#day-' + day);
+
+                // Check if this day has draws
+                const hasDraws = dayContent && dayContent.querySelector('.day-stats');
+
+                if (!hasDraws) {
+                    // Disable the tab if no draws found
+                    tab.disabled = true;
+                    tab.style.opacity = '0.5';
+                    tab.style.cursor = 'not-allowed';
+                    tab.title = `No draws found for ${day}`;
+                } else {
+                    // Add click event only for enabled tabs
+                    tab.addEventListener('click', function() {
+                        if (this.disabled) return;
+
+                        const day = this.dataset.day;
+
+                        // Update active tab
+                        modal.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+
+                        // Show corresponding content
+                        modal.querySelectorAll('.day-content').forEach(content => {
+                            content.style.display = 'none';
+                        });
+                        const dayContent = modal.querySelector('#day-' + day);
+                        if (dayContent) {
+                            dayContent.style.display = 'block';
+                        }
+                    });
+                }
+            });
+
+            // Auto-select first enabled tab
+            const firstEnabledTab = modal.querySelector('.day-tab:not([disabled])');
+            if (firstEnabledTab && !modal.querySelector('.day-tab.active')) {
+                firstEnabledTab.click();
+            }
+        }, 100);
+
+    } catch (error) {
+        console.error('Error loading report:', error);
+        alert('Error loading report: ' + error.message);
+        closeAnalysisModal();
+    }
+}
+
+// Close modal on background click
+document.addEventListener('click', function(event) {
+    if (event.target.id === 'analysisModal') {
+        closeAnalysisModal();
+    }
+});
 </script>
 
 <style>
@@ -750,6 +1022,96 @@ async function pollProgress(taskId) {
 .btn-sm {
     padding: 8px 16px;
     font-size: 0.9rem;
+}
+
+/* Analysis Modal Styles */
+.analysis-modal-content {
+    max-width: 95vw;
+    width: 1400px;
+    max-height: 95vh;
+    overflow-y: auto;
+}
+
+.analysis-modal-content .modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.analysis-modal-content .modal-header .header-content {
+    flex: 1;
+}
+
+.analysis-modal-content .modal-header h1,
+.analysis-modal-content .modal-header h2 {
+    color: white;
+    margin: 0;
+}
+
+.analysis-modal-content .modal-header .subtitle {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.95rem;
+    margin-top: 5px;
+}
+
+.analysis-modal-content .modal-body {
+    padding: 30px;
+}
+
+.loading-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #667eea;
+}
+
+.loading-state i {
+    color: #667eea;
+    margin-bottom: 20px;
+}
+
+.loading-state p {
+    font-size: 1.1rem;
+    color: #666;
+}
+
+/* Ensure modal content scrolls properly */
+.analysis-modal-content .container.dashboard {
+    max-width: 100%;
+    padding: 0;
+}
+
+/* Hide the dashboard header since we moved it to modal header */
+.analysis-modal-content .dashboard-header {
+    display: none;
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+    .analysis-modal-content {
+        width: 100%;
+        max-width: 100vw;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .analysis-modal-content .modal-body {
+        padding: 15px;
+    }
+}
+
+/* Disabled day tabs */
+.analysis-modal-content .day-tab:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #e0e0e0;
+    color: #999;
+    pointer-events: none;
+}
+
+.analysis-modal-content .day-tab:disabled:hover {
+    background-color: #e0e0e0;
+    transform: none;
 }
 </style>
 {% endblock %}
