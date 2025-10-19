@@ -140,9 +140,26 @@
             <h2><i class="fas fa-folder-open"></i> Saved Results</h2>
         </div>
         <div class="card-body">
-            <div class="results-grid">
+            <!-- Search and Filter Controls -->
+            <div class="search-filter-controls">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search by game type or date..." onkeyup="filterResults()">
+                </div>
+                <div class="filter-controls">
+                    <select id="gameTypeFilter" class="form-control" onchange="filterResults()">
+                        <option value="">All Game Types</option>
+                        <option value="Lotto 6/42">Lotto 6/42</option>
+                        <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
+                        <option value="Super Lotto 6/49">Super Lotto 6/49</option>
+                        <option value="Grand Lotto 6/55">Grand Lotto 6/55</option>
+                        <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
+                    </select>
+                </div>
+            </div>
+            <div class="results-grid" id="resultsGrid">
                 {% for file in result_files %}
-                <div class="result-card">
+                <div class="result-card" data-game-type="{{ file.game_type }}" data-date="{{ file.date }}" data-filename="{{ file.filename }}">
                     <div class="result-icon">
                         <i class="fas fa-file-chart"></i>
                     </div>
@@ -289,7 +306,7 @@ async function viewHistory(filename) {
 
             result.reports.forEach(report => {
                 historyHTML += `
-                    <div class="report-item">
+                    <div class="report-item" id="report-${report.filename.replace(/[^a-zA-Z0-9]/g, '-')}">
                         <div class="report-info">
                             <i class="fas fa-file-alt"></i>
                             <div>
@@ -297,9 +314,17 @@ async function viewHistory(filename) {
                                 <small>Created: ${report.created_at}</small>
                             </div>
                         </div>
-                        <button onclick="closeHistory(); openReportModal('${report.filename}')" class="btn btn-secondary btn-sm">
-                            <i class="fas fa-eye"></i> View
-                        </button>
+                        <div class="report-actions">
+                            <button onclick="closeHistory(); openReportModal('${report.filename}')" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                            <button onclick="exportAnalysis('${report.filename}')" class="btn btn-success btn-sm">
+                                <i class="fas fa-download"></i> Export
+                            </button>
+                            <button onclick="deleteReport('${report.filename}')" class="btn btn-danger btn-sm">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
                     </div>
                 `;
             });
@@ -776,6 +801,95 @@ document.addEventListener('click', function(event) {
         closeAnalysisModal();
     }
 });
+
+// Filter results by search and game type
+function filterResults() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const gameTypeFilter = document.getElementById('gameTypeFilter').value;
+    const resultCards = document.querySelectorAll('.result-card');
+
+    let visibleCount = 0;
+
+    resultCards.forEach(card => {
+        const gameType = card.getAttribute('data-game-type');
+        const date = card.getAttribute('data-date');
+        const filename = card.getAttribute('data-filename');
+
+        const matchesSearch = gameType.toLowerCase().includes(searchTerm) ||
+                             date.toLowerCase().includes(searchTerm) ||
+                             filename.toLowerCase().includes(searchTerm);
+        const matchesGameType = !gameTypeFilter || gameType === gameTypeFilter;
+
+        if (matchesSearch && matchesGameType) {
+            card.style.display = '';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    // Show message if no results
+    const grid = document.getElementById('resultsGrid');
+    let noResultsMsg = document.getElementById('noResultsMessage');
+
+    if (visibleCount === 0) {
+        if (!noResultsMsg) {
+            noResultsMsg = document.createElement('p');
+            noResultsMsg.id = 'noResultsMessage';
+            noResultsMsg.className = 'no-results-message';
+            noResultsMsg.innerHTML = '<i class="fas fa-search"></i> No results found matching your filters.';
+            grid.appendChild(noResultsMsg);
+        }
+    } else {
+        if (noResultsMsg) {
+            noResultsMsg.remove();
+        }
+    }
+}
+
+// Delete analysis report
+async function deleteReport(reportFilename) {
+    if (!confirm('Are you sure you want to delete this analysis report? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/delete-report/${reportFilename}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Remove the report item from the modal
+            const reportId = 'report-' + reportFilename.replace(/[^a-zA-Z0-9]/g, '-');
+            const reportElement = document.getElementById(reportId);
+            if (reportElement) {
+                reportElement.style.opacity = '0';
+                setTimeout(() => {
+                    reportElement.remove();
+                    // Check if any reports left
+                    const remainingReports = document.querySelectorAll('.report-item');
+                    if (remainingReports.length === 0) {
+                        closeHistory();
+                        alert('Report deleted successfully. No more reports available.');
+                    }
+                }, 300);
+            }
+            alert('Report deleted successfully!');
+        } else {
+            alert('Error deleting report: ' + result.error);
+        }
+    } catch (error) {
+        console.error('Error deleting report:', error);
+        alert('Error deleting report: ' + error.message);
+    }
+}
+
+// Export analysis report as JSON
+function exportAnalysis(reportFilename) {
+    window.location.href = `/api/export-analysis/${reportFilename}`;
+}
 </script>
 
 <style>
@@ -1112,6 +1226,136 @@ document.addEventListener('click', function(event) {
 .analysis-modal-content .day-tab:disabled:hover {
     background-color: #e0e0e0;
     transform: none;
+}
+
+/* Search and Filter Controls */
+.search-filter-controls {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.search-box {
+    position: relative;
+    flex: 1;
+    min-width: 250px;
+}
+
+.search-box i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 12px 12px 12px 40px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.filter-controls {
+    min-width: 200px;
+}
+
+.filter-controls select {
+    padding: 12px;
+}
+
+.no-results-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6b7280;
+    font-size: 16px;
+    grid-column: 1 / -1;
+}
+
+.no-results-message i {
+    display: block;
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+/* Report Actions in History Modal */
+.report-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.report-item {
+    transition: opacity 0.3s ease;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Dashboard Header Actions */
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+@media (max-width: 768px) {
+    .search-filter-controls {
+        flex-direction: column;
+    }
+
+    .search-box,
+    .filter-controls {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .report-actions {
+        flex-direction: column;
+    }
+
+    .report-actions .btn {
+        width: 100%;
+    }
+
+    .header-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .header-actions .btn,
+    .header-actions a {
+        width: 100%;
+    }
 }
 </style>
 {% endblock %}

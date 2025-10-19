@@ -25,25 +25,21 @@ class ProgressTracker:
         """Create a new progress tracking task."""
         progress_file = os.path.join(self.progress_dir, f"{task_id}.json")
         data = {
-            'task_id': task_id,
-            'status': 'started',
-            'current': 0,
-            'total': 0,
-            'percentage': 0,
-            'message': 'Initializing...',
-            'started_at': time.time(),
-            'updated_at': time.time()
+            "task_id": task_id,
+            "status": "started",
+            "current": 0,
+            "total": 0,
+            "percentage": 0,
+            "message": "Initializing...",
+            "started_at": time.time(),
+            "updated_at": time.time(),
         }
 
-        with open(progress_file, 'w') as f:
+        with open(progress_file, "w") as f:
             json.dump(data, f)
 
     def update_progress(
-        self,
-        task_id: str,
-        current: int,
-        total: int,
-        message: Optional[str] = None
+        self, task_id: str, current: int, total: int, message: Optional[str] = None
     ) -> None:
         """Update progress for a task."""
         progress_file = os.path.join(self.progress_dir, f"{task_id}.json")
@@ -51,18 +47,18 @@ class ProgressTracker:
         if not os.path.exists(progress_file):
             self.create_task(task_id)
 
-        with open(progress_file, 'r') as f:
+        with open(progress_file, "r") as f:
             data = json.load(f)
 
-        data['current'] = current
-        data['total'] = total
-        data['percentage'] = int((current / total * 100)) if total > 0 else 0
-        data['updated_at'] = time.time()
+        data["current"] = current
+        data["total"] = total
+        data["percentage"] = int((current / total * 100)) if total > 0 else 0
+        data["updated_at"] = time.time()
 
         if message:
-            data['message'] = message
+            data["message"] = message
 
-        with open(progress_file, 'w') as f:
+        with open(progress_file, "w") as f:
             json.dump(data, f)
 
     def get_progress(self, task_id: str) -> Optional[Dict]:
@@ -72,7 +68,7 @@ class ProgressTracker:
         if not os.path.exists(progress_file):
             return None
 
-        with open(progress_file, 'r') as f:
+        with open(progress_file, "r") as f:
             return json.load(f)
 
     def complete_task(self, task_id: str, message: str = "Completed") -> None:
@@ -82,15 +78,15 @@ class ProgressTracker:
         if not os.path.exists(progress_file):
             return
 
-        with open(progress_file, 'r') as f:
+        with open(progress_file, "r") as f:
             data = json.load(f)
 
-        data['status'] = 'completed'
-        data['message'] = message
-        data['percentage'] = 100
-        data['updated_at'] = time.time()
+        data["status"] = "completed"
+        data["message"] = message
+        data["percentage"] = 100
+        data["updated_at"] = time.time()
 
-        with open(progress_file, 'w') as f:
+        with open(progress_file, "w") as f:
             json.dump(data, f)
 
     def fail_task(self, task_id: str, error_message: str) -> None:
@@ -100,14 +96,14 @@ class ProgressTracker:
         if not os.path.exists(progress_file):
             return
 
-        with open(progress_file, 'r') as f:
+        with open(progress_file, "r") as f:
             data = json.load(f)
 
-        data['status'] = 'failed'
-        data['message'] = error_message
-        data['updated_at'] = time.time()
+        data["status"] = "failed"
+        data["message"] = error_message
+        data["updated_at"] = time.time()
 
-        with open(progress_file, 'w') as f:
+        with open(progress_file, "w") as f:
             json.dump(data, f)
 
     def cleanup_task(self, task_id: str) -> None:
@@ -116,3 +112,93 @@ class ProgressTracker:
 
         if os.path.exists(progress_file):
             os.remove(progress_file)
+
+    def cleanup_completed_tasks(self, max_age_seconds: int = 300) -> int:
+        """
+        Clean up completed or failed tasks older than specified age.
+
+        Args:
+            max_age_seconds: Maximum age in seconds for completed tasks (default: 5 minutes)
+
+        Returns:
+            Number of tasks cleaned up
+        """
+        if not os.path.exists(self.progress_dir):
+            return 0
+
+        current_time = time.time()
+        cleaned_count = 0
+
+        for filename in os.listdir(self.progress_dir):
+            if not filename.endswith(".json"):
+                continue
+
+            filepath = os.path.join(self.progress_dir, filename)
+
+            try:
+                with open(filepath, "r") as f:
+                    data = json.load(f)
+
+                # Check if task is completed or failed
+                status = data.get("status", "")
+                updated_at = data.get("updated_at", 0)
+                age = current_time - updated_at
+
+                # Clean up completed/failed tasks older than max_age
+                if status in ["completed", "failed"] and age > max_age_seconds:
+                    os.remove(filepath)
+                    cleaned_count += 1
+
+            except (json.JSONDecodeError, IOError):
+                # If file is corrupted, remove it
+                try:
+                    os.remove(filepath)
+                    cleaned_count += 1
+                except OSError:
+                    pass
+
+        return cleaned_count
+
+    def cleanup_all_old_tasks(self, max_age_hours: int = 24) -> int:
+        """
+        Clean up all tasks (regardless of status) older than specified hours.
+
+        Args:
+            max_age_hours: Maximum age in hours (default: 24 hours)
+
+        Returns:
+            Number of tasks cleaned up
+        """
+        if not os.path.exists(self.progress_dir):
+            return 0
+
+        current_time = time.time()
+        max_age_seconds = max_age_hours * 3600
+        cleaned_count = 0
+
+        for filename in os.listdir(self.progress_dir):
+            if not filename.endswith(".json"):
+                continue
+
+            filepath = os.path.join(self.progress_dir, filename)
+
+            try:
+                with open(filepath, "r") as f:
+                    data = json.load(f)
+
+                updated_at = data.get("updated_at", 0)
+                age = current_time - updated_at
+
+                if age > max_age_seconds:
+                    os.remove(filepath)
+                    cleaned_count += 1
+
+            except (json.JSONDecodeError, IOError):
+                # If file is corrupted, remove it
+                try:
+                    os.remove(filepath)
+                    cleaned_count += 1
+                except OSError:
+                    pass
+
+        return cleaned_count

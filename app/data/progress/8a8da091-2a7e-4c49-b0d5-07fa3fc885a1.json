@@ -1,1 +1,0 @@
-{"task_id": "8a8da091-2a7e-4c49-b0d5-07fa3fc885a1", "status": "completed", "current": 100, "total": 100, "percentage": 100, "message": "Scraped 1610 draws successfully", "started_at": 1760737783.6870613, "updated_at": 1760737895.7537081, "result": {"success": true, "filename": "result_Super_Lotto_6-49_20251018.json", "total_draws": 1610, "cached": false}}
