@@ -5,6 +5,7 @@ Progress tracking for long-running operations.
 import json
 import os
 import time
+import tempfile
 from typing import Dict, Optional
 
 
@@ -58,8 +59,19 @@ class ProgressTracker:
         if message:
             data["message"] = message
 
-        with open(progress_file, "w") as f:
-            json.dump(data, f)
+        # Write to temp file first, then atomic rename to avoid race conditions
+        temp_fd, temp_path = tempfile.mkstemp(dir=self.progress_dir, suffix='.json')
+        try:
+            with os.fdopen(temp_fd, 'w') as f:
+                json.dump(data, f)
+            os.replace(temp_path, progress_file)  # Atomic operation
+        except Exception:
+            # Clean up temp file if something goes wrong
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            raise
 
     def get_progress(self, task_id: str) -> Optional[Dict]:
         """Get progress for a task."""
@@ -68,8 +80,30 @@ class ProgressTracker:
         if not os.path.exists(progress_file):
             return None
 
-        with open(progress_file, "r") as f:
-            return json.load(f)
+        # Retry logic to handle race conditions
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                with open(progress_file, "r") as f:
+                    content = f.read()
+                    if not content:  # Empty file, retry
+                        if attempt < max_retries - 1:
+                            time.sleep(0.01)  # Wait 10ms before retry
+                            continue
+                        return None
+                    return json.loads(content)
+            except json.JSONDecodeError:
+                # File is being written, retry
+                if attempt < max_retries - 1:
+                    time.sleep(0.01)  # Wait 10ms before retry
+                    continue
+                # If all retries fail, return None instead of crashing
+                return None
+            except Exception:
+                # For any other error, return None
+                return None
+        
+        return None
 
     def complete_task(self, task_id: str, message: str = "Completed") -> None:
         """Mark a task as completed."""
@@ -86,8 +120,19 @@ class ProgressTracker:
         data["percentage"] = 100
         data["updated_at"] = time.time()
 
-        with open(progress_file, "w") as f:
-            json.dump(data, f)
+        # Write to temp file first, then atomic rename to avoid race conditions
+        temp_fd, temp_path = tempfile.mkstemp(dir=self.progress_dir, suffix='.json')
+        try:
+            with os.fdopen(temp_fd, 'w') as f:
+                json.dump(data, f)
+            os.replace(temp_path, progress_file)  # Atomic operation
+        except Exception:
+            # Clean up temp file if something goes wrong
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            raise
 
     def fail_task(self, task_id: str, error_message: str) -> None:
         """Mark a task as failed."""
@@ -103,8 +148,19 @@ class ProgressTracker:
         data["message"] = error_message
         data["updated_at"] = time.time()
 
-        with open(progress_file, "w") as f:
-            json.dump(data, f)
+        # Write to temp file first, then atomic rename to avoid race conditions
+        temp_fd, temp_path = tempfile.mkstemp(dir=self.progress_dir, suffix='.json')
+        try:
+            with os.fdopen(temp_fd, 'w') as f:
+                json.dump(data, f)
+            os.replace(temp_path, progress_file)  # Atomic operation
+        except Exception:
+            # Clean up temp file if something goes wrong
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            raise
 
     def cleanup_task(self, task_id: str) -> None:
         """Remove progress file for a task."""
