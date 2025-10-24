@@ -242,20 +242,29 @@ def scrape_data():
 @app.route("/api/progress/<task_id>")
 def get_progress(task_id):
     """Get progress for a scraping task."""
-    progress = progress_tracker.get_progress(task_id)
+    try:
+        progress = progress_tracker.get_progress(task_id)
 
-    if not progress:
-        return jsonify({"success": False, "error": "Task not found"}), 404
+        if not progress:
+            return jsonify({"success": False, "error": "Task not found"}), 404
 
-    # Auto-cleanup completed tasks older than 5 minutes (300 seconds)
-    # This runs in background to avoid blocking the response
-    threading.Thread(
-        target=progress_tracker.cleanup_completed_tasks,
-        args=(300,),
-        daemon=True
-    ).start()
+        # Auto-cleanup completed tasks older than 5 minutes (300 seconds)
+        # This runs in background to avoid blocking the response
+        threading.Thread(
+            target=progress_tracker.cleanup_completed_tasks,
+            args=(300,),
+            daemon=True
+        ).start()
 
-    return jsonify({"success": True, "progress": progress})
+        return jsonify({"success": True, "progress": progress})
+    except Exception as e:
+        # Log the error but don't crash - return a temporary error response
+        logger.error(f"Error getting progress for task {task_id}: {str(e)}")
+        return jsonify({
+            "success": False, 
+            "error": "Temporary error reading progress. Please try again.",
+            "retry": True
+        }), 500
 
 
 @app.route("/analyze/<filename>")

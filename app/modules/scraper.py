@@ -76,10 +76,10 @@ class PCSOScraper:
         if system == "Linux":
             # Try common Linux Chrome/Chromium paths
             linux_chrome_paths = [
+                "/usr/bin/google-chrome-stable",
+                "/usr/bin/google-chrome",
                 "/usr/bin/chromium-browser",
                 "/usr/bin/chromium",
-                "/usr/bin/google-chrome",
-                "/usr/bin/google-chrome-stable",
             ]
             chrome_binary = None
             for path in linux_chrome_paths:
