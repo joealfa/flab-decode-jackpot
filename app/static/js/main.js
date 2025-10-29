@@ -20,28 +20,37 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     });
 });
 
-// Add animation on scroll
+// Add animation on scroll - Optimized with debouncing
 const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
+    threshold: 0.05,  // Reduced threshold for better performance
+    rootMargin: '0px 0px -30px 0px'
 };
 
-const observer = new IntersectionObserver((entries) => {
+let observerCallback = (entries) => {
     entries.forEach(entry => {
         if (entry.isIntersecting) {
             entry.target.style.opacity = '1';
             entry.target.style.transform = 'translateY(0)';
+            // Unobserve after animating to reduce overhead
+            observer.unobserve(entry.target);
         }
     });
-}, observerOptions);
+};
 
-// Observe all cards
+const observer = new IntersectionObserver(observerCallback, observerOptions);
+
+// Observe all cards - use requestAnimationFrame for better performance
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.card, .feature-card, .prediction-item').forEach(el => {
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(20px)';
-        el.style.transition = 'opacity 0.5s, transform 0.5s';
-        observer.observe(el);
+    requestAnimationFrame(() => {
+        const elements = document.querySelectorAll('.card, .feature-card, .prediction-item');
+        // Batch observe to reduce layout thrashing
+        elements.forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+            el.style.willChange = 'opacity, transform';  // Hint browser for optimization
+            observer.observe(el);
+        });
     });
 });
 

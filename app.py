@@ -6,30 +6,109 @@ Main Flask Application
 import os
 import json
 import logging
+import logging.handlers
 import uuid
 import threading
+import time
+import atexit
+from apscheduler.schedulers.background import BackgroundScheduler
 import numpy as np
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, make_response
+
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
+# Import configuration and exceptions
+from app.config import config
+from app.exceptions import (
+    InvalidGameTypeException,
+    DateRangeException,
+    DataNotFoundException,
+    BadRequestException,
+    NotFoundException,
+    InternalServerException,
+)
+
 from app.modules.scraper import PCSOScraper
 from app.modules.analyzer import LotteryAnalyzer
 from app.modules.progress_tracker import ProgressTracker
+from app.modules.accuracy_analyzer import AccuracyAnalyzer
 
-# Configure logging
+# Configure logging with rotation
+os.makedirs('logs', exist_ok=True)
+log_config = config.get_log_config()
+
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=getattr(logging, log_config['level']),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+
 logger = logging.getLogger(__name__)
+
+# Add file handler with rotation
+file_handler = logging.handlers.RotatingFileHandler(
+    f'logs/{log_config["file"]}',
+    maxBytes=log_config['max_bytes'],
+    backupCount=log_config['backup_count']
+)
+file_handler.setLevel(logging.DEBUG)
+file_formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
+)
+file_handler.setFormatter(file_formatter)
+logging.getLogger().addHandler(file_handler)
+
+# Suppress noisy third-party loggers
+logging.getLogger('selenium').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+
+logger.info("=" * 60)
+logger.info("Fortune Lab Application Starting")
+logger.info(f"Configuration loaded: DEBUG={config.DEBUG}, LOG_LEVEL={config.LOG_LEVEL}")
+logger.info("=" * 60)
 
 
 app = Flask(__name__, template_folder="app/templates", static_folder="app/static")
 
-# Configuration
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "fortune-lab-secret-key-2024")
-app.config["DATA_PATH"] = "app/data"
+# Apply configuration from centralized config
+app.config.update(config.flask_config)
 
 # Initialize progress tracker
-progress_tracker = ProgressTracker()
+progress_tracker = ProgressTracker(progress_dir=config.PROGRESS_PATH)
+
+# Initialize background scheduler for periodic cleanup
+scheduler = BackgroundScheduler()
+scheduler.start()
+
+# Scheduled cleanup job - runs every 5 minutes
+def scheduled_progress_cleanup():
+    """Background task to clean up old progress files."""
+    try:
+        results = progress_tracker.cleanup_all()
+        if results['total_cleaned'] > 0:
+            logger.info(
+                f"Scheduled cleanup: {results['total_cleaned']} files removed "
+                f"(completed: {results['completed_cleaned']}, "
+                f"stale: {results['stale_cleaned']}, "
+                f"old: {results['old_cleaned']})"
+            )
+    except Exception as e:
+        logger.error(f"Error in scheduled cleanup: {str(e)}", exc_info=True)
+
+# Add job to run every 5 minutes
+scheduler.add_job(
+    func=scheduled_progress_cleanup,
+    trigger="interval",
+    minutes=5,
+    id='progress_cleanup',
+    name='Clean up old progress files',
+    replace_existing=True
+)
+
+# Shutdown scheduler when app exits
+atexit.register(lambda: scheduler.shutdown())
 
 
 def convert_to_serializable(obj):
@@ -60,7 +139,7 @@ def test_chart():
 def index():
     """Main dashboard page."""
     # Get list of available result files with metadata
-    data_path = app.config["DATA_PATH"]
+    data_path = config.DATA_PATH
     result_files = []
 
     if os.path.exists(data_path):
@@ -117,7 +196,7 @@ def scrape_data_thread(task_id, game_type, start_date, end_date, data_path):
         progress_tracker.create_task(task_id)
         progress_tracker.update_progress(task_id, 0, 100, "Initializing scraper...")
 
-        scraper = PCSOScraper(headless=True)
+        scraper = PCSOScraper(headless=config.HEADLESS)
 
         # Create progress callback for extraction phase
         def on_extraction_progress(current, total):
@@ -175,10 +254,32 @@ def scrape_data_thread(task_id, game_type, start_date, end_date, data_path):
 
         with open(progress_file, "w") as f:
             json.dump(data, f)
+        
+        # Schedule cleanup of this completed task after 3 minutes
+        def delayed_cleanup():
+            time.sleep(180)  # Wait 3 minutes
+            try:
+                progress_tracker.cleanup_task(task_id)
+                logger.info(f"Cleaned up completed task {task_id}")
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up task {task_id}: {str(cleanup_error)}")
+        
+        threading.Thread(target=delayed_cleanup, daemon=True).start()
 
     except Exception as e:
         logger.error(f"Error in scraping thread: {str(e)}", exc_info=True)
         progress_tracker.fail_task(task_id, str(e))
+        
+        # Schedule cleanup of this failed task after 5 minutes
+        def delayed_cleanup():
+            time.sleep(300)  # Wait 5 minutes
+            try:
+                progress_tracker.cleanup_task(task_id)
+                logger.info(f"Cleaned up failed task {task_id}")
+            except Exception as cleanup_error:
+                logger.error(f"Error cleaning up task {task_id}: {str(cleanup_error)}")
+        
+        threading.Thread(target=delayed_cleanup, daemon=True).start()
 
 
 @app.route("/scrape", methods=["POST"])
@@ -192,27 +293,54 @@ def scrape_data():
 
     try:
         data = request.get_json()
+        if not data:
+            raise BadRequestException("Request body must be JSON")
+        
         logger.info(f"Request data: {data}")
 
         game_type = data.get("game_type")
         start_date_str = data.get("start_date")
         end_date_str = data.get("end_date")
 
+        # Validate required fields
         if not all([game_type, start_date_str, end_date_str]):
-            logger.warning("Missing required fields in request")
-            return jsonify({"success": False, "error": "Missing required fields"}), 400
+            raise BadRequestException(
+                "Missing required fields",
+                details={
+                    "required": ["game_type", "start_date", "end_date"],
+                    "provided": list(data.keys())
+                }
+            )
+
+        # Validate game type
+        valid_game_types = [
+            "Lotto 6/42", "Mega Lotto 6/45", "Super Lotto 6/49",
+            "Grand Lotto 6/55", "Ultra Lotto 6/58"
+        ]
+        if game_type not in valid_game_types:
+            raise InvalidGameTypeException(game_type, valid_game_types)
 
         # Parse dates
-        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-        end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        except ValueError as e:
+            raise BadRequestException(
+                "Invalid date format. Use YYYY-MM-DD",
+                details={"error": str(e)}
+            )
+        
         logger.info(f"Parsed dates - Start: {start_date}, End: {end_date}")
 
         # Validate date range
         if start_date > end_date:
-            logger.warning("Invalid date range: start date is after end date")
-            return jsonify(
-                {"success": False, "error": "Start date must be before end date"}
-            ), 400
+            raise DateRangeException(
+                "Start date must be before end date",
+                details={
+                    "start_date": start_date_str,
+                    "end_date": end_date_str
+                }
+            )
 
         # Generate unique task ID
         task_id = str(uuid.uuid4())
@@ -220,23 +348,26 @@ def scrape_data():
         # Start scraping in background thread
         thread = threading.Thread(
             target=scrape_data_thread,
-            args=(task_id, game_type, start_date, end_date, app.config["DATA_PATH"]),
+            args=(task_id, game_type, start_date, end_date, config.DATA_PATH),
         )
         thread.daemon = True
         thread.start()
 
+        logger.info(f"Started scraping task {task_id} for {game_type}")
         return jsonify(
             {"success": True, "task_id": task_id, "message": "Scraping started"}
         )
 
-    except ValueError as e:
-        logger.error(f"ValueError: {str(e)}")
-        return jsonify({"success": False, "error": f"Invalid data: {str(e)}"}), 400
+    except (BadRequestException, InvalidGameTypeException, DateRangeException) as e:
+        logger.warning(f"Validation error: {str(e)}")
+        return jsonify(e.to_response_dict())
     except Exception as e:
-        logger.error(f"Exception during scraping: {str(e)}", exc_info=True)
-        return jsonify(
-            {"success": False, "error": f"Error scraping data: {str(e)}"}
-        ), 500
+        logger.error(f"Unexpected error during scraping: {str(e)}", exc_info=True)
+        error = InternalServerException(
+            "An unexpected error occurred",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
 
 
 @app.route("/api/progress/<task_id>")
@@ -248,11 +379,10 @@ def get_progress(task_id):
         if not progress:
             return jsonify({"success": False, "error": "Task not found"}), 404
 
-        # Auto-cleanup completed tasks older than 5 minutes (300 seconds)
-        # This runs in background to avoid blocking the response
+        # Auto-cleanup: Run comprehensive cleanup in background
+        # This ensures completed, failed, and stale tasks are cleaned up
         threading.Thread(
-            target=progress_tracker.cleanup_completed_tasks,
-            args=(300,),
+            target=lambda: progress_tracker.cleanup_all(),
             daemon=True
         ).start()
 
@@ -274,7 +404,7 @@ def analyze(filename):
     """
     try:
         # Load lottery data
-        filepath = os.path.join(app.config["DATA_PATH"], filename)
+        filepath = os.path.join(config.DATA_PATH, filename)
 
         if not os.path.exists(filepath):
             return "Result file not found", 404
@@ -324,7 +454,7 @@ def analyze(filename):
         analysis_report = convert_to_serializable(analysis_report)
 
         # Save report to analysis directory
-        analysis_dir = os.path.join(app.config["DATA_PATH"], "analysis")
+        analysis_dir = config.ANALYSIS_PATH
         os.makedirs(analysis_dir, exist_ok=True)
 
         # Create report filename with timestamp
@@ -371,13 +501,13 @@ def api_analyze():
         filename = data.get("filename")
 
         if not filename:
-            return jsonify({"success": False, "error": "Filename is required"}), 400
+            raise BadRequestException("Filename is required")
 
         # Load data
-        filepath = os.path.join(app.config["DATA_PATH"], filename)
+        filepath = os.path.join(config.DATA_PATH, filename)
 
         if not os.path.exists(filepath):
-            return jsonify({"success": False, "error": "Result file not found"}), 404
+            raise DataNotFoundException(filename)
 
         with open(filepath, "r", encoding="utf-8") as f:
             lottery_data = json.load(f)
@@ -404,15 +534,26 @@ def api_analyze():
             }
         )
 
+    except DataNotFoundException as e:
+        logger.warning(f"Data not found: {str(e)}")
+        return jsonify(e.to_response_dict())
+    except BadRequestException as e:
+        logger.warning(f"Bad request: {str(e)}")
+        return jsonify(e.to_response_dict())
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"Error in API analyze: {str(e)}", exc_info=True)
+        error = InternalServerException(
+            "Analysis failed",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
 
 
 @app.route("/api/files")
 def api_list_files():
     """API endpoint to list all result files."""
     try:
-        data_path = app.config["DATA_PATH"]
+        data_path = config.DATA_PATH
         result_files = []
 
         if os.path.exists(data_path):
@@ -439,14 +580,19 @@ def api_list_files():
         return jsonify({"success": True, "files": result_files})
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"Error listing files: {str(e)}", exc_info=True)
+        error = InternalServerException(
+            "Failed to list files",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
 
 
 @app.route("/api/analysis-history/<filename>")
 def get_analysis_history(filename):
     """Get all analysis reports for a specific result file."""
     try:
-        analysis_dir = os.path.join(app.config["DATA_PATH"], "analysis")
+        analysis_dir = config.ANALYSIS_PATH
 
         if not os.path.exists(analysis_dir):
             return jsonify({"success": True, "reports": []})
@@ -486,14 +632,18 @@ def get_analysis_history(filename):
 
     except Exception as e:
         logger.error(f"Error getting analysis history: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        error = InternalServerException(
+            "Failed to get analysis history",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
 
 
 @app.route("/view-report/<report_filename>")
 def view_report(report_filename):
     """View a specific analysis report."""
     try:
-        analysis_dir = os.path.join(app.config["DATA_PATH"], "analysis")
+        analysis_dir = config.ANALYSIS_PATH
         report_path = os.path.join(analysis_dir, report_filename)
 
         if not os.path.exists(report_path):
@@ -504,7 +654,7 @@ def view_report(report_filename):
 
         # Load the original data file for context
         source_file = report.get("source_file")
-        data_path = os.path.join(app.config["DATA_PATH"], source_file)
+        data_path = os.path.join(config.DATA_PATH, source_file)
 
         data = {}
         if os.path.exists(data_path):
@@ -548,24 +698,32 @@ def submit_actual_result():
         winners = data.get("winners", "N/A")
 
         if not all([game_type, draw_date_str, numbers]):
-            return jsonify({"success": False, "error": "Missing required fields"}), 400
+            raise BadRequestException(
+                "Missing required fields",
+                details={
+                    "required": ["game_type", "draw_date", "numbers"],
+                    "provided": list(data.keys())
+                }
+            )
 
         # Validate numbers
         if not isinstance(numbers, list) or len(numbers) != 6:
-            return jsonify(
-                {"success": False, "error": "Numbers must be an array of 6 integers"}
-            ), 400
+            raise BadRequestException(
+                "Numbers must be an array of 6 integers",
+                details={"provided": numbers}
+            )
 
         # Parse draw date
         try:
             draw_date = datetime.strptime(draw_date_str, "%Y-%m-%d")
-        except ValueError:
-            return jsonify(
-                {"success": False, "error": "Invalid date format. Use YYYY-MM-DD"}
-            ), 400
+        except ValueError as e:
+            raise BadRequestException(
+                "Invalid date format. Use YYYY-MM-DD",
+                details={"error": str(e)}
+            )
 
         # Find the latest result file for this game type
-        data_path = app.config["DATA_PATH"]
+        data_path = config.DATA_PATH
         result_files = []
         game_slug = game_type.replace(" ", "_").replace("/", "-")
 
@@ -629,7 +787,7 @@ def submit_actual_result():
             json.dump(result_data, f, indent=2, ensure_ascii=False)
 
         # Load the latest analysis report for comparison
-        analysis_dir = os.path.join(data_path, "analysis")
+        analysis_dir = config.ANALYSIS_PATH
         accuracy_results = None
 
         if os.path.exists(analysis_dir):
@@ -711,7 +869,7 @@ def submit_actual_result():
                     )
 
                 # Save accuracy results
-                accuracy_dir = os.path.join(data_path, "accuracy")
+                accuracy_dir = os.path.join(config.DATA_PATH, "accuracy")
                 os.makedirs(accuracy_dir, exist_ok=True)
 
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -731,20 +889,30 @@ def submit_actual_result():
             }
         )
 
+    except DataNotFoundException as e:
+        logger.warning(f"Data not found: {str(e)}")
+        return jsonify(e.to_response_dict())
+    except BadRequestException as e:
+        logger.warning(f"Bad request: {str(e)}")
+        return jsonify(e.to_response_dict())
     except Exception as e:
         logger.error(f"Error submitting actual result: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        error = InternalServerException(
+            "Failed to submit actual result",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
 
 
 @app.route("/api/delete-report/<report_filename>", methods=["DELETE"])
 def delete_report(report_filename):
     """Delete an analysis report."""
     try:
-        analysis_dir = os.path.join(app.config["DATA_PATH"], "analysis")
+        analysis_dir = config.ANALYSIS_PATH
         report_path = os.path.join(analysis_dir, report_filename)
 
         if not os.path.exists(report_path):
-            return jsonify({"success": False, "error": "Report not found"}), 404
+            raise DataNotFoundException(report_filename)
 
         # Delete the file
         os.remove(report_path)
@@ -752,20 +920,27 @@ def delete_report(report_filename):
 
         return jsonify({"success": True, "message": "Report deleted successfully"})
 
+    except DataNotFoundException as e:
+        logger.warning(f"Report not found: {str(e)}")
+        return jsonify(e.to_response_dict())
     except Exception as e:
         logger.error(f"Error deleting report: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        error = InternalServerException(
+            "Failed to delete report",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
 
 
 @app.route("/api/export-analysis/<report_filename>")
 def export_analysis(report_filename):
     """Export analysis report as downloadable JSON."""
     try:
-        analysis_dir = os.path.join(app.config["DATA_PATH"], "analysis")
+        analysis_dir = config.ANALYSIS_PATH
         report_path = os.path.join(analysis_dir, report_filename)
 
         if not os.path.exists(report_path):
-            return jsonify({"success": False, "error": "Report not found"}), 404
+            raise DataNotFoundException(report_filename)
 
         with open(report_path, "r", encoding="utf-8") as f:
             report = json.load(f)
@@ -777,30 +952,210 @@ def export_analysis(report_filename):
 
         return response
 
+    except DataNotFoundException as e:
+        logger.warning(f"Report not found: {str(e)}")
+        return jsonify(e.to_response_dict())
     except Exception as e:
         logger.error(f"Error exporting analysis: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        error = InternalServerException(
+            "Failed to export analysis",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
 
 
 @app.route("/api/cleanup-progress", methods=["POST"])
 def cleanup_progress():
-    """Manually cleanup old progress files."""
+    """Manually cleanup old progress files with detailed results."""
     try:
         # Accept both JSON and no body (for simple curl requests)
         data = request.get_json(silent=True) or {}
-        max_age_seconds = data.get("max_age_seconds", 300)  # Default 5 minutes
-
-        cleaned_count = progress_tracker.cleanup_completed_tasks(max_age_seconds)
+        
+        # Support different cleanup strategies
+        strategy = data.get("strategy", "all")  # all, completed, stale, old
+        
+        if strategy == "all":
+            # Comprehensive cleanup
+            results = progress_tracker.cleanup_all()
+            message = (
+                f"Cleaned up {results['total_cleaned']} progress file(s): "
+                f"{results['completed_cleaned']} completed, "
+                f"{results['stale_cleaned']} stale, "
+                f"{results['old_cleaned']} old"
+            )
+        elif strategy == "completed":
+            max_age = data.get("max_age_seconds", 180)  # 3 minutes default
+            cleaned = progress_tracker.cleanup_completed_tasks(max_age)
+            results = {"completed_cleaned": cleaned, "total_cleaned": cleaned}
+            message = f"Cleaned up {cleaned} completed progress file(s)"
+        elif strategy == "stale":
+            max_age = data.get("max_age_seconds", 600)  # 10 minutes default
+            cleaned = progress_tracker.cleanup_stale_tasks(max_age)
+            results = {"stale_cleaned": cleaned, "total_cleaned": cleaned}
+            message = f"Cleaned up {cleaned} stale progress file(s)"
+        elif strategy == "old":
+            max_age_hours = data.get("max_age_hours", 24)
+            cleaned = progress_tracker.cleanup_all_old_tasks(max_age_hours)
+            results = {"old_cleaned": cleaned, "total_cleaned": cleaned}
+            message = f"Cleaned up {cleaned} old progress file(s)"
+        else:
+            raise BadRequestException(
+                f"Invalid cleanup strategy: {strategy}",
+                details={"valid_strategies": ["all", "completed", "stale", "old"]}
+            )
 
         return jsonify({
             "success": True,
-            "cleaned_count": cleaned_count,
-            "message": f"Cleaned up {cleaned_count} progress file(s)"
+            "results": results,
+            "message": message
         })
 
+    except BadRequestException as e:
+        logger.warning(f"Bad cleanup request: {str(e)}")
+        return jsonify(e.to_response_dict())
     except Exception as e:
         logger.error(f"Error cleaning up progress files: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        error = InternalServerException(
+            "Failed to cleanup progress files",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
+
+
+@app.route("/api/accuracy-analysis", methods=["GET"])
+def get_accuracy_analysis():
+    """
+    Get comprehensive accuracy analysis.
+    
+    Query Parameters:
+        game_type: Optional game type filter (e.g., "Lotto 6/42")
+    
+    Returns:
+        JSON with complete accuracy analysis
+    """
+    try:
+        game_type = request.args.get("game_type")
+        
+        analyzer = AccuracyAnalyzer()
+        analysis = analyzer.analyze_overall_accuracy(game_type)
+        
+        return jsonify({
+            "success": True,
+            "data": analysis
+        })
+        
+    except DataNotFoundException as e:
+        logger.warning(f"No accuracy data found: {str(e)}")
+        return jsonify(e.to_response_dict())
+    except Exception as e:
+        logger.error(f"Error analyzing accuracy: {str(e)}", exc_info=True)
+        error = InternalServerException(
+            "Failed to analyze accuracy",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
+
+
+@app.route("/api/accuracy-summary", methods=["GET"])
+def get_accuracy_summary():
+    """
+    Get quick accuracy summary.
+    
+    Query Parameters:
+        game_type: Optional game type filter
+    
+    Returns:
+        JSON with summary metrics
+    """
+    try:
+        game_type = request.args.get("game_type")
+        
+        analyzer = AccuracyAnalyzer()
+        summary = analyzer.get_accuracy_summary(game_type)
+        
+        return jsonify({
+            "success": True,
+            "data": summary
+        })
+        
+    except DataNotFoundException as e:
+        logger.warning(f"No accuracy data found: {str(e)}")
+        return jsonify(e.to_response_dict())
+    except Exception as e:
+        logger.error(f"Error getting accuracy summary: {str(e)}", exc_info=True)
+        error = InternalServerException(
+            "Failed to get accuracy summary",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
+
+
+@app.route("/api/accuracy-files", methods=["GET"])
+def list_accuracy_files():
+    """
+    List all accuracy comparison files.
+    
+    Query Parameters:
+        game_type: Optional game type filter
+    
+    Returns:
+        JSON with list of accuracy files
+    """
+    try:
+        game_type = request.args.get("game_type")
+        
+        analyzer = AccuracyAnalyzer()
+        files = analyzer.load_all_accuracy_files(game_type)
+        
+        # Return simplified file list
+        file_list = []
+        for file_data in files:
+            file_list.append({
+                "filename": file_data.get("filename"),
+                "game_type": file_data.get("game_type"),
+                "draw_date": file_data.get("draw_date"),
+                "actual_numbers": file_data.get("actual_numbers"),
+                "timestamp": file_data.get("timestamp"),
+            })
+        
+        return jsonify({
+            "success": True,
+            "total": len(file_list),
+            "data": file_list
+        })
+        
+    except Exception as e:
+        logger.error(f"Error listing accuracy files: {str(e)}", exc_info=True)
+        error = InternalServerException(
+            "Failed to list accuracy files",
+            details={"error": str(e)}
+        )
+        return jsonify(error.to_response_dict())
+
+
+@app.route("/accuracy-dashboard")
+def accuracy_dashboard():
+    """Render accuracy analysis dashboard."""
+    try:
+        analyzer = AccuracyAnalyzer()
+        
+        # Check if there's any accuracy data
+        try:
+            summary = analyzer.get_accuracy_summary()
+            has_data = True
+        except DataNotFoundException:
+            has_data = False
+            summary = None
+        
+        return render_template(
+            "accuracy_dashboard.html",
+            has_data=has_data,
+            summary=summary
+        )
+        
+    except Exception as e:
+        logger.error(f"Error rendering accuracy dashboard: {str(e)}", exc_info=True)
+        return render_template("500.html"), 500
 
 
 @app.route("/health")
@@ -823,7 +1178,7 @@ def internal_error(error):
 
 if __name__ == "__main__":
     # Create data directory if it doesn't exist
-    os.makedirs(app.config["DATA_PATH"], exist_ok=True)
+    os.makedirs(config.DATA_PATH, exist_ok=True)
 
     # Cleanup old progress files on startup (older than 1 hour)
     try:
@@ -834,4 +1189,5 @@ if __name__ == "__main__":
         logger.warning(f"Error cleaning up progress files on startup: {str(e)}")
 
     # Run the app
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    logger.info(f"Starting Flask app on {config.HOST}:{config.PORT} (debug={config.DEBUG})")
+    app.run(host=config.HOST, port=config.PORT, debug=config.DEBUG)
