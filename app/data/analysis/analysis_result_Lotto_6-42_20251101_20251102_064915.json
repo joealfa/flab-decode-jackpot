@@ -1,17 +1,17 @@
 {
-  "analyzed_at": "2025-10-30 06:20:30",
-  "source_file": "result_Lotto_6-42_20251029.json",
+  "analyzed_at": "2025-11-02 06:49:15",
+  "source_file": "result_Lotto_6-42_20251101.json",
   "game_type": "Lotto 6/42",
   "date_range": {
     "start": "2015-01-01",
-    "end": "2025-10-29"
+    "end": "2025-11-01"
   },
-  "total_draws": 1618,
+  "total_draws": 1620,
   "overall_stats": {
-    "total_draws": 1618,
+    "total_draws": 1620,
     "date_range": {
       "start": "2015-01-01",
-      "end": "2025-10-29"
+      "end": "2025-11-01"
     },
     "most_frequent_numbers": [
       [
@@ -20,14 +20,18 @@
       ],
       [
         31,
-        254
+        255
       ],
       [
         25,
-        252
+        253
       ],
       [
         18,
+        247
+      ],
+      [
+        15,
         246
       ],
       [
@@ -39,26 +43,22 @@
         246
       ],
       [
-        15,
-        245
-      ],
-      [
         12,
         244
       ],
       [
-        22,
+        41,
         242
       ],
       [
-        41,
-        241
+        22,
+        242
       ]
     ],
     "least_frequent_numbers": [
       [
         28,
-        210
+        211
       ],
       [
         26,
@@ -89,33 +89,36 @@
         221
       ],
       [
-        29,
+        30,
         222
       ],
       [
-        30,
+        34,
         222
       ]
     ],
     "number_frequency": {
-      "18": 246,
-      "25": 252,
-      "28": 210,
+      "13": 231,
+      "15": 246,
+      "18": 247,
+      "25": 253,
+      "29": 223,
+      "31": 255,
+      "3": 225,
+      "7": 237,
+      "8": 233,
+      "23": 231,
+      "28": 211,
+      "41": 242,
       "35": 229,
       "36": 246,
-      "41": 241,
       "5": 246,
-      "8": 232,
       "12": 244,
       "20": 218,
       "32": 224,
-      "23": 230,
       "24": 231,
       "26": 216,
-      "29": 222,
-      "7": 236,
       "11": 217,
-      "15": 245,
       "21": 232,
       "30": 222,
       "33": 231,
@@ -125,7 +128,6 @@
       "39": 234,
       "1": 216,
       "2": 227,
-      "3": 224,
       "4": 238,
       "9": 230,
       "37": 224,
@@ -135,24 +137,22 @@
       "42": 227,
       "40": 231,
       "17": 222,
-      "13": 230,
-      "31": 254,
       "10": 221,
       "16": 240,
       "19": 256
     },
-    "average_frequency": 231.14285714285714,
+    "average_frequency": 231.42857142857142,
     "hot_numbers": [
       19,
       31,
       25,
       18,
+      15,
       36,
       5,
-      15,
       12,
-      22,
-      41
+      41,
+      22
     ],
     "cold_numbers": [
       28,
@@ -168,11 +168,11 @@
     ],
     "even_odd_analysis": {
       "patterns": {
+        "1E-5O": 134,
+        "2E-4O": 406,
         "3E-3O": 538,
         "5E-1O": 137,
         "4E-2O": 368,
-        "1E-5O": 133,
-        "2E-4O": 405,
         "6E-0O": 16,
         "0E-6O": 21
       },
@@ -180,10 +180,10 @@
     },
     "high_low_analysis": {
       "patterns": {
+        "3L-3H": 565,
         "1L-5H": 120,
         "4L-2H": 408,
         "2L-4H": 373,
-        "3L-3H": 563,
         "5L-1H": 122,
         "0L-6H": 19,
         "6L-0H": 13
@@ -192,21 +192,21 @@
       "mid_point": 21
     },
     "consecutive_analysis": {
-      "average_consecutive": 0.7336217552533992,
+      "average_consecutive": 0.7333333333333333,
       "max_consecutive": 4,
-      "draws_with_consecutive": 907,
-      "percentage_with_consecutive": 56.05686032138443
+      "draws_with_consecutive": 908,
+      "percentage_with_consecutive": 56.04938271604938
     },
     "sum_analysis": {
-      "average_sum": 128.9752781211372,
+      "average_sum": 128.96481481481482,
       "min_sum": 51,
       "max_sum": 218,
       "median_sum": 129.0,
-      "std_dev": 27.721520549213622
+      "std_dev": 27.70845788826858
     },
     "winner_analysis": {
       "total_winning_draws": 205,
-      "win_rate": 12.67,
+      "win_rate": 12.65,
       "most_frequent_winning_numbers": [
         [
           19,
@@ -345,7 +345,7 @@
         "median_days_between_wins": 14.0,
         "std_dev_days": 19.3,
         "last_win_date": "2025-09-27",
-        "days_since_last_win": 33,
+        "days_since_last_win": 36,
         "expected_next_win_in_days": 19,
         "early_win_window": "1 days",
         "late_win_window": "38 days",
@@ -459,58 +459,58 @@
       "predicted_combinations": [
         {
           "numbers": [
-            4,
-            10,
-            25,
-            26,
-            39,
-            40
-          ],
-          "confidence_score": 75.34
-        },
-        {
-          "numbers": [
-            6,
-            9,
-            12,
+            5,
+            7,
             14,
-            24,
+            26,
+            36,
             37
           ],
-          "confidence_score": 73.73
+          "confidence_score": 79.0
         },
         {
           "numbers": [
-            4,
-            8,
-            10,
-            15,
+            9,
             20,
+            33,
+            37,
+            40,
             42
           ],
-          "confidence_score": 70.79
+          "confidence_score": 77.33
         },
         {
           "numbers": [
             2,
             6,
-            8,
-            21,
-            24,
-            32
+            9,
+            14,
+            15,
+            24
           ],
-          "confidence_score": 70.16
+          "confidence_score": 72.12
         },
         {
           "numbers": [
-            25,
-            29,
+            3,
+            12,
+            26,
             32,
-            33,
-            37,
-            41
+            34,
+            37
           ],
-          "confidence_score": 65.76
+          "confidence_score": 71.78
+        },
+        {
+          "numbers": [
+            8,
+            13,
+            15,
+            16,
+            17,
+            19
+          ],
+          "confidence_score": 69.5
         }
       ]
     },
@@ -521,7 +521,7 @@
     },
     "Thursday": {
       "day": "Thursday",
-      "total_draws": 537,
+      "total_draws": 538,
       "most_frequent_numbers": [
         [
           16,
@@ -565,13 +565,17 @@
         ]
       ],
       "number_frequency": {
+        "3": 73,
+        "7": 80,
+        "8": 62,
+        "23": 73,
+        "28": 62,
+        "41": 81,
         "12": 79,
         "20": 76,
-        "23": 72,
         "24": 68,
         "26": 70,
         "29": 68,
-        "7": 79,
         "11": 73,
         "21": 81,
         "39": 75,
@@ -579,7 +583,6 @@
         "27": 85,
         "32": 66,
         "34": 73,
-        "41": 80,
         "15": 87,
         "17": 75,
         "25": 89,
@@ -590,14 +593,12 @@
         "18": 92,
         "42": 78,
         "6": 71,
-        "8": 61,
         "16": 96,
         "19": 87,
         "31": 75,
         "9": 74,
         "30": 79,
         "38": 66,
-        "3": 72,
         "10": 70,
         "33": 87,
         "40": 72,
@@ -605,7 +606,6 @@
         "5": 87,
         "37": 78,
         "22": 66,
-        "28": 61,
         "13": 88
       },
       "hot_numbers": [
@@ -619,58 +619,58 @@
       "predicted_combinations": [
         {
           "numbers": [
-            2,
-            16,
-            19,
-            25,
-            29,
-            42
-          ],
-          "confidence_score": 81.29
-        },
-        {
-          "numbers": [
-            9,
-            25,
-            27,
-            29,
-            34,
-            36
-          ],
-          "confidence_score": 72.68
-        },
-        {
-          "numbers": [
-            9,
-            10,
-            19,
-            24,
-            27,
-            39
-          ],
-          "confidence_score": 71.62
-        },
-        {
-          "numbers": [
-            2,
-            9,
-            16,
+            4,
+            12,
             18,
-            22,
-            34
+            33,
+            39,
+            41
           ],
-          "confidence_score": 70.95
+          "confidence_score": 79.64
         },
         {
           "numbers": [
-            8,
-            15,
+            4,
+            11,
+            19,
             27,
-            28,
-            30,
-            38
+            33,
+            40
           ],
-          "confidence_score": 69.54
+          "confidence_score": 75.03
+        },
+        {
+          "numbers": [
+            1,
+            2,
+            10,
+            12,
+            27,
+            30
+          ],
+          "confidence_score": 71.7
+        },
+        {
+          "numbers": [
+            2,
+            6,
+            21,
+            23,
+            26,
+            32
+          ],
+          "confidence_score": 69.64
+        },
+        {
+          "numbers": [
+            3,
+            4,
+            28,
+            29,
+            31,
+            37
+          ],
+          "confidence_score": 69.55
         }
       ]
     },
@@ -681,7 +681,7 @@
     },
     "Saturday": {
       "day": "Saturday",
-      "total_draws": 537,
+      "total_draws": 538,
       "most_frequent_numbers": [
         [
           22,
@@ -700,11 +700,15 @@
           88
         ],
         [
-          32,
-          85
+          15,
+          86
         ],
         [
           31,
+          86
+        ],
+        [
+          32,
           85
         ],
         [
@@ -712,19 +716,21 @@
           85
         ],
         [
-          15,
-          85
-        ],
-        [
           41,
           84
         ],
         [
-          21,
+          25,
           81
         ]
       ],
       "number_frequency": {
+        "13": 66,
+        "15": 86,
+        "18": 77,
+        "25": 81,
+        "29": 77,
+        "31": 86,
         "5": 75,
         "8": 89,
         "12": 91,
@@ -733,7 +739,6 @@
         "36": 69,
         "6": 73,
         "14": 78,
-        "25": 80,
         "26": 73,
         "38": 77,
         "1": 70,
@@ -746,10 +751,8 @@
         "11": 75,
         "21": 81,
         "24": 71,
-        "29": 76,
         "22": 100,
         "28": 76,
-        "31": 85,
         "7": 70,
         "17": 80,
         "23": 81,
@@ -757,80 +760,77 @@
         "33": 69,
         "2": 71,
         "39": 88,
-        "13": 65,
         "19": 79,
         "16": 61,
         "3": 81,
-        "18": 76,
         "34": 69,
         "10": 85,
         "35": 80,
-        "42": 80,
-        "15": 85
+        "42": 80
       },
       "hot_numbers": [
         22,
         12,
         8,
         39,
-        32,
+        15,
         31
       ],
       "predicted_combinations": [
         {
           "numbers": [
-            10,
-            17,
-            18,
+            2,
+            12,
+            21,
             23,
-            25,
-            42
+            33,
+            36
           ],
-          "confidence_score": 75.82
+          "confidence_score": 74.3
+        },
+        {
+          "numbers": [
+            9,
+            24,
+            32,
+            35,
+            36,
+            39
+          ],
+          "confidence_score": 74.14
         },
         {
           "numbers": [
             1,
-            4,
-            15,
-            22,
-            25,
-            31
-          ],
-          "confidence_score": 73.61
-        },
-        {
-          "numbers": [
-            4,
-            19,
-            22,
-            23,
-            33,
-            35
-          ],
-          "confidence_score": 72.75
-        },
-        {
-          "numbers": [
             7,
-            8,
-            11,
-            12,
-            16,
-            25
-          ],
-          "confidence_score": 70.89
-        },
-        {
-          "numbers": [
-            7,
-            11,
-            13,
             18,
-            27,
-            29
+            19,
+            29,
+            42
           ],
-          "confidence_score": 61.77
+          "confidence_score": 71.73
+        },
+        {
+          "numbers": [
+            2,
+            4,
+            6,
+            13,
+            19,
+            21
+          ],
+          "confidence_score": 69.32
+        },
+        {
+          "numbers": [
+            6,
+            8,
+            20,
+            23,
+            32,
+            42
+          ],
+          "confidence_score": 69.0
         }
       ]
     },
@@ -843,86 +843,86 @@
   "top_predictions": [
     {
       "numbers": [
-        4,
-        9,
+        3,
+        12,
         21,
-        23,
-        40,
-        42
+        22,
+        32,
+        41
       ],
-      "confidence_score": 83.27,
+      "confidence_score": 84.09,
       "analysis": {
         "even_odd": "3E-3O",
         "high_low": "3L-3H",
-        "sum": 139,
-        "consecutive_pairs": 0
+        "sum": 131,
+        "consecutive_pairs": 1
+      }
+    },
+    {
+      "numbers": [
+        4,
+        16,
+        18,
+        25,
+        26,
+        39
+      ],
+      "confidence_score": 80.78,
+      "analysis": {
+        "even_odd": "4E-2O",
+        "high_low": "3L-3H",
+        "sum": 128,
+        "consecutive_pairs": 1
       }
     },
     {
       "numbers": [
         2,
-        3,
+        4,
         10,
-        22,
-        25,
-        35
+        16,
+        37,
+        41
       ],
-      "confidence_score": 82.35,
+      "confidence_score": 80.33,
       "analysis": {
-        "even_odd": "3E-3O",
-        "high_low": "3L-3H",
-        "sum": 97,
-        "consecutive_pairs": 1
-      }
-    },
-    {
-      "numbers": [
-        9,
-        12,
-        19,
-        24,
-        32,
-        37
-      ],
-      "confidence_score": 81.71,
-      "analysis": {
-        "even_odd": "3E-3O",
-        "high_low": "3L-3H",
-        "sum": 133,
+        "even_odd": "4E-2O",
+        "high_low": "4L-2H",
+        "sum": 110,
         "consecutive_pairs": 0
       }
     },
     {
       "numbers": [
-        12,
-        17,
-        19,
-        23,
-        34,
+        5,
+        7,
+        15,
+        25,
+        28,
         35
       ],
-      "confidence_score": 76.95,
+      "confidence_score": 76.02,
       "analysis": {
-        "even_odd": "2E-4O",
+        "even_odd": "1E-5O",
         "high_low": "3L-3H",
-        "sum": 140,
-        "consecutive_pairs": 1
+        "sum": 115,
+        "consecutive_pairs": 0
       }
     },
     {
       "numbers": [
-        7,
-        8,
-        15,
-        23,
-        29,
-        37
+        13,
+        16,
+        17,
+        19,
+        27,
+        35
       ],
-      "confidence_score": 74.73,
+      "confidence_score": 73.45,
       "analysis": {
         "even_odd": "1E-5O",
-        "high_low": "3L-3H",
-        "sum": 119,
+        "high_low": "4L-2H",
+        "sum": 127,
         "consecutive_pairs": 1
       }
     }
@@ -930,91 +930,91 @@
   "winning_predictions": [
     {
       "numbers": [
-        9,
-        14,
+        1,
+        5,
+        18,
         20,
-        23,
-        34,
-        35
+        36,
+        37
       ],
-      "win_probability_score": 96.18,
+      "win_probability_score": 100,
       "analysis": {
         "even_odd": "3E-3O",
-        "high_low": "3L-3H",
-        "sum": 135,
+        "high_low": "4L-2H",
+        "sum": 117,
         "consecutive_pairs": 1
       },
       "prediction_type": "Winner-Optimized"
     },
     {
       "numbers": [
-        11,
+        2,
+        18,
         19,
-        23,
-        27,
-        36,
-        39
+        21,
+        26,
+        34
       ],
-      "win_probability_score": 81.71,
+      "win_probability_score": 83.29,
       "analysis": {
-        "even_odd": "1E-5O",
-        "high_low": "2L-4H",
-        "sum": 155,
-        "consecutive_pairs": 0
+        "even_odd": "4E-2O",
+        "high_low": "4L-2H",
+        "sum": 120,
+        "consecutive_pairs": 1
       },
       "prediction_type": "Winner-Optimized"
     },
     {
       "numbers": [
-        1,
-        4,
-        10,
-        16,
-        33,
-        36
+        7,
+        9,
+        19,
+        26,
+        27,
+        38
       ],
-      "win_probability_score": 72.73,
+      "win_probability_score": 81.52,
       "analysis": {
-        "even_odd": "4E-2O",
-        "high_low": "4L-2H",
-        "sum": 100,
-        "consecutive_pairs": 0
+        "even_odd": "2E-4O",
+        "high_low": "3L-3H",
+        "sum": 126,
+        "consecutive_pairs": 1
+      },
+      "prediction_type": "Winner-Optimized"
+    },
+    {
+      "numbers": [
+        7,
+        13,
+        20,
+        22,
+        23,
+        33
+      ],
+      "win_probability_score": 74.6,
+      "analysis": {
+        "even_odd": "2E-4O",
+        "high_low": "3L-3H",
+        "sum": 118,
+        "consecutive_pairs": 1
       },
       "prediction_type": "Winner-Optimized"
     },
     {
       "numbers": [
         5,
-        12,
-        14,
+        15,
+        16,
         17,
-        31,
-        39
+        23,
+        34
       ],
-      "win_probability_score": 70.96,
+      "win_probability_score": 73.44,
       "analysis": {
         "even_odd": "2E-4O",
         "high_low": "4L-2H",
-        "sum": 118,
-        "consecutive_pairs": 0
-      },
-      "prediction_type": "Winner-Optimized"
-    },
-    {
-      "numbers": [
-        12,
-        28,
-        29,
-        32,
-        34,
-        36
-      ],
-      "win_probability_score": 63.28,
-      "analysis": {
-        "even_odd": "5E-1O",
-        "high_low": "1L-5H",
-        "sum": 171,
-        "consecutive_pairs": 1
+        "sum": 110,
+        "consecutive_pairs": 2
       },
       "prediction_type": "Winner-Optimized"
     }
@@ -1022,80 +1022,40 @@
   "pattern_predictions": [
     {
       "numbers": [
-        1,
-        3,
+        15,
+        19,
         22,
-        26,
-        35,
-        40
+        30,
+        36,
+        38
       ],
-      "pattern_score": 95.66,
+      "pattern_score": 92.06,
       "carryover_count": 1,
       "new_count": 5,
       "analysis": {
-        "even_odd": "3E-3O",
+        "even_odd": "4E-2O",
         "high_low": "2L-4H",
-        "sum": 127,
+        "sum": 160,
         "consecutive_pairs": 0
       },
       "prediction_type": "Pattern-Based"
     },
     {
       "numbers": [
-        16,
+        4,
+        5,
         17,
-        23,
+        25,
         28,
-        32,
-        33
+        39
       ],
-      "pattern_score": 95.64,
-      "carryover_count": 1,
-      "new_count": 5,
-      "analysis": {
-        "even_odd": "3E-3O",
-        "high_low": "2L-4H",
-        "sum": 149,
-        "consecutive_pairs": 2
-      },
-      "prediction_type": "Pattern-Based"
-    },
-    {
-      "numbers": [
-        7,
-        15,
-        16,
-        21,
-        35,
-        42
-      ],
-      "pattern_score": 91.65,
+      "pattern_score": 91.56,
       "carryover_count": 1,
       "new_count": 5,
       "analysis": {
         "even_odd": "2E-4O",
-        "high_low": "4L-2H",
-        "sum": 136,
-        "consecutive_pairs": 1
-      },
-      "prediction_type": "Pattern-Based"
-    },
-    {
-      "numbers": [
-        6,
-        7,
-        18,
-        21,
-        33,
-        37
-      ],
-      "pattern_score": 91.2,
-      "carryover_count": 1,
-      "new_count": 5,
-      "analysis": {
-        "even_odd": "2E-4O",
-        "high_low": "4L-2H",
-        "sum": 122,
+        "high_low": "3L-3H",
+        "sum": 118,
         "consecutive_pairs": 1
       },
       "prediction_type": "Pattern-Based"
@@ -1103,19 +1063,59 @@
     {
       "numbers": [
         3,
-        7,
-        15,
+        10,
+        21,
+        29,
+        36,
+        39
+      ],
+      "pattern_score": 91.11,
+      "carryover_count": 1,
+      "new_count": 5,
+      "analysis": {
+        "even_odd": "2E-4O",
+        "high_low": "3L-3H",
+        "sum": 138,
+        "consecutive_pairs": 0
+      },
+      "prediction_type": "Pattern-Based"
+    },
+    {
+      "numbers": [
+        9,
         18,
-        27,
+        22,
+        25,
+        38,
         41
       ],
-      "pattern_score": 80.18,
+      "pattern_score": 90.44,
       "carryover_count": 2,
       "new_count": 4,
       "analysis": {
+        "even_odd": "3E-3O",
+        "high_low": "2L-4H",
+        "sum": 153,
+        "consecutive_pairs": 0
+      },
+      "prediction_type": "Pattern-Based"
+    },
+    {
+      "numbers": [
+        5,
+        11,
+        19,
+        31,
+        33,
+        42
+      ],
+      "pattern_score": 87.1,
+      "carryover_count": 1,
+      "new_count": 5,
+      "analysis": {
         "even_odd": "1E-5O",
-        "high_low": "4L-2H",
-        "sum": 111,
+        "high_low": "3L-3H",
+        "sum": 141,
         "consecutive_pairs": 0
       },
       "prediction_type": "Pattern-Based"
@@ -1125,24 +1125,25 @@
     "average_carryover": 0.87,
     "most_common_carryover": 1,
     "average_new_numbers": 5.13,
-    "average_sum_difference": 30.68,
+    "average_sum_difference": 30.7,
     "most_common_pattern_transition": "3E-3O → 3E-3O",
     "carryover_distribution": {
+      "0": 620,
+      "2": 288,
       "1": 659,
-      "2": 287,
-      "0": 619,
       "3": 43,
       "4": 5,
       "6": 4
     },
     "pattern_transitions": {
+      "1E-5O → 2E-4O": 23,
+      "2E-4O → 3E-3O": 131,
       "3E-3O → 5E-1O": 45,
       "5E-1O → 4E-2O": 36,
       "4E-2O → 1E-5O": 32,
       "1E-5O → 5E-1O": 18,
       "5E-1O → 2E-4O": 36,
       "2E-4O → 2E-4O": 104,
-      "2E-4O → 3E-3O": 130,
       "3E-3O → 3E-3O": 182,
       "3E-3O → 4E-2O": 117,
       "4E-2O → 2E-4O": 95,
@@ -1165,7 +1166,6 @@
       "6E-0O → 2E-4O": 5,
       "2E-4O → 5E-1O": 33,
       "5E-1O → 3E-3O": 47,
-      "1E-5O → 2E-4O": 22,
       "2E-4O → 1E-5O": 33,
       "4E-2O → 6E-0O": 3,
       "1E-5O → 0E-6O": 3,
@@ -1183,16 +1183,16 @@
       "6E-0O → 1E-5O": 1
     },
     "latest_draw": {
-      "date": "10/28/2025",
+      "date": "11/1/2025",
       "numbers": [
+        13,
+        15,
         18,
         25,
-        28,
-        35,
-        36,
-        41
+        29,
+        31
       ],
-      "sum": 183
+      "sum": 131
     }
   },
   "temporal_patterns": {
@@ -1778,7 +1778,7 @@
         "average_per_number": 22.142857142857142
       },
       "2025": {
-        "total_draws": 127,
+        "total_draws": 129,
         "most_frequent": [
           [
             35,
@@ -1801,6 +1801,14 @@
             23
           ],
           [
+            31,
+            22
+          ],
+          [
+            41,
+            22
+          ],
+          [
             24,
             22
           ],
@@ -1809,15 +1817,7 @@
             22
           ],
           [
-            41,
-            21
-          ],
-          [
             42,
-            21
-          ],
-          [
-            31,
             21
           ]
         ],
@@ -1827,13 +1827,13 @@
           36,
           21,
           40,
+          31,
+          41,
           24,
           22,
-          41,
-          42,
-          31
+          42
         ],
-        "average_per_number": 18.142857142857142
+        "average_per_number": 18.428571428571427
       }
     },
     "by_month": {
@@ -2325,7 +2325,7 @@
       },
       "October": {
         "month_number": 10,
-        "total_draws": 147,
+        "total_draws": 148,
         "most_frequent": [
           [
             25,
@@ -2337,7 +2337,7 @@
           ],
           [
             23,
-            27
+            28
           ],
           [
             1,
@@ -2356,15 +2356,15 @@
             26
           ],
           [
+            3,
+            24
+          ],
+          [
             42,
             24
           ],
           [
-            3,
-            23
-          ],
-          [
-            19,
+            7,
             23
           ]
         ],
@@ -2379,19 +2379,19 @@
       },
       "November": {
         "month_number": 11,
-        "total_draws": 128,
+        "total_draws": 129,
         "most_frequent": [
           [
             15,
+            25
+          ],
+          [
+            29,
             24
           ],
           [
             7,
             24
-          ],
-          [
-            29,
-            23
           ],
           [
             30,
@@ -2410,22 +2410,22 @@
             22
           ],
           [
+            25,
+            21
+          ],
+          [
             1,
             21
           ],
           [
             21,
             21
-          ],
-          [
-            19,
-            21
           ]
         ],
         "hot_numbers": [
           15,
-          7,
           29,
+          7,
           30,
           5,
           14
@@ -3907,14 +3907,18 @@
         ]
       },
       "44": {
-        "total_draws": 31,
+        "total_draws": 33,
         "most_frequent": [
           [
             8,
-            10
+            11
           ],
           [
             25,
+            9
+          ],
+          [
+            29,
             8
           ],
           [
@@ -3924,19 +3928,15 @@
           [
             40,
             7
-          ],
-          [
-            29,
-            7
           ]
         ],
         "hot_numbers": [
           8,
           25,
+          29,
           14,
           40,
-          29,
-          35
+          15
         ]
       },
       "45": {
@@ -4292,7 +4292,7 @@
         ]
       },
       "Thursday": {
-        "total_draws": 537,
+        "total_draws": 538,
         "most_frequent": [
           [
             16,
@@ -4345,7 +4345,7 @@
         ]
       },
       "Saturday": {
-        "total_draws": 537,
+        "total_draws": 538,
         "most_frequent": [
           [
             22,
@@ -4364,11 +4364,15 @@
             88
           ],
           [
-            32,
-            85
+            15,
+            86
           ],
           [
             31,
+            86
+          ],
+          [
+            32,
             85
           ],
           [
@@ -4376,15 +4380,11 @@
             85
           ],
           [
-            15,
-            85
-          ],
-          [
             41,
             84
           ],
           [
-            21,
+            25,
             81
           ]
         ],
@@ -4393,7 +4393,7 @@
           12,
           8,
           39,
-          32,
+          15,
           31
         ]
       }
@@ -4439,6 +4439,12 @@
           "years_appeared": 11
         },
         {
+          "number": 23,
+          "average_frequency": 21.0,
+          "consistency_score": 0.859,
+          "years_appeared": 11
+        },
+        {
           "number": 10,
           "average_frequency": 20.09,
           "consistency_score": 0.857,
@@ -4457,15 +4463,9 @@
           "years_appeared": 11
         },
         {
-          "number": 23,
-          "average_frequency": 20.91,
-          "consistency_score": 0.854,
-          "years_appeared": 11
-        },
-        {
           "number": 25,
-          "average_frequency": 22.91,
-          "consistency_score": 0.848,
+          "average_frequency": 23.0,
+          "consistency_score": 0.853,
           "years_appeared": 11
         },
         {
@@ -4481,6 +4481,12 @@
           "years_appeared": 11
         },
         {
+          "number": 7,
+          "average_frequency": 21.55,
+          "consistency_score": 0.815,
+          "years_appeared": 11
+        },
+        {
           "number": 39,
           "average_frequency": 21.27,
           "consistency_score": 0.815,
@@ -4488,20 +4494,14 @@
         },
         {
           "number": 31,
-          "average_frequency": 23.09,
-          "consistency_score": 0.81,
+          "average_frequency": 23.18,
+          "consistency_score": 0.813,
           "years_appeared": 11
         },
         {
-          "number": 34,
-          "average_frequency": 20.18,
+          "number": 3,
+          "average_frequency": 20.45,
           "consistency_score": 0.807,
-          "years_appeared": 11
-        },
-        {
-          "number": 7,
-          "average_frequency": 21.45,
-          "consistency_score": 0.806,
           "years_appeared": 11
         }
       ],
@@ -4510,7 +4510,7 @@
           "number": 15,
           "year": 2015,
           "frequency": 34,
-          "improvement_over_average": 61.1
+          "improvement_over_average": 60.4
         },
         {
           "number": 2,
@@ -4528,7 +4528,7 @@
           "number": 28,
           "year": 2017,
           "frequency": 29,
-          "improvement_over_average": 60.2
+          "improvement_over_average": 59.3
         },
         {
           "number": 30,
@@ -4540,13 +4540,13 @@
           "number": 29,
           "year": 2018,
           "frequency": 30,
-          "improvement_over_average": 56.3
+          "improvement_over_average": 55.4
         },
         {
           "number": 15,
           "year": 2021,
           "frequency": 34,
-          "improvement_over_average": 61.1
+          "improvement_over_average": 60.4
         },
         {
           "number": 2,
@@ -4558,7 +4558,7 @@
           "number": 18,
           "year": 2022,
           "frequency": 38,
-          "improvement_over_average": 82.7
+          "improvement_over_average": 81.8
         },
         {
           "number": 33,
@@ -4570,6 +4570,28 @@
     },
     "monthly_trends": {
       "monthly_favorites": {
+        "November": [
+          {
+            "number": 15,
+            "frequency": 25
+          },
+          {
+            "number": 29,
+            "frequency": 24
+          },
+          {
+            "number": 7,
+            "frequency": 24
+          },
+          {
+            "number": 30,
+            "frequency": 23
+          },
+          {
+            "number": 5,
+            "frequency": 23
+          }
+        ],
         "October": [
           {
             "number": 25,
@@ -4581,7 +4603,7 @@
           },
           {
             "number": 23,
-            "frequency": 27
+            "frequency": 28
           },
           {
             "number": 1,
@@ -4811,41 +4833,19 @@
             "number": 23,
             "frequency": 23
           }
-        ],
-        "November": [
-          {
-            "number": 15,
-            "frequency": 24
-          },
-          {
-            "number": 7,
-            "frequency": 24
-          },
-          {
-            "number": 29,
-            "frequency": 23
-          },
-          {
-            "number": 30,
-            "frequency": 23
-          },
-          {
-            "number": 5,
-            "frequency": 23
-          }
         ]
       },
       "total_months_analyzed": 12
     },
     "weekly_patterns": {
       "first_half_month": {
-        "total_draws": 797,
+        "total_draws": 798,
         "top_numbers": [
           18,
           19,
+          25,
           22,
           12,
-          25,
           36,
           5,
           39,
@@ -4854,15 +4854,15 @@
         ]
       },
       "second_half_month": {
-        "total_draws": 821,
+        "total_draws": 822,
         "top_numbers": [
           31,
           19,
           38,
           25,
           15,
-          40,
           8,
+          40,
           13,
           33,
           36
@@ -4875,92 +4875,92 @@
       {
         "number": 19,
         "frequency": 256,
-        "appearance_rate": 15.82,
+        "appearance_rate": 15.8,
         "observation": "Number 19 appears in 15.8% of all draws"
       },
       {
         "number": 31,
-        "frequency": 254,
-        "appearance_rate": 15.7,
+        "frequency": 255,
+        "appearance_rate": 15.74,
         "observation": "Number 31 appears in 15.7% of all draws"
       },
       {
         "number": 25,
-        "frequency": 252,
-        "appearance_rate": 15.57,
+        "frequency": 253,
+        "appearance_rate": 15.62,
         "observation": "Number 25 appears in 15.6% of all draws"
       },
       {
         "number": 18,
-        "frequency": 246,
-        "appearance_rate": 15.2,
+        "frequency": 247,
+        "appearance_rate": 15.25,
         "observation": "Number 18 appears in 15.2% of all draws"
+      },
+      {
+        "number": 15,
+        "frequency": 246,
+        "appearance_rate": 15.19,
+        "observation": "Number 15 appears in 15.2% of all draws"
       },
       {
         "number": 36,
         "frequency": 246,
-        "appearance_rate": 15.2,
+        "appearance_rate": 15.19,
         "observation": "Number 36 appears in 15.2% of all draws"
       },
       {
         "number": 5,
         "frequency": 246,
-        "appearance_rate": 15.2,
+        "appearance_rate": 15.19,
         "observation": "Number 5 appears in 15.2% of all draws"
-      },
-      {
-        "number": 15,
-        "frequency": 245,
-        "appearance_rate": 15.14,
-        "observation": "Number 15 appears in 15.1% of all draws"
       },
       {
         "number": 12,
         "frequency": 244,
-        "appearance_rate": 15.08,
+        "appearance_rate": 15.06,
         "observation": "Number 12 appears in 15.1% of all draws"
+      },
+      {
+        "number": 41,
+        "frequency": 242,
+        "appearance_rate": 14.94,
+        "observation": "Number 41 appears in 14.9% of all draws"
       },
       {
         "number": 22,
         "frequency": 242,
-        "appearance_rate": 14.96,
-        "observation": "Number 22 appears in 15.0% of all draws"
-      },
-      {
-        "number": 41,
-        "frequency": 241,
-        "appearance_rate": 14.89,
-        "observation": "Number 41 appears in 14.9% of all draws"
+        "appearance_rate": 14.94,
+        "observation": "Number 22 appears in 14.9% of all draws"
       },
       {
         "number": 16,
         "frequency": 240,
-        "appearance_rate": 14.83,
+        "appearance_rate": 14.81,
         "observation": "Number 16 appears in 14.8% of all draws"
       },
       {
         "number": 14,
         "frequency": 238,
-        "appearance_rate": 14.71,
+        "appearance_rate": 14.69,
         "observation": "Number 14 appears in 14.7% of all draws"
       },
       {
         "number": 4,
         "frequency": 238,
-        "appearance_rate": 14.71,
+        "appearance_rate": 14.69,
         "observation": "Number 4 appears in 14.7% of all draws"
       },
       {
         "number": 7,
-        "frequency": 236,
-        "appearance_rate": 14.59,
+        "frequency": 237,
+        "appearance_rate": 14.63,
         "observation": "Number 7 appears in 14.6% of all draws"
       },
       {
         "number": 39,
         "frequency": 234,
-        "appearance_rate": 14.46,
-        "observation": "Number 39 appears in 14.5% of all draws"
+        "appearance_rate": 14.44,
+        "observation": "Number 39 appears in 14.4% of all draws"
       }
     ],
     "common_repeating_patterns": [
@@ -5000,6 +5000,11 @@
         "observation": "Number 19 appeared in 41 consecutive draws"
       },
       {
+        "number": 41,
+        "consecutive_occurrences": 39,
+        "observation": "Number 41 appeared in 39 consecutive draws"
+      },
+      {
         "number": 39,
         "consecutive_occurrences": 39,
         "observation": "Number 39 appeared in 39 consecutive draws"
@@ -5008,11 +5013,6 @@
         "number": 3,
         "consecutive_occurrences": 39,
         "observation": "Number 3 appeared in 39 consecutive draws"
-      },
-      {
-        "number": 25,
-        "consecutive_occurrences": 39,
-        "observation": "Number 25 appeared in 39 consecutive draws"
       }
     ],
     "year_to_year_insights": [
@@ -5041,6 +5041,12 @@
         "observation": "Number 16 is highly consistent across 11 years"
       },
       {
+        "number": 23,
+        "consistency_score": 0.859,
+        "years_appeared": 11,
+        "observation": "Number 23 is highly consistent across 11 years"
+      },
+      {
         "number": 10,
         "consistency_score": 0.857,
         "years_appeared": 11,
@@ -5059,14 +5065,8 @@
         "observation": "Number 20 is highly consistent across 11 years"
       },
       {
-        "number": 23,
-        "consistency_score": 0.854,
-        "years_appeared": 11,
-        "observation": "Number 23 is highly consistent across 11 years"
-      },
-      {
         "number": 25,
-        "consistency_score": 0.848,
+        "consistency_score": 0.853,
         "years_appeared": 11,
         "observation": "Number 25 is highly consistent across 11 years"
       },
@@ -5081,8 +5081,8 @@
       {
         "number": 15,
         "year": 2015,
-        "improvement": 61.1,
-        "observation": "Number 15 had exceptional performance in 2015 (61% above average)"
+        "improvement": 60.4,
+        "observation": "Number 15 had exceptional performance in 2015 (60% above average)"
       },
       {
         "number": 2,
@@ -5099,8 +5099,8 @@
       {
         "number": 28,
         "year": 2017,
-        "improvement": 60.2,
-        "observation": "Number 28 had exceptional performance in 2017 (60% above average)"
+        "improvement": 59.3,
+        "observation": "Number 28 had exceptional performance in 2017 (59% above average)"
       },
       {
         "number": 30,
@@ -5111,14 +5111,14 @@
       {
         "number": 29,
         "year": 2018,
-        "improvement": 56.3,
-        "observation": "Number 29 had exceptional performance in 2018 (56% above average)"
+        "improvement": 55.4,
+        "observation": "Number 29 had exceptional performance in 2018 (55% above average)"
       },
       {
         "number": 15,
         "year": 2021,
-        "improvement": 61.1,
-        "observation": "Number 15 had exceptional performance in 2021 (61% above average)"
+        "improvement": 60.4,
+        "observation": "Number 15 had exceptional performance in 2021 (60% above average)"
       },
       {
         "number": 2,
@@ -5129,8 +5129,8 @@
       {
         "number": 18,
         "year": 2022,
-        "improvement": 82.7,
-        "observation": "Number 18 had exceptional performance in 2022 (83% above average)"
+        "improvement": 81.8,
+        "observation": "Number 18 had exceptional performance in 2022 (82% above average)"
       },
       {
         "number": 33,
@@ -5234,10 +5234,10 @@
         "month": "November",
         "hot_numbers": [
           15,
-          7,
-          29
+          29,
+          7
         ],
-        "observation": "In November, numbers 15, 7, 29 appear most frequently"
+        "observation": "In November, numbers 15, 29, 7 appear most frequently"
       },
       {
         "month": "December",
@@ -5253,127 +5253,127 @@
   "ultimate_predictions": [
     {
       "numbers": [
-        10,
-        17,
-        21,
+        3,
+        6,
+        19,
         22,
-        25,
-        36
+        24,
+        31
       ],
-      "ultimate_confidence_score": 82.63,
+      "ultimate_confidence_score": 82.36,
       "analysis": {
         "even_odd": "3E-3O",
         "high_low": "3L-3H",
-        "sum": 131,
-        "consecutive_pairs": 1,
+        "sum": 105,
+        "consecutive_pairs": 0,
         "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
       },
       "prediction_type": "Ultimate Analysis",
       "scoring_components": {
-        "frequency_score": 23.49,
+        "frequency_score": 23.69,
         "pattern_match": 25.0,
         "temporal_consistency": 16.67,
-        "balance_score": 17.48
-      }
-    },
-    {
-      "numbers": [
-        12,
-        14,
-        20,
-        24,
-        27,
-        40
-      ],
-      "ultimate_confidence_score": 66.3,
-      "analysis": {
-        "even_odd": "5E-1O",
-        "high_low": "3L-3H",
-        "sum": 137,
-        "consecutive_pairs": 0,
-        "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
-      },
-      "prediction_type": "Ultimate Analysis",
-      "scoring_components": {
-        "frequency_score": 22.32,
-        "pattern_match": 12.5,
-        "temporal_consistency": 16.67,
-        "balance_score": 14.81
-      }
-    },
-    {
-      "numbers": [
-        12,
-        14,
-        19,
-        23,
-        26,
-        34
-      ],
-      "ultimate_confidence_score": 62.28,
-      "analysis": {
-        "even_odd": "4E-2O",
-        "high_low": "3L-3H",
-        "sum": 128,
-        "consecutive_pairs": 0,
-        "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
-      },
-      "prediction_type": "Ultimate Analysis",
-      "scoring_components": {
-        "frequency_score": 21.57,
-        "pattern_match": 12.5,
-        "temporal_consistency": 12.5,
-        "balance_score": 15.71
+        "balance_score": 17.0
       }
     },
     {
       "numbers": [
         10,
-        17,
-        18,
-        21,
-        23,
-        29
+        14,
+        20,
+        27,
+        31,
+        38
       ],
-      "ultimate_confidence_score": 42.92,
+      "ultimate_confidence_score": 71.76,
       "analysis": {
-        "even_odd": "2E-4O",
-        "high_low": "4L-2H",
-        "sum": 118,
-        "consecutive_pairs": 1,
-        "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
-      },
-      "prediction_type": "Ultimate Analysis",
-      "scoring_components": {
-        "frequency_score": 19.58,
-        "pattern_match": 0.0,
-        "temporal_consistency": 8.33,
-        "balance_score": 15.0
-      }
-    },
-    {
-      "numbers": [
-        4,
-        11,
-        13,
-        15,
-        17,
-        27
-      ],
-      "ultimate_confidence_score": 34.76,
-      "analysis": {
-        "even_odd": "1E-5O",
-        "high_low": "5L-1H",
-        "sum": 87,
+        "even_odd": "4E-2O",
+        "high_low": "3L-3H",
+        "sum": 140,
         "consecutive_pairs": 0,
         "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
       },
       "prediction_type": "Ultimate Analysis",
       "scoring_components": {
-        "frequency_score": 17.83,
-        "pattern_match": 0.0,
+        "frequency_score": 22.43,
+        "pattern_match": 12.5,
+        "temporal_consistency": 20.83,
+        "balance_score": 16.0
+      }
+    },
+    {
+      "numbers": [
+        1,
+        6,
+        15,
+        26,
+        27,
+        42
+      ],
+      "ultimate_confidence_score": 67.11,
+      "analysis": {
+        "even_odd": "3E-3O",
+        "high_low": "3L-3H",
+        "sum": 117,
+        "consecutive_pairs": 1,
+        "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
+      },
+      "prediction_type": "Ultimate Analysis",
+      "scoring_components": {
+        "frequency_score": 18.51,
+        "pattern_match": 25.0,
         "temporal_consistency": 4.17,
-        "balance_score": 12.76
+        "balance_score": 19.43
+      }
+    },
+    {
+      "numbers": [
+        2,
+        3,
+        7,
+        12,
+        24,
+        33
+      ],
+      "ultimate_confidence_score": 62.3,
+      "analysis": {
+        "even_odd": "3E-3O",
+        "high_low": "4L-2H",
+        "sum": 81,
+        "consecutive_pairs": 1,
+        "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
+      },
+      "prediction_type": "Ultimate Analysis",
+      "scoring_components": {
+        "frequency_score": 21.01,
+        "pattern_match": 12.5,
+        "temporal_consistency": 12.5,
+        "balance_score": 16.29
+      }
+    },
+    {
+      "numbers": [
+        1,
+        7,
+        21,
+        22,
+        35,
+        38
+      ],
+      "ultimate_confidence_score": 58.53,
+      "analysis": {
+        "even_odd": "2E-4O",
+        "high_low": "3L-3H",
+        "sum": 124,
+        "consecutive_pairs": 1,
+        "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
+      },
+      "prediction_type": "Ultimate Analysis",
+      "scoring_components": {
+        "frequency_score": 19.84,
+        "pattern_match": 12.5,
+        "temporal_consistency": 8.33,
+        "balance_score": 17.86
       }
     }
   ],
@@ -5426,35 +5426,35 @@
       "values": [
         216,
         227,
-        224,
+        225,
         238,
         246,
         217,
-        236,
-        232,
+        237,
+        233,
         230,
         221,
         217,
         244,
-        230,
+        231,
         238,
-        245,
+        246,
         240,
         222,
-        246,
+        247,
         256,
         218,
         232,
         242,
-        230,
         231,
-        252,
+        231,
+        253,
         216,
         227,
-        210,
+        211,
+        223,
         222,
-        222,
-        254,
+        255,
         224,
         231,
         222,
@@ -5464,7 +5464,7 @@
         218,
         234,
         231,
-        241,
+        242,
         227
       ]
     },
@@ -5482,28 +5482,28 @@
         0,
         544,
         0,
-        537,
+        538,
         0,
-        537,
+        538,
         0
       ]
     },
     "even_odd_patterns": {
       "labels": [
+        "1E-5O",
+        "2E-4O",
         "3E-3O",
         "5E-1O",
         "4E-2O",
-        "1E-5O",
-        "2E-4O",
         "6E-0O",
         "0E-6O"
       ],
       "values": [
+        134,
+        406,
         538,
         137,
         368,
-        133,
-        405,
         16,
         21
       ]
@@ -5539,9 +5539,9 @@
         72,
         111,
         143,
-        157,
+        158,
         189,
-        179,
+        180,
         172,
         166,
         112,
@@ -5595,7 +5595,7 @@
             20.0,
             20.0,
             23.0,
-            23.0,
+            24.0,
             17.0,
             17.0
           ],
@@ -5651,7 +5651,7 @@
             22.0,
             20.0,
             24.0,
-            22.0,
+            23.0,
             24.0,
             11.0
           ],
@@ -5665,7 +5665,7 @@
             24.0,
             22.0,
             14.0,
-            14.0,
+            15.0,
             17.0,
             19.0
           ],
@@ -5736,7 +5736,7 @@
             23.0,
             18.0,
             17.0,
-            15.0,
+            16.0,
             21.0
           ],
           [
@@ -5764,7 +5764,7 @@
             22.0,
             20.0,
             21.0,
-            24.0,
+            25.0,
             21.0
           ],
           [
@@ -5806,7 +5806,7 @@
             21.0,
             22.0,
             19.0,
-            16.0,
+            17.0,
             21.0
           ],
           [
@@ -5875,7 +5875,7 @@
             17.0,
             19.0,
             24.0,
-            27.0,
+            28.0,
             12.0,
             23.0
           ],
@@ -5904,7 +5904,7 @@
             25.0,
             19.0,
             29.0,
-            20.0,
+            21.0,
             22.0
           ],
           [
@@ -5945,7 +5945,7 @@
             17.0,
             19.0,
             16.0,
-            18.0,
+            19.0,
             21.0,
             21.0
           ],
@@ -5960,7 +5960,7 @@
             22.0,
             18.0,
             20.0,
-            23.0,
+            24.0,
             15.0
           ],
           [
@@ -5988,7 +5988,7 @@
             23.0,
             18.0,
             26.0,
-            18.0,
+            19.0,
             22.0
           ],
           [
@@ -6127,7 +6127,7 @@
             21.0,
             23.0,
             21.0,
-            21.0,
+            22.0,
             16.0,
             22.0
           ],
@@ -6245,7 +6245,7 @@
             23.0,
             23.0,
             27.0,
-            18.0
+            19.0
           ],
           [
             19.0,
@@ -6297,7 +6297,7 @@
             22.0,
             22.0,
             25.0,
-            13.0
+            14.0
           ],
           [
             18.0,
@@ -6310,7 +6310,7 @@
             27.0,
             26.0,
             22.0,
-            14.0
+            15.0
           ],
           [
             19.0,
@@ -6375,7 +6375,7 @@
             26.0,
             28.0,
             19.0,
-            18.0
+            19.0
           ],
           [
             19.0,
@@ -6401,7 +6401,7 @@
             27.0,
             16.0,
             14.0,
-            16.0
+            17.0
           ],
           [
             20.0,
@@ -6440,7 +6440,7 @@
             38.0,
             27.0,
             23.0,
-            18.0
+            19.0
           ],
           [
             28.0,
@@ -6505,7 +6505,7 @@
             22.0,
             20.0,
             26.0,
-            17.0
+            18.0
           ],
           [
             21.0,
@@ -6531,7 +6531,7 @@
             27.0,
             21.0,
             23.0,
-            19.0
+            20.0
           ],
           [
             26.0,
@@ -6570,7 +6570,7 @@
             24.0,
             18.0,
             21.0,
-            13.0
+            14.0
           ],
           [
             20.0,
@@ -6583,7 +6583,7 @@
             20.0,
             21.0,
             23.0,
-            15.0
+            16.0
           ],
           [
             21.0,
@@ -6609,7 +6609,7 @@
             25.0,
             21.0,
             25.0,
-            21.0
+            22.0
           ],
           [
             25.0,
@@ -6739,7 +6739,7 @@
             19.0,
             24.0,
             32.0,
-            21.0
+            22.0
           ],
           [
             28.0,
@@ -6838,7 +6838,7 @@
             0.0,
             71.0,
             0.0,
-            72.0,
+            73.0,
             0.0,
             81.0,
             0.0
@@ -6874,7 +6874,7 @@
             0.0,
             87.0,
             0.0,
-            79.0,
+            80.0,
             0.0,
             70.0,
             0.0
@@ -6883,7 +6883,7 @@
             0.0,
             82.0,
             0.0,
-            61.0,
+            62.0,
             0.0,
             89.0,
             0.0
@@ -6930,7 +6930,7 @@
             0.0,
             88.0,
             0.0,
-            65.0,
+            66.0,
             0.0
           ],
           [
@@ -6948,7 +6948,7 @@
             0.0,
             87.0,
             0.0,
-            85.0,
+            86.0,
             0.0
           ],
           [
@@ -6975,7 +6975,7 @@
             0.0,
             92.0,
             0.0,
-            76.0,
+            77.0,
             0.0
           ],
           [
@@ -7018,7 +7018,7 @@
             0.0,
             77.0,
             0.0,
-            72.0,
+            73.0,
             0.0,
             81.0,
             0.0
@@ -7038,7 +7038,7 @@
             0.0,
             89.0,
             0.0,
-            80.0,
+            81.0,
             0.0
           ],
           [
@@ -7063,7 +7063,7 @@
             0.0,
             73.0,
             0.0,
-            61.0,
+            62.0,
             0.0,
             76.0,
             0.0
@@ -7074,7 +7074,7 @@
             0.0,
             68.0,
             0.0,
-            76.0,
+            77.0,
             0.0
           ],
           [
@@ -7092,7 +7092,7 @@
             0.0,
             75.0,
             0.0,
-            85.0,
+            86.0,
             0.0
           ],
           [
@@ -7180,7 +7180,7 @@
             0.0,
             77.0,
             0.0,
-            80.0,
+            81.0,
             0.0,
             84.0,
             0.0
@@ -7379,7 +7379,8 @@
           "2025-07",
           "2025-08",
           "2025-09",
-          "2025-10"
+          "2025-10",
+          "2025-11"
         ],
         "datasets": [
           {
@@ -7510,6 +7511,7 @@
               1,
               2,
               1,
+              0,
               0
             ]
           },
@@ -7641,7 +7643,8 @@
               2,
               2,
               2,
-              0
+              0,
+              1
             ]
           },
           {
@@ -7772,7 +7775,8 @@
               1,
               2,
               0,
-              3
+              3,
+              1
             ]
           },
           {
@@ -7903,267 +7907,6 @@
               2,
               1,
               4,
-              1
-            ]
-          },
-          {
-            "label": "Number 36",
-            "data": [
-              4,
-              1,
-              1,
-              2,
-              1,
-              2,
-              0,
-              2,
-              3,
-              3,
-              3,
-              2,
-              1,
-              0,
-              2,
-              4,
-              1,
-              2,
-              4,
-              1,
-              2,
-              0,
-              3,
-              2,
-              2,
-              0,
-              3,
-              1,
-              2,
-              1,
-              4,
-              2,
-              2,
-              3,
-              1,
-              1,
-              0,
-              2,
-              2,
-              2,
-              2,
-              3,
-              2,
-              4,
-              2,
-              0,
-              0,
-              3,
-              3,
-              3,
-              3,
-              2,
-              0,
-              3,
-              1,
-              2,
-              2,
-              1,
-              2,
-              0,
-              1,
-              1,
-              3,
-              0,
-              2,
-              3,
-              2,
-              2,
-              1,
-              1,
-              1,
-              1,
-              4,
-              2,
-              2,
-              1,
-              1,
-              2,
-              3,
-              1,
-              4,
-              0,
-              5,
-              2,
-              1,
-              4,
-              1,
-              1,
-              3,
-              0,
-              4,
-              0,
-              2,
-              2,
-              2,
-              3,
-              3,
-              3,
-              6,
-              5,
-              1,
-              2,
-              2,
-              0,
-              2,
-              1,
-              1,
-              2,
-              5,
-              3,
-              1,
-              1,
-              1,
-              1,
-              1,
-              1,
-              1,
-              4,
-              3,
-              1,
-              1,
-              2,
-              1,
-              5,
-              2,
-              4
-            ]
-          },
-          {
-            "label": "Number 5",
-            "data": [
-              1,
-              4,
-              2,
-              1,
-              0,
-              4,
-              1,
-              2,
-              1,
-              0,
-              0,
-              2,
-              0,
-              2,
-              3,
-              3,
-              2,
-              1,
-              3,
-              2,
-              2,
-              2,
-              5,
-              2,
-              0,
-              1,
-              1,
-              3,
-              3,
-              2,
-              4,
-              1,
-              3,
-              1,
-              0,
-              2,
-              4,
-              1,
-              3,
-              0,
-              2,
-              1,
-              1,
-              1,
-              2,
-              2,
-              2,
-              1,
-              1,
-              3,
-              1,
-              2,
-              2,
-              1,
-              4,
-              1,
-              1,
-              3,
-              4,
-              3,
-              3,
-              7,
-              3,
-              1,
-              3,
-              1,
-              3,
-              3,
-              1,
-              3,
-              0,
-              3,
-              3,
-              2,
-              0,
-              2,
-              0,
-              1,
-              1,
-              4,
-              1,
-              1,
-              1,
-              2,
-              0,
-              1,
-              2,
-              3,
-              1,
-              1,
-              3,
-              2,
-              5,
-              0,
-              3,
-              2,
-              2,
-              0,
-              3,
-              1,
-              3,
-              4,
-              4,
-              4,
-              2,
-              3,
-              1,
-              2,
-              3,
-              1,
-              1,
-              1,
-              2,
-              1,
-              1,
-              4,
-              2,
-              2,
-              2,
-              2,
-              0,
-              4,
-              3,
-              2,
               1,
               1
             ]
@@ -8296,7 +8039,272 @@
               2,
               1,
               0,
-              3
+              3,
+              1
+            ]
+          },
+          {
+            "label": "Number 36",
+            "data": [
+              4,
+              1,
+              1,
+              2,
+              1,
+              2,
+              0,
+              2,
+              3,
+              3,
+              3,
+              2,
+              1,
+              0,
+              2,
+              4,
+              1,
+              2,
+              4,
+              1,
+              2,
+              0,
+              3,
+              2,
+              2,
+              0,
+              3,
+              1,
+              2,
+              1,
+              4,
+              2,
+              2,
+              3,
+              1,
+              1,
+              0,
+              2,
+              2,
+              2,
+              2,
+              3,
+              2,
+              4,
+              2,
+              0,
+              0,
+              3,
+              3,
+              3,
+              3,
+              2,
+              0,
+              3,
+              1,
+              2,
+              2,
+              1,
+              2,
+              0,
+              1,
+              1,
+              3,
+              0,
+              2,
+              3,
+              2,
+              2,
+              1,
+              1,
+              1,
+              1,
+              4,
+              2,
+              2,
+              1,
+              1,
+              2,
+              3,
+              1,
+              4,
+              0,
+              5,
+              2,
+              1,
+              4,
+              1,
+              1,
+              3,
+              0,
+              4,
+              0,
+              2,
+              2,
+              2,
+              3,
+              3,
+              3,
+              6,
+              5,
+              1,
+              2,
+              2,
+              0,
+              2,
+              1,
+              1,
+              2,
+              5,
+              3,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              4,
+              3,
+              1,
+              1,
+              2,
+              1,
+              5,
+              2,
+              4,
+              0
+            ]
+          },
+          {
+            "label": "Number 5",
+            "data": [
+              1,
+              4,
+              2,
+              1,
+              0,
+              4,
+              1,
+              2,
+              1,
+              0,
+              0,
+              2,
+              0,
+              2,
+              3,
+              3,
+              2,
+              1,
+              3,
+              2,
+              2,
+              2,
+              5,
+              2,
+              0,
+              1,
+              1,
+              3,
+              3,
+              2,
+              4,
+              1,
+              3,
+              1,
+              0,
+              2,
+              4,
+              1,
+              3,
+              0,
+              2,
+              1,
+              1,
+              1,
+              2,
+              2,
+              2,
+              1,
+              1,
+              3,
+              1,
+              2,
+              2,
+              1,
+              4,
+              1,
+              1,
+              3,
+              4,
+              3,
+              3,
+              7,
+              3,
+              1,
+              3,
+              1,
+              3,
+              3,
+              1,
+              3,
+              0,
+              3,
+              3,
+              2,
+              0,
+              2,
+              0,
+              1,
+              1,
+              4,
+              1,
+              1,
+              1,
+              2,
+              0,
+              1,
+              2,
+              3,
+              1,
+              1,
+              3,
+              2,
+              5,
+              0,
+              3,
+              2,
+              2,
+              0,
+              3,
+              1,
+              3,
+              4,
+              4,
+              4,
+              2,
+              3,
+              1,
+              2,
+              3,
+              1,
+              1,
+              1,
+              2,
+              1,
+              1,
+              4,
+              2,
+              2,
+              2,
+              2,
+              0,
+              4,
+              3,
+              2,
+              1,
+              1,
+              0
             ]
           },
           {
@@ -8427,138 +8435,8 @@
               1,
               0,
               2,
-              5
-            ]
-          },
-          {
-            "label": "Number 22",
-            "data": [
-              1,
-              4,
-              1,
-              1,
-              2,
-              2,
-              3,
-              3,
-              3,
-              2,
-              1,
-              3,
-              2,
-              1,
-              2,
-              1,
-              1,
-              2,
-              1,
-              1,
-              2,
-              4,
-              2,
-              1,
-              2,
-              2,
-              2,
-              0,
-              3,
-              1,
-              0,
-              3,
-              2,
-              1,
-              1,
-              1,
-              0,
-              4,
-              1,
-              3,
-              1,
-              1,
-              2,
               5,
-              2,
-              2,
-              2,
-              2,
-              3,
-              2,
-              2,
-              1,
-              3,
-              0,
-              5,
-              2,
-              0,
-              1,
-              2,
-              2,
-              1,
-              3,
-              1,
-              1,
-              2,
-              3,
-              4,
-              3,
-              3,
-              0,
-              2,
-              2,
-              3,
-              2,
-              0,
-              2,
-              0,
-              4,
-              3,
-              1,
-              1,
-              1,
-              2,
-              3,
-              3,
-              3,
-              1,
-              1,
-              1,
-              2,
-              0,
-              2,
-              0,
-              2,
-              4,
-              0,
-              4,
-              0,
-              2,
-              4,
-              3,
-              3,
-              1,
-              2,
-              3,
-              4,
-              2,
-              0,
-              3,
-              4,
-              0,
-              1,
-              0,
-              3,
-              2,
-              1,
-              3,
-              2,
-              4,
-              1,
-              2,
-              4,
-              3,
-              0,
-              2,
-              1
+              0
             ]
           },
           {
@@ -8689,7 +8567,140 @@
               1,
               2,
               2,
-              3
+              4,
+              0
+            ]
+          },
+          {
+            "label": "Number 22",
+            "data": [
+              1,
+              4,
+              1,
+              1,
+              2,
+              2,
+              3,
+              3,
+              3,
+              2,
+              1,
+              3,
+              2,
+              1,
+              2,
+              1,
+              1,
+              2,
+              1,
+              1,
+              2,
+              4,
+              2,
+              1,
+              2,
+              2,
+              2,
+              0,
+              3,
+              1,
+              0,
+              3,
+              2,
+              1,
+              1,
+              1,
+              0,
+              4,
+              1,
+              3,
+              1,
+              1,
+              2,
+              5,
+              2,
+              2,
+              2,
+              2,
+              3,
+              2,
+              2,
+              1,
+              3,
+              0,
+              5,
+              2,
+              0,
+              1,
+              2,
+              2,
+              1,
+              3,
+              1,
+              1,
+              2,
+              3,
+              4,
+              3,
+              3,
+              0,
+              2,
+              2,
+              3,
+              2,
+              0,
+              2,
+              0,
+              4,
+              3,
+              1,
+              1,
+              1,
+              2,
+              3,
+              3,
+              3,
+              1,
+              1,
+              1,
+              2,
+              0,
+              2,
+              0,
+              2,
+              4,
+              0,
+              4,
+              0,
+              2,
+              4,
+              3,
+              3,
+              1,
+              2,
+              3,
+              4,
+              2,
+              0,
+              3,
+              4,
+              0,
+              1,
+              0,
+              3,
+              2,
+              1,
+              3,
+              2,
+              4,
+              1,
+              2,
+              4,
+              3,
+              0,
+              2,
+              1,
+              0
             ]
           }
         ],
@@ -8822,7 +8833,8 @@
           "2025-07",
           "2025-08",
           "2025-09",
-          "2025-10"
+          "2025-10",
+          "2025-11"
         ],
         "data": [
           137.69230769230768,
@@ -8950,7 +8962,8 @@
           129.92857142857142,
           136.07692307692307,
           133.84615384615384,
-          130.75
+          129.15384615384616,
+          131.0
         ],
         "title": "Average Draw Sum Over Time"
       },
@@ -9081,7 +9094,8 @@
           "2025-07",
           "2025-08",
           "2025-09",
-          "2025-10"
+          "2025-10",
+          "2025-11"
         ],
         "data": [
           0.43589743589743585,
@@ -9209,7 +9223,8 @@
           0.4166666666666667,
           0.4487179487179488,
           0.5897435897435898,
-          0.513888888888889
+          0.5,
+          0.16666666666666666
         ],
         "title": "Even Number Ratio Over Time"
       },
@@ -10822,9 +10837,13 @@
           1604,
           1605,
           1606,
-          1607
+          1607,
+          1608,
+          1609
         ],
         "data": [
+          0.6062996062994094,
+          0.5622024821145435,
           0.5917517095361369,
           0.5863442118003048,
           0.5622024821145434,

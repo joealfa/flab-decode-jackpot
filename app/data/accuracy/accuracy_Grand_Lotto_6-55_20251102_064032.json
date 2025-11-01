@@ -1,0 +1,252 @@
+{
+  "actual_numbers": [
+    5,
+    7,
+    12,
+    27,
+    47,
+    50
+  ],
+  "draw_date": "2025-11-01",
+  "game_type": "Grand Lotto 6/55",
+  "top_predictions_comparison": [
+    {
+      "rank": 1,
+      "predicted_numbers": [
+        6,
+        9,
+        18,
+        20,
+        21,
+        47
+      ],
+      "matches": 1,
+      "matched_numbers": [
+        47
+      ],
+      "confidence_score": 80.97
+    },
+    {
+      "rank": 2,
+      "predicted_numbers": [
+        19,
+        20,
+        26,
+        27,
+        37,
+        46
+      ],
+      "matches": 1,
+      "matched_numbers": [
+        27
+      ],
+      "confidence_score": 76.39
+    },
+    {
+      "rank": 3,
+      "predicted_numbers": [
+        17,
+        25,
+        27,
+        32,
+        36,
+        44
+      ],
+      "matches": 1,
+      "matched_numbers": [
+        27
+      ],
+      "confidence_score": 75.55
+    },
+    {
+      "rank": 4,
+      "predicted_numbers": [
+        7,
+        8,
+        31,
+        34,
+        37,
+        55
+      ],
+      "matches": 1,
+      "matched_numbers": [
+        7
+      ],
+      "confidence_score": 73.71
+    },
+    {
+      "rank": 5,
+      "predicted_numbers": [
+        15,
+        17,
+        33,
+        34,
+        47,
+        53
+      ],
+      "matches": 1,
+      "matched_numbers": [
+        47
+      ],
+      "confidence_score": 71.93
+    }
+  ],
+  "winning_predictions_comparison": [
+    {
+      "rank": 1,
+      "predicted_numbers": [
+        6,
+        8,
+        28,
+        39,
+        45,
+        55
+      ],
+      "matches": 0,
+      "matched_numbers": [],
+      "win_probability_score": 64.79
+    },
+    {
+      "rank": 2,
+      "predicted_numbers": [
+        6,
+        17,
+        26,
+        43,
+        46,
+        52
+      ],
+      "matches": 0,
+      "matched_numbers": [],
+      "win_probability_score": 60.02
+    },
+    {
+      "rank": 3,
+      "predicted_numbers": [
+        6,
+        8,
+        28,
+        30,
+        34,
+        39
+      ],
+      "matches": 0,
+      "matched_numbers": [],
+      "win_probability_score": 59.89
+    },
+    {
+      "rank": 4,
+      "predicted_numbers": [
+        4,
+        5,
+        24,
+        30,
+        39,
+        42
+      ],
+      "matches": 1,
+      "matched_numbers": [
+        5
+      ],
+      "win_probability_score": 57.11
+    },
+    {
+      "rank": 5,
+      "predicted_numbers": [
+        14,
+        17,
+        20,
+        22,
+        39,
+        45
+      ],
+      "matches": 0,
+      "matched_numbers": [],
+      "win_probability_score": 51.8
+    }
+  ],
+  "pattern_predictions_comparison": [
+    {
+      "rank": 1,
+      "predicted_numbers": [
+        3,
+        6,
+        15,
+        16,
+        40,
+        47
+      ],
+      "matches": 1,
+      "matched_numbers": [
+        47
+      ],
+      "pattern_score": 94.52
+    },
+    {
+      "rank": 2,
+      "predicted_numbers": [
+        1,
+        11,
+        13,
+        38,
+        40,
+        48
+      ],
+      "matches": 0,
+      "matched_numbers": [],
+      "pattern_score": 87.7
+    },
+    {
+      "rank": 3,
+      "predicted_numbers": [
+        19,
+        27,
+        37,
+        38,
+        45,
+        55
+      ],
+      "matches": 1,
+      "matched_numbers": [
+        27
+      ],
+      "pattern_score": 84.05
+    },
+    {
+      "rank": 4,
+      "predicted_numbers": [
+        4,
+        10,
+        31,
+        48,
+        49,
+        52
+      ],
+      "matches": 0,
+      "matched_numbers": [],
+      "pattern_score": 82.58
+    },
+    {
+      "rank": 5,
+      "predicted_numbers": [
+        7,
+        13,
+        17,
+        25,
+        37,
+        45
+      ],
+      "matches": 1,
+      "matched_numbers": [
+        7
+      ],
+      "pattern_score": 78.35
+    }
+  ],
+  "analysis_snapshot": {
+    "filename": "analysis_result_Grand_Lotto_6-55_20251031_20251102_063946.json",
+    "generated_at": "2025-11-02 06:39:46",
+    "coverage_end": "2025-10-31",
+    "selection_reason": "post_draw_nearest"
+  }
+}

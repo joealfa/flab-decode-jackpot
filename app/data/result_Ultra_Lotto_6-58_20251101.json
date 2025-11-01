@@ -1,9 +1,9 @@
 {
   "game_type": "Ultra Lotto 6/58",
   "start_date": "2015-01-01",
-  "end_date": "2025-10-29",
-  "total_draws": 1492,
-  "scraped_at": "2025-10-30 05:48:39",
+  "end_date": "2025-11-01",
+  "total_draws": 1493,
+  "scraped_at": "2025-11-02 07:09:03",
   "results": [
     {
       "game": "Ultra Lotto 6/58",
@@ -22383,6 +22383,21 @@
         57
       ],
       "jackpot": "49,500,000.00",
+      "winners": "0"
+    },
+    {
+      "game": "Ultra Lotto 6/58",
+      "date": "10/31/2025",
+      "day_of_week": "Friday",
+      "numbers": [
+        7,
+        12,
+        17,
+        20,
+        31,
+        39
+      ],
+      "jackpot": "91,000,000.00",
       "winners": "0"
     }
   ]

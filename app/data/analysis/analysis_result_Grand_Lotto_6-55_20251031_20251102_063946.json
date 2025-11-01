@@ -1,17 +1,17 @@
 {
-  "analyzed_at": "2025-10-30 07:18:24",
-  "source_file": "result_Grand_Lotto_6-55_20251029.json",
+  "analyzed_at": "2025-11-02 06:39:46",
+  "source_file": "result_Grand_Lotto_6-55_20251031.json",
   "game_type": "Grand Lotto 6/55",
   "date_range": {
     "start": "2015-01-01",
-    "end": "2025-10-29"
+    "end": "2025-10-31"
   },
   "total_draws": 1624,
   "overall_stats": {
     "total_draws": 1624,
     "date_range": {
       "start": "2015-01-01",
-      "end": "2025-10-29"
+      "end": "2025-10-31"
     },
     "most_frequent_numbers": [
       [
@@ -356,7 +356,7 @@
         "median_days_between_wins": 45.0,
         "std_dev_days": 44.0,
         "last_win_date": "2025-10-06",
-        "days_since_last_win": 24,
+        "days_since_last_win": 27,
         "expected_next_win_in_days": 55,
         "early_win_window": "11 days",
         "late_win_window": "99 days",
@@ -478,58 +478,58 @@
       "predicted_combinations": [
         {
           "numbers": [
+            1,
             5,
-            22,
-            24,
-            26,
-            48,
-            50
+            30,
+            44,
+            46,
+            49
           ],
-          "confidence_score": 67.98
+          "confidence_score": 74.7
+        },
+        {
+          "numbers": [
+            13,
+            24,
+            28,
+            31,
+            41,
+            42
+          ],
+          "confidence_score": 67.71
+        },
+        {
+          "numbers": [
+            1,
+            5,
+            34,
+            35,
+            43,
+            53
+          ],
+          "confidence_score": 66.45
+        },
+        {
+          "numbers": [
+            3,
+            18,
+            32,
+            39,
+            43,
+            51
+          ],
+          "confidence_score": 64.66
         },
         {
           "numbers": [
             7,
-            8,
-            31,
-            48,
-            50,
-            52
-          ],
-          "confidence_score": 67.29
-        },
-        {
-          "numbers": [
-            14,
-            15,
-            32,
-            37,
-            41,
-            53
-          ],
-          "confidence_score": 64.49
-        },
-        {
-          "numbers": [
-            4,
-            20,
-            31,
-            34,
-            40,
-            52
-          ],
-          "confidence_score": 64.38
-        },
-        {
-          "numbers": [
+            11,
             26,
-            27,
-            37,
-            41,
-            43,
-            44
+            34,
+            38,
+            40
           ],
-          "confidence_score": 61.77
+          "confidence_score": 64.37
         }
       ]
     },
@@ -651,58 +651,58 @@
       "predicted_combinations": [
         {
           "numbers": [
-            6,
-            9,
-            10,
-            35,
-            41,
-            52
-          ],
-          "confidence_score": 75.28
-        },
-        {
-          "numbers": [
-            2,
-            9,
-            10,
-            25,
-            26,
-            55
-          ],
-          "confidence_score": 75.07
-        },
-        {
-          "numbers": [
-            2,
-            7,
-            8,
-            22,
-            27,
-            28
-          ],
-          "confidence_score": 70.28
-        },
-        {
-          "numbers": [
-            6,
-            14,
-            16,
+            11,
             17,
-            38,
+            28,
+            33,
+            42,
+            54
+          ],
+          "confidence_score": 74.98
+        },
+        {
+          "numbers": [
+            5,
+            17,
+            20,
+            31,
+            36,
+            54
+          ],
+          "confidence_score": 71.75
+        },
+        {
+          "numbers": [
+            11,
+            17,
+            27,
+            42,
+            49,
             51
           ],
-          "confidence_score": 70.28
+          "confidence_score": 70.48
         },
         {
           "numbers": [
-            24,
+            12,
+            22,
+            25,
             33,
-            40,
-            41,
             44,
-            49
+            45
           ],
-          "confidence_score": 69.11
+          "confidence_score": 69.46
+        },
+        {
+          "numbers": [
+            25,
+            29,
+            39,
+            42,
+            43,
+            47
+          ],
+          "confidence_score": 64.0
         }
       ]
     },
@@ -829,58 +829,58 @@
       "predicted_combinations": [
         {
           "numbers": [
-            5,
-            13,
-            20,
-            33,
-            44,
+            2,
+            3,
+            8,
+            28,
+            29,
             52
           ],
-          "confidence_score": 79.18
+          "confidence_score": 74.11
         },
         {
           "numbers": [
-            1,
-            5,
-            18,
-            35,
-            37,
-            44
+            4,
+            6,
+            16,
+            20,
+            32,
+            55
           ],
-          "confidence_score": 72.59
+          "confidence_score": 68.94
+        },
+        {
+          "numbers": [
+            10,
+            11,
+            12,
+            33,
+            45,
+            53
+          ],
+          "confidence_score": 68.66
+        },
+        {
+          "numbers": [
+            3,
+            13,
+            15,
+            19,
+            29,
+            33
+          ],
+          "confidence_score": 64.32
         },
         {
           "numbers": [
             2,
-            5,
-            8,
-            12,
-            13,
-            52
+            7,
+            22,
+            23,
+            27,
+            37
           ],
-          "confidence_score": 70.57
-        },
-        {
-          "numbers": [
-            3,
-            15,
-            17,
-            29,
-            46,
-            48
-          ],
-          "confidence_score": 69.66
-        },
-        {
-          "numbers": [
-            3,
-            11,
-            25,
-            35,
-            37,
-            45
-          ],
-          "confidence_score": 66.12
+          "confidence_score": 64.3
         }
       ]
     },
@@ -893,69 +893,52 @@
   "top_predictions": [
     {
       "numbers": [
-        13,
-        15,
-        16,
+        6,
+        9,
+        18,
         20,
-        52,
-        53
+        21,
+        47
       ],
-      "confidence_score": 80.49,
+      "confidence_score": 80.97,
       "analysis": {
         "even_odd": "3E-3O",
-        "high_low": "4L-2H",
-        "sum": 169,
-        "consecutive_pairs": 2
-      }
-    },
-    {
-      "numbers": [
-        5,
-        6,
-        13,
-        16,
-        46,
-        54
-      ],
-      "confidence_score": 79.49,
-      "analysis": {
-        "even_odd": "4E-2O",
-        "high_low": "4L-2H",
-        "sum": 140,
+        "high_low": "5L-1H",
+        "sum": 121,
         "consecutive_pairs": 1
       }
     },
     {
       "numbers": [
-        10,
-        41,
-        44,
-        50,
-        52,
-        55
+        19,
+        20,
+        26,
+        27,
+        37,
+        46
       ],
-      "confidence_score": 79.35,
+      "confidence_score": 76.39,
       "analysis": {
-        "even_odd": "4E-2O",
-        "high_low": "1L-5H",
-        "sum": 252,
-        "consecutive_pairs": 0
+        "even_odd": "3E-3O",
+        "high_low": "4L-2H",
+        "sum": 175,
+        "consecutive_pairs": 2
       }
     },
     {
       "numbers": [
-        2,
-        10,
         17,
+        25,
+        27,
         32,
-        37,
-        50
+        36,
+        44
       ],
-      "confidence_score": 76.33,
+      "confidence_score": 75.55,
       "analysis": {
-        "even_odd": "4E-2O",
+        "even_odd": "3E-3O",
         "high_low": "3L-3H",
-        "sum": 148,
+        "sum": 181,
         "consecutive_pairs": 0
       }
     },
@@ -963,16 +946,33 @@
       "numbers": [
         7,
         8,
-        12,
-        24,
-        39,
-        46
+        31,
+        34,
+        37,
+        55
       ],
-      "confidence_score": 72.72,
+      "confidence_score": 73.71,
       "analysis": {
-        "even_odd": "4E-2O",
-        "high_low": "4L-2H",
-        "sum": 136,
+        "even_odd": "2E-4O",
+        "high_low": "2L-4H",
+        "sum": 172,
+        "consecutive_pairs": 1
+      }
+    },
+    {
+      "numbers": [
+        15,
+        17,
+        33,
+        34,
+        47,
+        53
+      ],
+      "confidence_score": 71.93,
+      "analysis": {
+        "even_odd": "1E-5O",
+        "high_low": "2L-4H",
+        "sum": 199,
         "consecutive_pairs": 1
       }
     }
@@ -980,36 +980,72 @@
   "winning_predictions": [
     {
       "numbers": [
-        5,
-        11,
+        6,
+        8,
         28,
-        34,
-        47,
+        39,
+        45,
         55
       ],
-      "win_probability_score": 91.47,
+      "win_probability_score": 64.79,
       "analysis": {
-        "even_odd": "2E-4O",
+        "even_odd": "3E-3O",
         "high_low": "2L-4H",
-        "sum": 180,
+        "sum": 181,
         "consecutive_pairs": 0
       },
       "prediction_type": "Winner-Optimized"
     },
     {
       "numbers": [
-        5,
-        8,
-        10,
-        11,
-        13,
-        50
+        6,
+        17,
+        26,
+        43,
+        46,
+        52
       ],
-      "win_probability_score": 70.71,
+      "win_probability_score": 60.02,
       "analysis": {
-        "even_odd": "3E-3O",
-        "high_low": "5L-1H",
-        "sum": 97,
+        "even_odd": "4E-2O",
+        "high_low": "3L-3H",
+        "sum": 190,
+        "consecutive_pairs": 0
+      },
+      "prediction_type": "Winner-Optimized"
+    },
+    {
+      "numbers": [
+        6,
+        8,
+        28,
+        30,
+        34,
+        39
+      ],
+      "win_probability_score": 59.89,
+      "analysis": {
+        "even_odd": "5E-1O",
+        "high_low": "2L-4H",
+        "sum": 145,
+        "consecutive_pairs": 0
+      },
+      "prediction_type": "Winner-Optimized"
+    },
+    {
+      "numbers": [
+        4,
+        5,
+        24,
+        30,
+        39,
+        42
+      ],
+      "win_probability_score": 57.11,
+      "analysis": {
+        "even_odd": "4E-2O",
+        "high_low": "3L-3H",
+        "sum": 144,
         "consecutive_pairs": 1
       },
       "prediction_type": "Winner-Optimized"
@@ -1018,52 +1054,16 @@
       "numbers": [
         14,
         17,
-        19,
-        23,
-        27,
-        29
-      ],
-      "win_probability_score": 69.01,
-      "analysis": {
-        "even_odd": "1E-5O",
-        "high_low": "5L-1H",
-        "sum": 129,
-        "consecutive_pairs": 0
-      },
-      "prediction_type": "Winner-Optimized"
-    },
-    {
-      "numbers": [
-        1,
-        9,
+        20,
         22,
-        29,
-        36,
-        50
+        39,
+        45
       ],
-      "win_probability_score": 65.71,
+      "win_probability_score": 51.8,
       "analysis": {
         "even_odd": "3E-3O",
-        "high_low": "3L-3H",
-        "sum": 147,
-        "consecutive_pairs": 0
-      },
-      "prediction_type": "Winner-Optimized"
-    },
-    {
-      "numbers": [
-        2,
-        6,
-        20,
-        24,
-        44,
-        49
-      ],
-      "win_probability_score": 59.46,
-      "analysis": {
-        "even_odd": "5E-1O",
         "high_low": "4L-2H",
-        "sum": 145,
+        "sum": 157,
         "consecutive_pairs": 0
       },
       "prediction_type": "Winner-Optimized"
@@ -1072,100 +1072,100 @@
   "pattern_predictions": [
     {
       "numbers": [
-        4,
-        33,
-        41,
-        45,
-        50,
-        52
+        3,
+        6,
+        15,
+        16,
+        40,
+        47
       ],
-      "pattern_score": 95.21,
+      "pattern_score": 94.52,
       "carryover_count": 1,
       "new_count": 5,
       "analysis": {
         "even_odd": "3E-3O",
-        "high_low": "1L-5H",
-        "sum": 225,
-        "consecutive_pairs": 0
-      },
-      "prediction_type": "Pattern-Based"
-    },
-    {
-      "numbers": [
-        11,
-        19,
-        40,
-        51,
-        54,
-        55
-      ],
-      "pattern_score": 89.54,
-      "carryover_count": 1,
-      "new_count": 5,
-      "analysis": {
-        "even_odd": "2E-4O",
-        "high_low": "2L-4H",
-        "sum": 230,
+        "high_low": "4L-2H",
+        "sum": 127,
         "consecutive_pairs": 1
       },
       "prediction_type": "Pattern-Based"
     },
     {
       "numbers": [
-        8,
+        1,
+        11,
         13,
-        18,
-        34,
-        45,
-        50
+        38,
+        40,
+        48
       ],
-      "pattern_score": 87.81,
+      "pattern_score": 87.7,
+      "carryover_count": 2,
+      "new_count": 4,
+      "analysis": {
+        "even_odd": "3E-3O",
+        "high_low": "3L-3H",
+        "sum": 151,
+        "consecutive_pairs": 0
+      },
+      "prediction_type": "Pattern-Based"
+    },
+    {
+      "numbers": [
+        19,
+        27,
+        37,
+        38,
+        45,
+        55
+      ],
+      "pattern_score": 84.05,
       "carryover_count": 1,
       "new_count": 5,
       "analysis": {
-        "even_odd": "4E-2O",
-        "high_low": "3L-3H",
-        "sum": 168,
-        "consecutive_pairs": 0
-      },
-      "prediction_type": "Pattern-Based"
-    },
-    {
-      "numbers": [
-        2,
-        6,
-        19,
-        32,
-        41,
-        48
-      ],
-      "pattern_score": 76.26,
-      "carryover_count": 3,
-      "new_count": 3,
-      "analysis": {
-        "even_odd": "4E-2O",
-        "high_low": "3L-3H",
-        "sum": 148,
-        "consecutive_pairs": 0
-      },
-      "prediction_type": "Pattern-Based"
-    },
-    {
-      "numbers": [
-        3,
-        10,
-        19,
-        39,
-        49,
-        55
-      ],
-      "pattern_score": 70.74,
-      "carryover_count": 3,
-      "new_count": 3,
-      "analysis": {
         "even_odd": "1E-5O",
-        "high_low": "3L-3H",
-        "sum": 175,
+        "high_low": "2L-4H",
+        "sum": 221,
+        "consecutive_pairs": 1
+      },
+      "prediction_type": "Pattern-Based"
+    },
+    {
+      "numbers": [
+        4,
+        10,
+        31,
+        48,
+        49,
+        52
+      ],
+      "pattern_score": 82.58,
+      "carryover_count": 2,
+      "new_count": 4,
+      "analysis": {
+        "even_odd": "4E-2O",
+        "high_low": "2L-4H",
+        "sum": 194,
+        "consecutive_pairs": 1
+      },
+      "prediction_type": "Pattern-Based"
+    },
+    {
+      "numbers": [
+        7,
+        13,
+        17,
+        25,
+        37,
+        45
+      ],
+      "pattern_score": 78.35,
+      "carryover_count": 1,
+      "new_count": 5,
+      "analysis": {
+        "even_odd": "0E-6O",
+        "high_low": "4L-2H",
+        "sum": 144,
         "consecutive_pairs": 0
       },
       "prediction_type": "Pattern-Based"
@@ -5302,127 +5302,127 @@
   "ultimate_predictions": [
     {
       "numbers": [
-        3,
-        19,
-        20,
-        28,
-        35,
-        46
-      ],
-      "ultimate_confidence_score": 60.3,
-      "analysis": {
-        "even_odd": "3E-3O",
-        "high_low": "3L-3H",
-        "sum": 151,
-        "consecutive_pairs": 1,
-        "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
-      },
-      "prediction_type": "Ultimate Analysis",
-      "scoring_components": {
-        "frequency_score": 17.12,
-        "pattern_match": 25.0,
-        "temporal_consistency": 0.0,
-        "balance_score": 18.18
-      }
-    },
-    {
-      "numbers": [
-        9,
-        12,
+        1,
+        13,
         26,
         36,
         38,
-        45
+        42
       ],
-      "ultimate_confidence_score": 56.51,
+      "ultimate_confidence_score": 66.16,
       "analysis": {
         "even_odd": "4E-2O",
         "high_low": "3L-3H",
-        "sum": 166,
+        "sum": 156,
         "consecutive_pairs": 0,
         "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
       },
       "prediction_type": "Ultimate Analysis",
       "scoring_components": {
-        "frequency_score": 19.12,
+        "frequency_score": 20.18,
         "pattern_match": 12.5,
-        "temporal_consistency": 8.33,
-        "balance_score": 16.56
-      }
-    },
-    {
-      "numbers": [
-        5,
-        13,
-        29,
-        41,
-        48,
-        53
-      ],
-      "ultimate_confidence_score": 53.51,
-      "analysis": {
-        "even_odd": "1E-5O",
-        "high_low": "2L-4H",
-        "sum": 189,
-        "consecutive_pairs": 0,
-        "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
-      },
-      "prediction_type": "Ultimate Analysis",
-      "scoring_components": {
-        "frequency_score": 21.15,
-        "pattern_match": 0.0,
         "temporal_consistency": 16.67,
-        "balance_score": 15.7
+        "balance_score": 16.81
       }
     },
     {
       "numbers": [
+        1,
         9,
         25,
-        36,
-        37,
-        47,
-        54
+        51,
+        52,
+        55
       ],
-      "ultimate_confidence_score": 47.57,
+      "ultimate_confidence_score": 62.31,
       "analysis": {
-        "even_odd": "2E-4O",
-        "high_low": "2L-4H",
-        "sum": 208,
+        "even_odd": "1E-5O",
+        "high_low": "3L-3H",
+        "sum": 193,
         "consecutive_pairs": 1,
         "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
       },
       "prediction_type": "Ultimate Analysis",
       "scoring_components": {
-        "frequency_score": 19.06,
-        "pattern_match": 0.0,
+        "frequency_score": 21.1,
+        "pattern_match": 12.5,
         "temporal_consistency": 12.5,
-        "balance_score": 16.01
+        "balance_score": 16.21
       }
     },
     {
       "numbers": [
-        14,
-        31,
-        32,
-        36,
-        40,
-        50
+        1,
+        17,
+        18,
+        47,
+        52,
+        53
       ],
-      "ultimate_confidence_score": 37.62,
+      "ultimate_confidence_score": 56.38,
       "analysis": {
-        "even_odd": "5E-1O",
+        "even_odd": "2E-4O",
+        "high_low": "3L-3H",
+        "sum": 188,
+        "consecutive_pairs": 2,
+        "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
+      },
+      "prediction_type": "Ultimate Analysis",
+      "scoring_components": {
+        "frequency_score": 18.05,
+        "pattern_match": 12.5,
+        "temporal_consistency": 8.33,
+        "balance_score": 17.5
+      }
+    },
+    {
+      "numbers": [
+        18,
+        30,
+        32,
+        47,
+        49,
+        52
+      ],
+      "ultimate_confidence_score": 40.53,
+      "analysis": {
+        "even_odd": "4E-2O",
         "high_low": "1L-5H",
-        "sum": 203,
+        "sum": 228,
+        "consecutive_pairs": 0,
+        "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
+      },
+      "prediction_type": "Ultimate Analysis",
+      "scoring_components": {
+        "frequency_score": 18.11,
+        "pattern_match": 0.0,
+        "temporal_consistency": 8.33,
+        "balance_score": 14.08
+      }
+    },
+    {
+      "numbers": [
+        11,
+        14,
+        15,
+        20,
+        35,
+        43
+      ],
+      "ultimate_confidence_score": 31.18,
+      "analysis": {
+        "even_odd": "2E-4O",
+        "high_low": "4L-2H",
+        "sum": 138,
         "consecutive_pairs": 1,
         "randomness_acknowledgment": "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results."
       },
       "prediction_type": "Ultimate Analysis",
       "scoring_components": {
-        "frequency_score": 15.41,
+        "frequency_score": 16.01,
         "pattern_match": 0.0,
-        "temporal_consistency": 8.33,
-        "balance_score": 13.88
+        "temporal_consistency": 0.0,
+        "balance_score": 15.18
       }
     }
   ],

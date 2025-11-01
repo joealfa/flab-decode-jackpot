@@ -86,7 +86,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="resultGameType">Game Type</label>
-                            <select id="resultGameType" required class="form-control">
+                            <select id="resultGameType" required class="form-control" onchange="loadResultFiles()">
                                 <option value="">Select Game Type</option>
                                 <option value="Lotto 6/42">Lotto 6/42</option>
                                 <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
@@ -95,6 +95,15 @@
                                 <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="targetResultFile">Target Result File</label>
+                            <select id="targetResultFile" class="form-control">
+                                <option value="">Select game type first...</option>
+                            </select>
+                            <small class="form-text text-muted">Choose which historical file to add this result to</small>
+                        </div>
+                    </div>
+                    <div class="form-row">
                         <div class="form-group">
                             <label for="resultDrawDate">Draw Date</label>
                             <input type="date" id="resultDrawDate" required class="form-control">
@@ -362,6 +371,49 @@ function toggleAddResultForm() {
 
     // Clear message when toggling
     document.getElementById('addResultMessage').style.display = 'none';
+    
+    // Reset file selector if hiding form
+    if (form.style.display === 'none') {
+        document.getElementById('targetResultFile').innerHTML = '<option value="">Select game type first...</option>';
+    }
+}
+
+// Load available result files for selected game type
+async function loadResultFiles() {
+    const gameType = document.getElementById('resultGameType').value;
+    const fileSelector = document.getElementById('targetResultFile');
+    
+    if (!gameType) {
+        fileSelector.innerHTML = '<option value="">Select game type first...</option>';
+        return;
+    }
+    
+    // Show loading state
+    fileSelector.innerHTML = '<option value="">Loading files...</option>';
+    fileSelector.disabled = true;
+    
+    try {
+        const response = await fetch(`/api/result-files?game_type=${encodeURIComponent(gameType)}`);
+        const result = await response.json();
+        
+        if (result.success && result.files.length > 0) {
+            fileSelector.innerHTML = '<option value="">Latest file (default)</option>';
+            
+            result.files.forEach(file => {
+                const option = document.createElement('option');
+                option.value = file.filename;
+                option.textContent = file.display_name;
+                fileSelector.appendChild(option);
+            });
+        } else {
+            fileSelector.innerHTML = '<option value="">No files found for this game</option>';
+        }
+    } catch (error) {
+        console.error('Error loading result files:', error);
+        fileSelector.innerHTML = '<option value="">Error loading files</option>';
+    } finally {
+        fileSelector.disabled = false;
+    }
 }
 
 // Submit actual result
@@ -387,6 +439,7 @@ async function submitActualResult(event) {
     const drawDate = document.getElementById('resultDrawDate').value;
     const jackpot = document.getElementById('resultJackpot').value || 'N/A';
     const winners = document.getElementById('resultWinners').value || 'N/A';
+    const targetFilename = document.getElementById('targetResultFile').value;
 
     const data = {
         game_type: gameType,
@@ -395,6 +448,11 @@ async function submitActualResult(event) {
         jackpot: jackpot,
         winners: winners
     };
+    
+    // Add target filename if selected
+    if (targetFilename) {
+        data.target_filename = targetFilename;
+    }
 
     try {
         const response = await fetch('/api/submit-actual-result', {
@@ -415,6 +473,7 @@ async function submitActualResult(event) {
             messageBox.innerHTML = `
                 <i class="fas fa-check-circle"></i>
                 <p><strong>Success!</strong> ${result.message}</p>
+                <p>Result file: ${result.result_file}</p>
                 <p>Total draws in dataset: ${result.total_draws}</p>
                 <p><small>You can now analyze this dataset to include the new result in predictions.</small></p>
             `;
@@ -663,6 +722,8 @@ function closeAnalysisModal() {
     const modal = document.getElementById('analysisModal');
     if (modal) {
         modal.remove();
+        // Refresh the page to show updated analysis button
+        location.reload();
     }
 }
 
