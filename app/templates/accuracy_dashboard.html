@@ -127,7 +127,7 @@
                                     <th>Submissions</th>
                                     <th>Total Predictions</th>
                                     <th>Avg Matches</th>
-                                    <th>Best Match</th>
+                                    <th>Best Prediction</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -144,7 +144,7 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Recent Submissions</h5>
                 </div>
                 <div class="card-body">
@@ -155,14 +155,26 @@
                                     <th>Draw Date</th>
                                     <th>Game Type</th>
                                     <th>Actual Numbers</th>
-                                    <th>Best Match</th>
+                                    <th>Matched Numbers</th>
+                                    <th>Best Prediction</th>
                                     <th>Best Algorithm</th>
+                                    <th>
+                                        In History
+                                        <i class="bi bi-question-circle text-muted" title="Verifies if this draw exists in historical dataset. Click 'Yes' to view original draw details."></i>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <!-- Will be populated by JavaScript -->
                             </tbody>
                         </table>
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        <small>
+                            <i class="bi bi-info-circle"></i> 
+                            <strong>Green "Yes"</strong> = Draw found in historical data (click to view original draw details) • 
+                            <strong>Yellow "No"</strong> = Manually submitted draw (not in scraped history)
+                        </small>
                     </div>
                 </div>
             </div>
@@ -174,7 +186,7 @@
         <div class="col-md-6 mb-3">
             <div class="card border-warning">
                 <div class="card-header bg-warning">
-                    <h5 class="mb-0">🌟 Overall Best Performance</h5>
+                    <h5 class="mb-0">🌟 Overall Best Prediction</h5>
                 </div>
                 <div class="card-body" id="bestPerformanceCard">
                     <!-- Will be populated by JavaScript -->
@@ -185,7 +197,7 @@
         <div class="col-md-6 mb-3">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Top Predictions Best</h5>
+                    <h5 class="mb-0">Top Predictions Best Prediction</h5>
                 </div>
                 <div class="card-body" id="bestTopPredictionCard">
                     <!-- Will be populated by JavaScript -->
@@ -196,7 +208,7 @@
         <div class="col-md-6 mb-3">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Winning Predictions Best</h5>
+                    <h5 class="mb-0">Winning Predictions Best Prediction</h5>
                 </div>
                 <div class="card-body" id="bestWinningPredictionCard">
                     <!-- Will be populated by JavaScript -->
@@ -207,7 +219,7 @@
         <div class="col-md-6 mb-3">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Pattern Predictions Best</h5>
+                    <h5 class="mb-0">Pattern Predictions Best Prediction</h5>
                 </div>
                 <div class="card-body" id="bestPatternPredictionCard">
                     <!-- Will be populated by JavaScript -->
@@ -227,8 +239,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+{% block extra_js %}
 <script>
     let currentAnalysis = null;
     let matchDistributionChart = null;
@@ -246,17 +257,28 @@
                 : '/api/accuracy-analysis';
 
             const response = await fetch(url);
-            const result = await response.json();
+            let result = null;
+            try {
+                result = await response.json();
+            } catch(parseErr) {
+                showInlineEmptyState('Invalid response received from server.');
+                return;
+            }
 
-            if (result.success) {
+            if (response.status === 404 || (result && result.error === 'No accuracy data found')) {
+                showInlineEmptyState('No accuracy data found for the selected filter yet.');
+                return;
+            }
+
+            if (result && result.success) {
                 currentAnalysis = result.data;
                 renderDashboard(currentAnalysis);
             } else {
-                showError(result.error || 'Failed to load accuracy analysis');
+                showInlineEmptyState(result && result.error ? result.error : 'Failed to load accuracy analysis');
             }
         } catch (error) {
             console.error('Error loading accuracy analysis:', error);
-            showError('Network error: ' + error.message);
+            showInlineEmptyState('Network error: ' + error.message);
         } finally {
             hideLoading();
         }
@@ -398,6 +420,29 @@
                     title: {
                         display: true,
                         text: `Total Predictions: ${matchDist.total_predictions}`
+                    },
+                    annotation: {
+                        annotations: {
+                            thresholdLine: {
+                                type: 'line',
+                                xMin: 2.5,
+                                xMax: 2.5,
+                                borderColor: 'rgba(13, 110, 253, 0.8)',
+                                borderWidth: 3,
+                                borderDash: [10, 5],
+                                label: {
+                                    display: true,
+                                    content: 'Threshold (≥3 matches)',
+                                    position: 'start',
+                                    backgroundColor: 'rgba(13, 110, 253, 0.8)',
+                                    color: 'white',
+                                    font: {
+                                        size: 10,
+                                        weight: 'bold'
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -466,12 +511,15 @@
 
         for (const [game, stats] of Object.entries(gameBreakdown)) {
             const row = tbody.insertRow();
+            const bestMatchDisplay = stats.best_match > 0 
+                ? `<span class="badge bg-${stats.best_match >= 5 ? 'success' : stats.best_match >= 3 ? 'warning' : 'secondary'}">${stats.best_match}</span>`
+                : `<span class="text-muted">—</span>`;
             row.innerHTML = `
                 <td><strong>${game}</strong></td>
                 <td>${stats.submissions}</td>
                 <td>${stats.total_predictions}</td>
                 <td>${stats.avg_matches}</td>
-                <td><span class="badge bg-${stats.best_match >= 5 ? 'success' : stats.best_match >= 3 ? 'warning' : 'secondary'}">${stats.best_match}</span></td>
+                <td>${bestMatchDisplay}</td>
             `;
         }
     }
@@ -483,13 +531,141 @@
 
         recentAccuracy.forEach(submission => {
             const row = tbody.insertRow();
+            const matchedNumbers = submission.matched_numbers || [];
+            const matchedNumbersBadge = matchedNumbers.length
+                ? `<div class="lottery-numbers-container">${matchedNumbers.map(n => `<span class="lottery-number bg-success text-white">${n}</span>`).join('')}</div>`
+                : '<span class="text-muted">None</span>';
+            const analysisSnapshot = submission.analysis_snapshot || null;
+            if (analysisSnapshot && analysisSnapshot.generated_at) {
+                const coverageInfo = analysisSnapshot.coverage_end ? ` (data through ${analysisSnapshot.coverage_end})` : '';
+                row.setAttribute('title', `Predictions generated ${analysisSnapshot.generated_at}${coverageInfo}`);
+            }
+            const bestMatchDisplay = submission.best_match > 0
+                ? `<span class="badge bg-${submission.best_match >= 5 ? 'success' : submission.best_match >= 3 ? 'warning' : 'secondary'}">${submission.best_match}</span>`
+                : `<span class="text-muted">—</span>`;
+            
+            // Format actual numbers as circles
+            const actualNumbersCircles = submission.actual_numbers.map(n => 
+                `<span class="lottery-number bg-primary text-white">${n}</span>`
+            ).join('');
+            
+            // Add verification status cell (will be populated async)
+            const verificationId = `verify-${submission.game_type.replace(/\s+/g, '-')}-${submission.draw_date}`;
             row.innerHTML = `
                 <td>${submission.draw_date}</td>
                 <td>${submission.game_type}</td>
-                <td><span class="badge bg-primary">${submission.actual_numbers.join(', ')}</span></td>
-                <td><span class="badge bg-${submission.best_match >= 5 ? 'success' : submission.best_match >= 3 ? 'warning' : 'secondary'}">${submission.best_match}</span></td>
-                <td>${submission.best_prediction_type || 'N/A'}</td>
+                <td><div class="lottery-numbers-container">${actualNumbersCircles}</div></td>
+                <td>${matchedNumbersBadge}</td>
+                <td>${bestMatchDisplay}</td>
+                <td>${submission.best_prediction_type || '—'}</td>
+                <td id="${verificationId}"><span class="text-muted">Checking...</span></td>
             `;
+            
+            // Verify result integrity async
+            verifyResultIntegrity(submission.game_type, submission.draw_date, verificationId);
+        });
+    }
+
+    // Verify if result exists in historical data
+    async function verifyResultIntegrity(gameType, drawDate, elementId) {
+        try {
+            const url = `/api/verify-result?game_type=${encodeURIComponent(gameType)}&draw_date=${encodeURIComponent(drawDate)}`;
+            const response = await fetch(url);
+            const result = await response.json();
+            
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            
+            if (result.success && result.exists) {
+                if (result.is_original) {
+                    // Draw was in original scraped data
+                    const details = result.data.draw_details;
+                    element.innerHTML = `
+                        <button class="btn btn-sm btn-success" onclick="showHistoryDetails('${elementId}')" title="Click to view historical draw details">
+                            <i class="bi bi-check-circle-fill"></i> Yes
+                        </button>
+                    `;
+                    // Store details in data attribute for later retrieval
+                    element.setAttribute('data-history-details', JSON.stringify(details));
+                    element.setAttribute('data-game-type', gameType);
+                    element.setAttribute('data-cutoff-date', result.data.original_cutoff_date || 'Unknown');
+                } else {
+                    // Draw was manually added (not in original scraped data)
+                    element.innerHTML = '<span class="badge bg-warning" title="This draw was manually submitted, not from original scraped data"><i class="bi bi-exclamation-triangle-fill"></i> No</span>';
+                }
+            } else if (result.success && !result.exists) {
+                element.innerHTML = '<span class="badge bg-warning" title="Draw result NOT found in dataset"><i class="bi bi-exclamation-triangle-fill"></i> No</span>';
+            } else {
+                element.innerHTML = '<span class="text-muted" title="Unable to verify">—</span>';
+            }
+        } catch (error) {
+            console.error('Error verifying result:', error);
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = '<span class="text-muted" title="Verification error">—</span>';
+            }
+        }
+    }
+
+    // Show historical draw details in a modal/alert
+    function showHistoryDetails(elementId) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        const detailsStr = element.getAttribute('data-history-details');
+        const gameType = element.getAttribute('data-game-type');
+        const cutoffDate = element.getAttribute('data-cutoff-date');
+        if (!detailsStr) return;
+        
+        const details = JSON.parse(detailsStr);
+        const numbersCircles = details.numbers.map(n => `<span class="lottery-number bg-primary text-white">${n}</span>`).join('');
+        
+        const modalContent = `
+            <div class="modal fade" id="historyModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title"><i class="bi bi-clock-history"></i> Original Scraped Draw</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-success mb-3">
+                                <i class="bi bi-check-circle-fill"></i> <strong>This draw was part of the original scraped historical data</strong>
+                                <br><small>Original scrape covered draws through: ${cutoffDate}</small>
+                            </div>
+                            <hr>
+                            <p><strong>Game:</strong> ${gameType}</p>
+                            <p><strong>Draw Date:</strong> ${details.date}</p>
+                            <p><strong>Day:</strong> ${details.day_of_week || 'N/A'}</p>
+                            <p><strong>Winning Numbers:</strong></p>
+                            <div class="lottery-numbers-container mb-3">${numbersCircles}</div>
+                            <p><strong>Jackpot Prize:</strong> <span class="badge bg-warning text-dark fs-6">₱${details.jackpot}</span></p>
+                            <p><strong>Winners:</strong> <span class="badge bg-${details.winners === '0' ? 'secondary' : 'success'} fs-6">${details.winners}</span></p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove existing modal if any
+        const existingModal = document.getElementById('historyModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalContent);
+        
+        // Show modal using Bootstrap
+        const modal = new bootstrap.Modal(document.getElementById('historyModal'));
+        modal.show();
+        
+        // Clean up modal after it's hidden
+        document.getElementById('historyModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
         });
     }
 
@@ -504,12 +680,32 @@
     function renderPerformanceCard(cardId, perfData) {
         const container = document.getElementById(cardId);
         
-        if (!perfData || !perfData.details) {
-            container.innerHTML = '<p class="text-muted">No data available</p>';
+        if (!perfData || !perfData.details || perfData.matches === 0) {
+            // Custom messaging for threshold-suppressed or missing data
+            const cardTitle = cardId.includes('bestPerformance') ? 'Overall Best Prediction' :
+                             cardId.includes('Top') ? 'Top Predictions' :
+                             cardId.includes('Winning') ? 'Winning Predictions' : 'Pattern Predictions';
+            const thresholdMessage = perfData && perfData.matches === 0 
+                ? `<p class="text-muted">No qualifying prediction meets the minimum threshold of 3 matches.</p>`
+                : `<p class="text-muted">No data available for ${cardTitle}.</p>`;
+            container.innerHTML = thresholdMessage;
             return;
         }
 
         const details = perfData.details;
+        const matchedNumbers = details.matched_numbers || [];
+        const matchedMarkup = matchedNumbers.length
+            ? `<p><strong>Matched Numbers:</strong> <div class="lottery-numbers-container">${matchedNumbers.map(n => `<span class="lottery-number bg-success text-white">${n}</span>`).join('')}</div></p>`
+            : '';
+        const analysisSnapshot = details.analysis_snapshot || null;
+        const snapshotMarkup = analysisSnapshot && analysisSnapshot.generated_at
+            ? `<p class="text-muted small mb-0">Predictions generated ${analysisSnapshot.generated_at}${analysisSnapshot.coverage_end ? ` (data through ${analysisSnapshot.coverage_end})` : ''}</p>`
+            : '';
+
+        // Format numbers as circles
+        const actualCircles = details.actual_numbers.map(n => `<span class="lottery-number bg-dark text-white">${n}</span>`).join('');
+        const predictedCircles = details.predicted_numbers.map(n => `<span class="lottery-number bg-primary text-white">${n}</span>`).join('');
+
         container.innerHTML = `
             <div class="mb-3">
                 <h4 class="mb-2">
@@ -520,10 +716,14 @@
             </div>
             <p><strong>Draw Date:</strong> ${details.draw_date}</p>
             <p><strong>Game:</strong> ${details.game_type}</p>
-            <p><strong>Actual Numbers:</strong> <span class="badge bg-dark">${details.actual_numbers.join(', ')}</span></p>
-            <p><strong>Predicted Numbers:</strong> <span class="badge bg-primary">${details.predicted_numbers.join(', ')}</span></p>
+            <p><strong>Actual Numbers:</strong></p>
+            <div class="lottery-numbers-container mb-2">${actualCircles}</div>
+            <p><strong>Predicted Numbers:</strong></p>
+            <div class="lottery-numbers-container mb-2">${predictedCircles}</div>
             <p><strong>Rank:</strong> #${details.rank}</p>
             ${details.prediction_type ? `<p><strong>Algorithm:</strong> ${details.prediction_type}</p>` : ''}
+            ${matchedMarkup}
+            ${snapshotMarkup}
         `;
     }
 
@@ -538,6 +738,30 @@
 
     function showError(message) {
         alert('Error: ' + message);
+    }
+
+    function showInlineEmptyState(message) {
+        // Replace major dashboard sections with a friendly empty state
+        const containerIds = [
+            'summaryCards', 'bestAlgorithmCard', 'matchDistributionChart', 'algorithmPerformanceChart',
+            'gameBreakdownTable', 'recentSubmissionsTable', 'bestPerformanceCard', 'bestTopPredictionCard',
+            'bestWinningPredictionCard', 'bestPatternPredictionCard'
+        ];
+
+        containerIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (id === 'matchDistributionChart' || id === 'algorithmPerformanceChart') {
+                    // For canvases, wrap parent card body
+                    const parent = el.parentElement;
+                    if (parent) parent.innerHTML = `<p class="text-muted mb-0">${message}</p>`;
+                } else if (el.tagName === 'TBODY') {
+                    el.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${message}</td></tr>`;
+                } else {
+                    el.innerHTML = `<p class="text-muted">${message}</p>`;
+                }
+            }
+        });
     }
 
     // Event listeners

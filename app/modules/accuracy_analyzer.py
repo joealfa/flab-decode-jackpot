@@ -13,7 +13,7 @@ import logging
 import os
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from app.config import config
 from app.exceptions import DataNotFoundException, InternalServerException
@@ -30,6 +30,8 @@ class AccuracyAnalyzer:
     and provides trend analysis over time.
     """
 
+    MATCH_HIGHLIGHT_THRESHOLD = 3
+
     def __init__(self, accuracy_dir: Optional[str] = None):
         """
         Initialize the AccuracyAnalyzer.
@@ -40,6 +42,48 @@ class AccuracyAnalyzer:
         self.accuracy_dir = accuracy_dir or os.path.join(config.DATA_PATH, "accuracy")
         os.makedirs(self.accuracy_dir, exist_ok=True)
         logger.info(f"AccuracyAnalyzer initialized with directory: {self.accuracy_dir}")
+
+    @staticmethod
+    def _get_matched_numbers(
+        comparison: Dict,
+        actual_numbers: Optional[List[int]] = None
+    ) -> List[int]:
+        """Return matched numbers, deriving them if necessary and possible."""
+        matched_numbers = comparison.get("matched_numbers")
+        if isinstance(matched_numbers, list) and matched_numbers:
+            return matched_numbers
+
+        if actual_numbers is not None:
+            predicted_numbers = comparison.get("predicted_numbers")
+            if isinstance(predicted_numbers, list) and predicted_numbers:
+                try:
+                    actual_set = {int(num) for num in actual_numbers}
+                    predicted_set = {int(num) for num in predicted_numbers}
+                    return sorted(actual_set & predicted_set)
+                except (TypeError, ValueError):
+                    return []
+        return []
+
+    @staticmethod
+    def _get_match_count(
+        comparison: Dict,
+        actual_numbers: Optional[List[int]] = None
+    ) -> int:
+        """Extract match count, preferring explicit or derived matched numbers."""
+        matched_numbers = comparison.get("matched_numbers")
+        if isinstance(matched_numbers, list):
+            return len(matched_numbers)
+
+        if actual_numbers is not None:
+            derived_matches = AccuracyAnalyzer._get_matched_numbers(comparison, actual_numbers)
+            if derived_matches:
+                return len(derived_matches)
+
+        matches = comparison.get("matches", 0)
+        try:
+            return int(matches)
+        except (TypeError, ValueError):
+            return 0
 
     def load_all_accuracy_files(self, game_type: Optional[str] = None) -> List[Dict]:
         """
@@ -142,6 +186,7 @@ class AccuracyAnalyzer:
                 "match_distribution": self._calculate_match_distribution(accuracy_files),
                 "recent_accuracy": self._calculate_recent_accuracy(accuracy_files, limit=10),
                 "game_breakdown": self._calculate_game_breakdown(accuracy_files),
+                "provenance": self._build_provenance_summary(accuracy_files),
             }
 
             # Calculate overall best algorithm
@@ -176,10 +221,11 @@ class AccuracyAnalyzer:
         rank_performance = defaultdict(lambda: {"total": 0, "matches": 0})
         
         for file_data in accuracy_files:
+            actual_numbers = file_data.get("actual_numbers")
             comparisons = file_data.get(comparison_key, [])
             
             for comparison in comparisons:
-                matches = comparison.get("matches", 0)
+                matches = self._get_match_count(comparison, actual_numbers)
                 rank = comparison.get("rank", 0)
                 
                 total_predictions += 1
@@ -242,6 +288,7 @@ class AccuracyAnalyzer:
             draw_date = file_data.get("draw_date", "Unknown")
             game_type = file_data.get("game_type", "Unknown")
             actual = file_data.get("actual_numbers", [])
+            analysis_snapshot = file_data.get("analysis_snapshot")
 
             # Check all prediction types
             for pred_type, key in [
@@ -252,7 +299,8 @@ class AccuracyAnalyzer:
                 comparisons = file_data.get(key, [])
                 
                 for comparison in comparisons:
-                    matches = comparison.get("matches", 0)
+                    matches = self._get_match_count(comparison, actual)
+                    matched_numbers = self._get_matched_numbers(comparison, actual)
                     
                     # Update overall highest
                     if matches > best["highest_matches"]["matches"]:
@@ -265,6 +313,8 @@ class AccuracyAnalyzer:
                                 "actual_numbers": actual,
                                 "predicted_numbers": comparison.get("predicted_numbers", []),
                                 "rank": comparison.get("rank", 0),
+                                "matched_numbers": matched_numbers,
+                                "analysis_snapshot": file_data.get("analysis_snapshot"),
                             }
                         }
                     
@@ -279,8 +329,21 @@ class AccuracyAnalyzer:
                                 "actual_numbers": actual,
                                 "predicted_numbers": comparison.get("predicted_numbers", []),
                                 "rank": comparison.get("rank", 0),
+                                "matched_numbers": matched_numbers,
+                                "analysis_snapshot": analysis_snapshot,
                             }
                         }
+        # Threshold logic
+        threshold = self.MATCH_HIGHLIGHT_THRESHOLD
+        for algo_key in ["best_top_prediction", "best_winning_prediction", "best_pattern_prediction"]:
+            if best[algo_key]["matches"] < threshold:
+                best[algo_key] = {"matches": 0, "details": None}
+
+        # For highest_matches require perfect (all numbers) match
+        if best["highest_matches"]["details"]:
+            total_needed = len(best["highest_matches"]["details"].get("actual_numbers", [])) or 6
+            if best["highest_matches"]["matches"] < total_needed:
+                best["highest_matches"] = {"matches": 0, "details": None}
 
         return best
 
@@ -297,11 +360,12 @@ class AccuracyAnalyzer:
         all_matches = []
 
         for file_data in accuracy_files:
+            actual_numbers = file_data.get("actual_numbers")
             for key in ["top_predictions_comparison", "winning_predictions_comparison", 
                        "pattern_predictions_comparison"]:
                 comparisons = file_data.get(key, [])
                 for comparison in comparisons:
-                    all_matches.append(comparison.get("matches", 0))
+                    all_matches.append(self._get_match_count(comparison, actual_numbers))
 
         if not all_matches:
             return {}
@@ -340,6 +404,8 @@ class AccuracyAnalyzer:
                 "actual_numbers": file_data.get("actual_numbers", []),
                 "best_match": 0,
                 "best_prediction_type": None,
+                "matched_numbers": [],
+                "analysis_snapshot": file_data.get("analysis_snapshot"),
             }
 
             # Find best match across all prediction types
@@ -350,10 +416,24 @@ class AccuracyAnalyzer:
             ]:
                 comparisons = file_data.get(key, [])
                 for comparison in comparisons:
-                    matches = comparison.get("matches", 0)
+                    matches = self._get_match_count(
+                        comparison,
+                        summary["actual_numbers"],
+                    )
                     if matches > summary["best_match"]:
                         summary["best_match"] = matches
                         summary["best_prediction_type"] = pred_type
+                        summary["matched_numbers"] = self._get_matched_numbers(
+                            comparison,
+                            summary["actual_numbers"],
+                        )
+
+            # Apply threshold: only show best_match if >= threshold
+            threshold = self.MATCH_HIGHLIGHT_THRESHOLD
+            if summary["best_match"] < threshold:
+                summary["best_match"] = 0
+                summary["best_prediction_type"] = None
+                summary["matched_numbers"] = []
 
             recent.append(summary)
 
@@ -378,6 +458,7 @@ class AccuracyAnalyzer:
 
         for file_data in accuracy_files:
             game = file_data.get("game_type", "Unknown")
+            actual_numbers = file_data.get("actual_numbers")
             game_stats[game]["submissions"] += 1
 
             # Count all predictions and matches
@@ -385,26 +466,29 @@ class AccuracyAnalyzer:
                        "pattern_predictions_comparison"]:
                 comparisons = file_data.get(key, [])
                 for comparison in comparisons:
-                    matches = comparison.get("matches", 0)
+                    matches = self._get_match_count(comparison, actual_numbers)
                     game_stats[game]["total_predictions"] += 1
                     game_stats[game]["total_matches"] += matches
                     game_stats[game]["best_match"] = max(
                         game_stats[game]["best_match"], matches
                     )
 
-        # Calculate averages
+        # Calculate averages and apply threshold
         result = {}
+        threshold = self.MATCH_HIGHLIGHT_THRESHOLD
         for game, stats in game_stats.items():
             avg_matches = (
                 stats["total_matches"] / stats["total_predictions"]
                 if stats["total_predictions"] > 0
                 else 0
             )
+            # Apply threshold: only show best_match if >= threshold
+            best_match_display = stats["best_match"] if stats["best_match"] >= threshold else 0
             result[game] = {
                 "submissions": stats["submissions"],
                 "total_predictions": stats["total_predictions"],
                 "avg_matches": round(avg_matches, 2),
-                "best_match": stats["best_match"],
+                "best_match": best_match_display,
             }
 
         return result
@@ -435,6 +519,68 @@ class AccuracyAnalyzer:
         )
 
         return algorithms[0] if algorithms else {}
+
+    def _build_provenance_summary(self, accuracy_files: List[Dict]) -> Dict:
+        """Build a lightweight provenance / explanation layer.
+
+        For each submission (accuracy file) we capture:
+          - draw_date, game_type
+          - snapshot metadata (generated_at, coverage_end, selection_reason if present)
+          - per algorithm: best rank match summary (highest match count and which rank)
+          - overall_highest_match for the submission
+
+        This supports the forthcoming /api/accuracy-provenance endpoint and UI explanatory report.
+        """
+        provenance_entries: List[Dict] = []
+
+        for file_data in accuracy_files:
+            entry: Dict[str, Any] = {
+                "draw_date": file_data.get("draw_date"),
+                "game_type": file_data.get("game_type"),
+                "actual_numbers": file_data.get("actual_numbers"),
+                "snapshot": None,
+                "algorithms": {},
+                "overall_highest_match": 0,
+            }
+
+            snapshot = file_data.get("analysis_snapshot")
+            if snapshot:
+                entry["snapshot"] = {
+                    "generated_at": snapshot.get("generated_at"),
+                    "coverage_end": snapshot.get("coverage_end"),
+                    "selection_reason": snapshot.get("selection_reason"),
+                    "filename": snapshot.get("filename"),
+                }
+
+            # Iterate prediction types
+            for label, key in [
+                ("top", "top_predictions_comparison"),
+                ("winning", "winning_predictions_comparison"),
+                ("pattern", "pattern_predictions_comparison"),
+            ]:
+                comparisons = file_data.get(key, []) or []
+                best_rank = None
+                best_match = -1
+                total_predictions = 0
+                cumulative_matches = 0
+                for comp in comparisons:
+                    total_predictions += 1
+                    matches = self._get_match_count(comp, file_data.get("actual_numbers"))
+                    cumulative_matches += matches
+                    if matches > best_match:
+                        best_match = matches
+                        best_rank = comp.get("rank")
+                    entry["overall_highest_match"] = max(entry["overall_highest_match"], matches)
+                if total_predictions:
+                    entry["algorithms"][label] = {
+                        "best_rank": best_rank,
+                        "best_match": max(best_match, 0),
+                        "avg_matches": round(cumulative_matches / total_predictions, 2),
+                        "predictions": total_predictions,
+                    }
+            provenance_entries.append(entry)
+
+        return {"entries": provenance_entries, "generated_at": datetime.now().isoformat()}
 
     def _extract_timestamp_from_filename(self, filename: str) -> str:
         """
