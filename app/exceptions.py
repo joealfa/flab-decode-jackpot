@@ -54,6 +54,28 @@ class ScrapingTimeoutException(ScraperException):
     pass
 
 
+class DateRangeException(ScraperException):
+    """Requested date range is not available on PCSO website."""
+    
+    def __init__(self, message: str, requested_range: tuple = None, available_range: tuple = None):
+        """
+        Initialize with date range details.
+        
+        Args:
+            message: Error message
+            requested_range: Tuple of (start_year, end_year) requested
+            available_range: Tuple of (min_year, max_year) available
+        """
+        details = {}
+        if requested_range:
+            details['requested_start_year'] = requested_range[0]
+            details['requested_end_year'] = requested_range[1]
+        if available_range:
+            details['available_min_year'] = available_range[0]
+            details['available_max_year'] = available_range[1]
+        super().__init__(message, details)
+
+
 # Analyzer Exceptions
 class AnalyzerException(FortuneLabException):
     """Base exception for analyzer-related errors."""

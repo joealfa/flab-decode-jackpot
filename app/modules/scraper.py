@@ -19,6 +19,8 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
+from app.exceptions import DateRangeException
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -225,9 +227,73 @@ class PCSOScraper:
         year_select = Select(
             self.driver.find_element(By.ID, self.SELECTORS[f"{prefix}_year"])
         )
+        
+        # Get available years from dropdown
+        available_years = [option.get_attribute('value') for option in year_select.options]
+        logger.debug(f"  Available years: {available_years}")
+        
+        # Validate year is available
+        if str(year) not in available_years:
+            min_year = min([int(y) for y in available_years if y.isdigit()])
+            max_year = max([int(y) for y in available_years if y.isdigit()])
+            error_msg = (
+                f"Year {year} is not available on PCSO website. "
+                f"Available year range: {min_year} to {max_year}. "
+                f"Please adjust your date range."
+            )
+            logger.error(error_msg)
+            raise DateRangeException(
+                error_msg,
+                requested_range=(year, year),
+                available_range=(min_year, max_year)
+            )
+        
         year_select.select_by_value(str(year))
         logger.debug(f"  Selected year: {year}")
         time.sleep(0.5)
+
+    def get_available_date_range(self) -> Dict[str, int]:
+        """
+        Get the available date range from PCSO website.
+        
+        Returns:
+            Dictionary with 'min_year' and 'max_year' keys
+            
+        Raises:
+            Exception: If unable to determine date range
+        """
+        try:
+            self.driver.get(self.PCSO_URL)
+            wait = WebDriverWait(self.driver, self.page_timeout)
+            
+            # Wait for year dropdown to be available
+            wait.until(
+                EC.presence_of_element_located(
+                    (By.ID, self.SELECTORS["start_year"])
+                )
+            )
+            
+            year_select = Select(
+                self.driver.find_element(By.ID, self.SELECTORS["start_year"])
+            )
+            
+            available_years = [
+                int(option.get_attribute('value')) 
+                for option in year_select.options 
+                if option.get_attribute('value').isdigit()
+            ]
+            
+            if not available_years:
+                raise Exception("No years found in dropdown")
+            
+            return {
+                'min_year': min(available_years),
+                'max_year': max(available_years)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting available date range: {str(e)}")
+            raise Exception(f"Could not determine available date range: {str(e)}")
 
     def scrape_lottery_data(
         self,
@@ -325,6 +391,38 @@ class PCSOScraper:
                 EC.presence_of_element_located((By.ID, self.SELECTORS["game_type"]))
             )
             logger.info("Page loaded successfully")
+            
+            # Validate date range early
+            logger.info("Validating date range availability...")
+            start_year_select = Select(
+                self.driver.find_element(By.ID, self.SELECTORS["start_year"])
+            )
+            available_years = [
+                int(option.get_attribute('value')) 
+                for option in start_year_select.options 
+                if option.get_attribute('value').isdigit()
+            ]
+            
+            if available_years:
+                min_year = min(available_years)
+                max_year = max(available_years)
+                logger.info(f"PCSO website supports years: {min_year} to {max_year}")
+                
+                # Check if requested years are in range
+                if start_date.year < min_year or end_date.year > max_year:
+                    error_msg = (
+                        f"Requested date range ({start_date.year} to {end_date.year}) "
+                        f"is outside available range on PCSO website ({min_year} to {max_year}). "
+                        f"Please adjust your date range."
+                    )
+                    logger.error(error_msg)
+                    raise DateRangeException(
+                        error_msg,
+                        requested_range=(start_date.year, end_date.year),
+                        available_range=(min_year, max_year)
+                    )
+                
+                logger.info("Date range validation passed")
 
             # Select game type
             logger.info(f"Step 4: Selecting game type: {game_type}")
