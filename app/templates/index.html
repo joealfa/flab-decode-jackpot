@@ -274,7 +274,7 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
             messageBox.className = 'message-box error';
             messageBox.innerHTML = `
                 <i class="fas fa-exclamation-circle"></i>
-                <p><strong>Error:</strong> ${result.error}</p>
+                <p><strong>Error:</strong> ${escapeHtml(result.error)}</p>
             `;
         }
     } catch (error) {
@@ -287,7 +287,7 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
         messageBox.className = 'message-box error';
         messageBox.innerHTML = `
             <i class="fas fa-exclamation-circle"></i>
-            <p><strong>Error:</strong> ${error.message}</p>
+            <p><strong>Error:</strong> ${escapeHtml(error.message)}</p>
         `;
     }
 });
@@ -308,29 +308,34 @@ async function viewHistory(filename) {
                             <button onclick="closeHistory()" class="modal-close">&times;</button>
                         </div>
                         <div class="modal-body">
-                            <p><strong>File:</strong> ${filename}</p>
-                            <p><strong>Total Reports:</strong> ${result.count}</p>
+                            <p><strong>File:</strong> ${escapeHtml(filename)}</p>
+                            <p><strong>Total Reports:</strong> ${parseInt(result.count)}</p>
                             <div class="reports-list">
             `;
 
             result.reports.forEach(report => {
+                const safeFilename = escapeHtml(report.filename);
+                const safeId = report.filename.replace(/[^a-zA-Z0-9]/g, '-');
                 historyHTML += `
-                    <div class="report-item" id="report-${report.filename.replace(/[^a-zA-Z0-9]/g, '-')}">
+                    <div class="report-item" id="report-${safeId}">
                         <div class="report-info">
                             <i class="fas fa-file-alt"></i>
                             <div>
-                                <strong>Analyzed:</strong> ${report.analyzed_at}<br>
-                                <small>Created: ${report.created_at}</small>
+                                <strong>Analyzed:</strong> ${escapeHtml(report.analyzed_at)}<br>
+                                <small>Created: ${escapeHtml(report.created_at)}</small>
                             </div>
                         </div>
                         <div class="report-actions">
-                            <button onclick="closeHistory(); openReportModal('${report.filename}')" class="btn btn-secondary btn-sm">
+                            <button onclick="closeHistory(); openReportModal('${safeFilename}')" class="btn btn-secondary btn-sm">
                                 <i class="fas fa-eye"></i> View
                             </button>
-                            <button onclick="exportAnalysis('${report.filename}')" class="btn btn-success btn-sm">
+                            <button onclick="analyzeWithAI('${safeFilename}')" class="btn btn-primary btn-sm" title="AI-powered analysis">
+                                <i class="fas fa-brain"></i> Analyze with AI
+                            </button>
+                            <button onclick="exportAnalysis('${safeFilename}')" class="btn btn-success btn-sm">
                                 <i class="fas fa-download"></i> Export
                             </button>
-                            <button onclick="deleteReport('${report.filename}')" class="btn btn-danger btn-sm">
+                            <button onclick="deleteReport('${safeFilename}')" class="btn btn-danger btn-sm">
                                 <i class="fas fa-trash"></i> Delete
                             </button>
                         </div>
@@ -348,10 +353,10 @@ async function viewHistory(filename) {
             // Append to body
             document.body.insertAdjacentHTML('beforeend', historyHTML);
         } else {
-            alert('No analysis history found for this file.');
+            showAlert('No analysis history found for this file.', 'info');
         }
     } catch (error) {
-        alert('Error loading analysis history: ' + error.message);
+        showAlert('Error loading analysis history: ' + error.message, 'error');
     }
 }
 
@@ -409,7 +414,6 @@ async function loadResultFiles() {
             fileSelector.innerHTML = '<option value="">No files found for this game</option>';
         }
     } catch (error) {
-        console.error('Error loading result files:', error);
         fileSelector.innerHTML = '<option value="">Error loading files</option>';
     } finally {
         fileSelector.disabled = false;
@@ -426,12 +430,12 @@ async function submitActualResult(event) {
 
     // Validate numbers
     if (numbers.length !== 6) {
-        alert('Please enter exactly 6 numbers');
+        showAlert('Please enter exactly 6 numbers.', 'warning');
         return;
     }
 
     if (new Set(numbers).size !== 6) {
-        alert('Please enter unique numbers (no duplicates)');
+        showAlert('Please enter unique numbers (no duplicates).', 'warning');
         return;
     }
 
@@ -472,9 +476,9 @@ async function submitActualResult(event) {
             messageBox.className = 'message-box success';
             messageBox.innerHTML = `
                 <i class="fas fa-check-circle"></i>
-                <p><strong>Success!</strong> ${result.message}</p>
-                <p>Result file: ${result.result_file}</p>
-                <p>Total draws in dataset: ${result.total_draws}</p>
+                <p><strong>Success!</strong> ${escapeHtml(result.message)}</p>
+                <p>Result file: ${escapeHtml(result.result_file)}</p>
+                <p>Total draws in dataset: ${escapeHtml(result.total_draws)}</p>
                 <p><small>You can now analyze this dataset to include the new result in predictions.</small></p>
             `;
 
@@ -489,7 +493,7 @@ async function submitActualResult(event) {
             messageBox.className = 'message-box error';
             messageBox.innerHTML = `
                 <i class="fas fa-exclamation-circle"></i>
-                <p><strong>Error:</strong> ${result.error}</p>
+                <p><strong>Error:</strong> ${escapeHtml(result.error)}</p>
             `;
         }
     } catch (error) {
@@ -498,7 +502,7 @@ async function submitActualResult(event) {
         messageBox.className = 'message-box error';
         messageBox.innerHTML = `
             <i class="fas fa-exclamation-circle"></i>
-            <p><strong>Error:</strong> ${error.message}</p>
+            <p><strong>Error:</strong> ${escapeHtml(error.message)}</p>
         `;
     }
 }
@@ -552,17 +556,18 @@ async function pollProgress(taskId) {
 
                         if (progress.result) {
                             const wasCached = progress.result.cached || false;
+                            const safeFilename = escapeHtml(progress.result.filename);
                             messageBox.innerHTML = `
                                 <i class="fas fa-check-circle"></i>
-                                <p><strong>Success!</strong> ${wasCached ? 'Loaded' : 'Scraped'} ${progress.result.total_draws} draws${wasCached ? ' from cache' : ''}.</p>
-                                <button onclick="openAnalysisModal('${progress.result.filename}')" class="btn btn-primary">
+                                <p><strong>Success!</strong> ${wasCached ? 'Loaded' : 'Scraped'} ${escapeHtml(progress.result.total_draws)} draws${wasCached ? ' from cache' : ''}.</p>
+                                <button onclick="openAnalysisModal('${safeFilename}')" class="btn btn-primary">
                                     <i class="fas fa-chart-bar"></i> Analyze Now
                                 </button>
                             `;
                         } else {
                             messageBox.innerHTML = `
                                 <i class="fas fa-check-circle"></i>
-                                <p><strong>Success!</strong> ${progress.message}</p>
+                                <p><strong>Success!</strong> ${escapeHtml(progress.message)}</p>
                             `;
                         }
                     }, 500);
@@ -579,12 +584,12 @@ async function pollProgress(taskId) {
                     messageBox.className = 'message-box error';
                     messageBox.innerHTML = `
                         <i class="fas fa-exclamation-circle"></i>
-                        <p><strong>Error:</strong> ${progress.message}</p>
+                        <p><strong>Error:</strong> ${escapeHtml(progress.message)}</p>
                     `;
                 }
             }
         } catch (error) {
-            console.error('Error polling progress:', error);
+            // Polling error - will retry on next interval
         }
     }, 500); // Poll every 500ms
 }
@@ -712,8 +717,7 @@ async function openAnalysisModal(filename) {
         }, 100);
 
     } catch (error) {
-        console.error('Error loading analysis:', error);
-        alert('Error loading analysis: ' + error.message);
+        showAlert('Error loading analysis: ' + error.message, 'error');
         closeAnalysisModal();
     }
 }
@@ -850,8 +854,7 @@ async function openReportModal(reportFilename) {
         }, 100);
 
     } catch (error) {
-        console.error('Error loading report:', error);
-        alert('Error loading report: ' + error.message);
+        showAlert('Error loading report: ' + error.message, 'error');
         closeAnalysisModal();
     }
 }
@@ -933,17 +936,16 @@ async function deleteReport(reportFilename) {
                     const remainingReports = document.querySelectorAll('.report-item');
                     if (remainingReports.length === 0) {
                         closeHistory();
-                        alert('Report deleted successfully. No more reports available.');
+                        showAlert('Report deleted successfully. No more reports available.', 'success');
                     }
                 }, 300);
             }
-            alert('Report deleted successfully!');
+            showAlert('Report deleted successfully!', 'success');
         } else {
-            alert('Error deleting report: ' + result.error);
+            showAlert('Error deleting report: ' + result.error, 'error');
         }
     } catch (error) {
-        console.error('Error deleting report:', error);
-        alert('Error deleting report: ' + error.message);
+        showAlert('Error deleting report: ' + error.message, 'error');
     }
 }
 
@@ -951,6 +953,150 @@ async function deleteReport(reportFilename) {
 function exportAnalysis(reportFilename) {
     window.location.href = `/api/export-analysis/${reportFilename}`;
 }
+
+// ========================================
+// AI Analysis Functions
+// ========================================
+
+// Analyze with AI
+async function analyzeWithAI(filename) {
+    try {
+        // Close history modal
+        const historyModal = document.getElementById('historyModal');
+        if (historyModal) {
+            historyModal.remove();
+        }
+
+        // Show loading state
+        showAIModal('Loading...', '<div class="ai-loading"><i class="fas fa-spinner fa-spin"></i> Analyzing with AI... This may take a moment.</div>', true);
+
+        // Call AI analysis API
+        const response = await fetch('/api/ai-analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ filename: filename })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Render markdown content
+            const htmlContent = renderMarkdown(result.analysis);
+            
+            // Build AI result display
+            const aiResultHTML = `
+                <div class="ai-result-header">
+                    <div class="ai-badge">
+                        <i class="fas fa-robot"></i> AI Analysis
+                    </div>
+                    <div class="ai-meta">
+                        <strong>Model:</strong> ${escapeHtml(result.model)}<br>
+                        <strong>Game:</strong> ${escapeHtml(result.game_type)}<br>
+                        <strong>Draws Analyzed:</strong> ${parseInt(result.total_draws_analyzed).toLocaleString()}
+                    </div>
+                </div>
+                <div class="ai-analysis-content">
+                    ${htmlContent}
+                </div>
+            `;
+            
+            showAIModal('AI-Powered Analysis Results', aiResultHTML, false);
+        } else {
+            showAIModal('AI Analysis Error', `<div class="error-message"><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(result.error || 'Unknown error occurred')}</div>`, false);
+        }
+    } catch (error) {
+        console.error('AI Analysis Error:', error);
+        showAIModal('AI Analysis Error', `<div class="error-message"><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(error.message)}</div>`, false);
+    }
+}
+
+// Show AI modal
+function showAIModal(title, content, isLoading = false) {
+    // Remove existing AI modal if any
+    const existingModal = document.getElementById('aiModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const modalClass = isLoading ? 'modal-overlay loading' : 'modal-overlay';
+    
+    const modalHTML = `
+        <div class="${modalClass}" id="aiModal" onclick="closeAIModal(event)">
+            <div class="modal-content ai-modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2><i class="fas fa-brain"></i> ${escapeHtml(title)}</h2>
+                    ${!isLoading ? '<button onclick="closeAIModal()" class="modal-close">&times;</button>' : ''}
+                </div>
+                <div class="modal-body ai-modal-body">
+                    ${content}
+                </div>
+                ${!isLoading ? '<div class="modal-footer"><button onclick="closeAIModal()" class="btn btn-secondary">Close</button></div>' : ''}
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+// Close AI modal
+function closeAIModal(event) {
+    if (!event || event.target.id === 'aiModal' || event.type === 'click') {
+        const modal = document.getElementById('aiModal');
+        if (modal) {
+            modal.style.opacity = '0';
+            setTimeout(() => modal.remove(), 300);
+        }
+    }
+}
+
+// Simple markdown renderer (handles common markdown syntax)
+function renderMarkdown(text) {
+    if (!text) return '';
+    
+    let html = escapeHtml(text);
+    
+    // Headers
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    
+    // Italic
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+    
+    // Code blocks
+    html = html.replace(/```[\s\S]*?```/g, function(match) {
+        return '<pre><code>' + match.replace(/```/g, '') + '</code></pre>';
+    });
+    
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Lists - unordered
+    html = html.replace(/^\s*[-*+]\s+(.+)$/gim, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+    
+    // Lists - ordered
+    html = html.replace(/^\s*\d+\.\s+(.+)$/gim, '<li>$1</li>');
+    
+    // Line breaks
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = html.replace(/\n/g, '<br>');
+    
+    // Wrap in paragraphs if not already wrapped
+    if (!html.startsWith('<')) {
+        html = '<p>' + html + '</p>';
+    }
+    
+    return html;
+}
+
 </script>
 
 {% endblock %}

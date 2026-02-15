@@ -2,6 +2,21 @@
  * Fortune Lab - Main JavaScript
  */
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} str - The string to escape
+ * @returns {string} The escaped string
+ */
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // Utility function to format numbers
 function formatNumber(num) {
     return new Intl.NumberFormat().format(num);
@@ -88,6 +103,36 @@ function printDashboard() {
     window.print();
 }
 
-// Console welcome message
-console.log('%cFortune Lab', 'font-size: 24px; font-weight: bold; color: #6366f1;');
-console.log('%cDecoding the Jackpot with Data Science', 'font-size: 14px; color: #64748b;');
+/**
+ * Show a styled alert modal instead of browser alert().
+ * @param {string} message - The message to display
+ * @param {string} [type='info'] - Type: 'info', 'success', 'error', 'warning'
+ */
+function showAlert(message, type = 'info') {
+    const modal = document.getElementById('alertModal');
+    const icon = document.getElementById('alertModalIcon');
+    const title = document.getElementById('alertModalTitle');
+    const msg = document.getElementById('alertModalMessage');
+
+    const config = {
+        info:    { icon: 'fa-info-circle',        title: 'Notice' },
+        success: { icon: 'fa-check-circle',       title: 'Success' },
+        error:   { icon: 'fa-exclamation-circle',  title: 'Error' },
+        warning: { icon: 'fa-exclamation-triangle', title: 'Warning' }
+    };
+
+    const c = config[type] || config.info;
+    icon.className = 'alert-modal-icon ' + type;
+    icon.innerHTML = '<i class="fas ' + c.icon + '"></i>';
+    title.textContent = c.title;
+    msg.textContent = message;
+    modal.style.display = 'flex';
+
+    // Focus the OK button for keyboard accessibility
+    modal.querySelector('.alert-modal-btn').focus();
+}
+
+function closeAlertModal(event) {
+    if (event && event.target !== event.currentTarget) return;
+    document.getElementById('alertModal').style.display = 'none';
+}

@@ -54,15 +54,32 @@ class PCSOScraper:
         "search_button": "cphContainer_cpContent_btnSearch",
     }
 
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True, page_timeout: int = 30):
         """
         Initialize the scraper with Chrome WebDriver.
 
         Args:
             headless: Run browser in headless mode (no GUI)
+            page_timeout: Page load timeout in seconds
         """
         self.headless = headless
+        self.page_timeout = page_timeout
         self.driver: Optional[webdriver.Chrome] = None
+
+    def __enter__(self):
+        """Support usage as context manager."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Ensure WebDriver is cleaned up."""
+        if self.driver:
+            try:
+                self.driver.quit()
+            except Exception as e:
+                logger.warning(f"Error closing driver during cleanup: {str(e)}")
+            finally:
+                self.driver = None
+        return False
 
     def _setup_driver(self) -> webdriver.Chrome:
         """Set up and return Chrome WebDriver with cross-platform support."""
@@ -101,7 +118,9 @@ class PCSOScraper:
             logger.info("Running on Windows - using default Chrome installation")
         elif system == "Darwin":
             # macOS
-            chrome_options.binary_location = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            chrome_options.binary_location = (
+                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            )
             logger.info("Running on macOS")
 
         # Headless mode
@@ -128,14 +147,21 @@ class PCSOScraper:
 
         # Strategy 1: Try system chromedriver (Linux/macOS)
         if system == "Linux":
-            chromedriver_paths = ["/usr/bin/chromedriver", "/usr/local/bin/chromedriver"]
+            chromedriver_paths = [
+                "/usr/bin/chromedriver",
+                "/usr/local/bin/chromedriver",
+            ]
             for chromedriver_path in chromedriver_paths:
                 if os.path.exists(chromedriver_path):
                     try:
                         logger.info(f"Trying ChromeDriver at: {chromedriver_path}")
                         service = Service(chromedriver_path)
-                        driver = webdriver.Chrome(service=service, options=chrome_options)
-                        logger.info(f"Successfully initialized with {chromedriver_path}")
+                        driver = webdriver.Chrome(
+                            service=service, options=chrome_options
+                        )
+                        logger.info(
+                            f"Successfully initialized with {chromedriver_path}"
+                        )
                         break
                     except Exception as e:
                         logger.warning(f"Failed with {chromedriver_path}: {str(e)}")
@@ -152,7 +178,9 @@ class PCSOScraper:
 
                 # Strategy 3: Try using webdriver-manager (if available)
                 try:
-                    from selenium.webdriver.chrome.service import Service as ChromeService
+                    from selenium.webdriver.chrome.service import (
+                        Service as ChromeService,
+                    )
                     from webdriver_manager.chrome import ChromeDriverManager
 
                     logger.info("Attempting to use webdriver-manager...")
@@ -160,7 +188,9 @@ class PCSOScraper:
                     driver = webdriver.Chrome(service=service, options=chrome_options)
                     logger.info("Chrome WebDriver initialized with webdriver-manager")
                 except ImportError:
-                    logger.error("webdriver-manager not installed. Install it with: uv add webdriver-manager")
+                    logger.error(
+                        "webdriver-manager not installed. Install it with: uv add webdriver-manager"
+                    )
                     raise Exception(
                         "Unable to initialize Chrome WebDriver. Please ensure Chrome/Chromium and ChromeDriver are installed. "
                         f"On {system}, you may need to install Chrome manually or run: uv add webdriver-manager"
@@ -227,11 +257,13 @@ class PCSOScraper:
         year_select = Select(
             self.driver.find_element(By.ID, self.SELECTORS[f"{prefix}_year"])
         )
-        
+
         # Get available years from dropdown
-        available_years = [option.get_attribute('value') for option in year_select.options]
+        available_years = [
+            option.get_attribute("value") for option in year_select.options
+        ]
         logger.debug(f"  Available years: {available_years}")
-        
+
         # Validate year is available
         if str(year) not in available_years:
             min_year = min([int(y) for y in available_years if y.isdigit()])
@@ -245,9 +277,9 @@ class PCSOScraper:
             raise DateRangeException(
                 error_msg,
                 requested_range=(year, year),
-                available_range=(min_year, max_year)
+                available_range=(min_year, max_year),
             )
-        
+
         year_select.select_by_value(str(year))
         logger.debug(f"  Selected year: {year}")
         time.sleep(0.5)
@@ -255,42 +287,37 @@ class PCSOScraper:
     def get_available_date_range(self) -> Dict[str, int]:
         """
         Get the available date range from PCSO website.
-        
+
         Returns:
             Dictionary with 'min_year' and 'max_year' keys
-            
+
         Raises:
             Exception: If unable to determine date range
         """
         try:
             self.driver.get(self.PCSO_URL)
             wait = WebDriverWait(self.driver, self.page_timeout)
-            
+
             # Wait for year dropdown to be available
             wait.until(
-                EC.presence_of_element_located(
-                    (By.ID, self.SELECTORS["start_year"])
-                )
+                EC.presence_of_element_located((By.ID, self.SELECTORS["start_year"]))
             )
-            
+
             year_select = Select(
                 self.driver.find_element(By.ID, self.SELECTORS["start_year"])
             )
-            
+
             available_years = [
-                int(option.get_attribute('value')) 
-                for option in year_select.options 
-                if option.get_attribute('value').isdigit()
+                int(option.get_attribute("value"))
+                for option in year_select.options
+                if option.get_attribute("value").isdigit()
             ]
-            
+
             if not available_years:
                 raise Exception("No years found in dropdown")
-            
-            return {
-                'min_year': min(available_years),
-                'max_year': max(available_years)
-            }
-            
+
+            return {"min_year": min(available_years), "max_year": max(available_years)}
+
         except Exception as e:
             logger.error(f"Error getting available date range: {str(e)}")
             raise Exception(f"Could not determine available date range: {str(e)}")
@@ -391,23 +418,23 @@ class PCSOScraper:
                 EC.presence_of_element_located((By.ID, self.SELECTORS["game_type"]))
             )
             logger.info("Page loaded successfully")
-            
+
             # Validate date range early
             logger.info("Validating date range availability...")
             start_year_select = Select(
                 self.driver.find_element(By.ID, self.SELECTORS["start_year"])
             )
             available_years = [
-                int(option.get_attribute('value')) 
-                for option in start_year_select.options 
-                if option.get_attribute('value').isdigit()
+                int(option.get_attribute("value"))
+                for option in start_year_select.options
+                if option.get_attribute("value").isdigit()
             ]
-            
+
             if available_years:
                 min_year = min(available_years)
                 max_year = max(available_years)
                 logger.info(f"PCSO website supports years: {min_year} to {max_year}")
-                
+
                 # Check if requested years are in range
                 if start_date.year < min_year or end_date.year > max_year:
                     error_msg = (
@@ -419,9 +446,9 @@ class PCSOScraper:
                     raise DateRangeException(
                         error_msg,
                         requested_range=(start_date.year, end_date.year),
-                        available_range=(min_year, max_year)
+                        available_range=(min_year, max_year),
                     )
-                
+
                 logger.info("Date range validation passed")
 
             # Select game type
@@ -538,6 +565,8 @@ class PCSOScraper:
                 except Exception as e:
                     # Ignore SSL errors during cleanup (Python 3.14 RC2 bug)
                     logger.warning(f"Error closing driver (ignoring): {str(e)}")
+                finally:
+                    self.driver = None
 
     def _extract_results(self, progress_callback=None) -> List[Dict]:
         """

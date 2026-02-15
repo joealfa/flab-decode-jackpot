@@ -515,10 +515,10 @@
                 ? `<span class="badge bg-${stats.best_match >= 5 ? 'success' : stats.best_match >= 3 ? 'warning' : 'secondary'}">${stats.best_match}</span>`
                 : `<span class="text-muted">—</span>`;
             row.innerHTML = `
-                <td><strong>${game}</strong></td>
-                <td>${stats.submissions}</td>
-                <td>${stats.total_predictions}</td>
-                <td>${stats.avg_matches}</td>
+                <td><strong>${escapeHtml(game)}</strong></td>
+                <td>${escapeHtml(stats.submissions)}</td>
+                <td>${escapeHtml(stats.total_predictions)}</td>
+                <td>${escapeHtml(stats.avg_matches)}</td>
                 <td>${bestMatchDisplay}</td>
             `;
         }
@@ -552,13 +552,13 @@
             // Add verification status cell (will be populated async)
             const verificationId = `verify-${submission.game_type.replace(/\s+/g, '-')}-${submission.draw_date}`;
             row.innerHTML = `
-                <td>${submission.draw_date}</td>
-                <td>${submission.game_type}</td>
+                <td>${escapeHtml(submission.draw_date)}</td>
+                <td>${escapeHtml(submission.game_type)}</td>
                 <td><div class="lottery-numbers-container">${actualNumbersCircles}</div></td>
                 <td>${matchedNumbersBadge}</td>
                 <td>${bestMatchDisplay}</td>
-                <td>${submission.best_prediction_type || '—'}</td>
-                <td id="${verificationId}"><span class="text-muted">Checking...</span></td>
+                <td>${escapeHtml(submission.best_prediction_type) || '—'}</td>
+                <td id="${escapeHtml(verificationId)}"><span class="text-muted">Checking...</span></td>
             `;
             
             // Verify result integrity async
@@ -699,29 +699,29 @@
             : '';
         const analysisSnapshot = details.analysis_snapshot || null;
         const snapshotMarkup = analysisSnapshot && analysisSnapshot.generated_at
-            ? `<p class="text-muted small mb-0">Predictions generated ${analysisSnapshot.generated_at}${analysisSnapshot.coverage_end ? ` (data through ${analysisSnapshot.coverage_end})` : ''}</p>`
+            ? `<p class="text-muted small mb-0">Predictions generated ${escapeHtml(analysisSnapshot.generated_at)}${analysisSnapshot.coverage_end ? ` (data through ${escapeHtml(analysisSnapshot.coverage_end)})` : ''}</p>`
             : '';
 
-        // Format numbers as circles
-        const actualCircles = details.actual_numbers.map(n => `<span class="lottery-number bg-dark text-white">${n}</span>`).join('');
-        const predictedCircles = details.predicted_numbers.map(n => `<span class="lottery-number bg-primary text-white">${n}</span>`).join('');
+        // Format numbers as circles (numbers are integers, safe)
+        const actualCircles = details.actual_numbers.map(n => `<span class="lottery-number bg-dark text-white">${parseInt(n)}</span>`).join('');
+        const predictedCircles = details.predicted_numbers.map(n => `<span class="lottery-number bg-primary text-white">${parseInt(n)}</span>`).join('');
 
         container.innerHTML = `
             <div class="mb-3">
                 <h4 class="mb-2">
                     <span class="badge bg-${perfData.matches >= 5 ? 'success' : perfData.matches >= 3 ? 'warning' : 'secondary'} fs-5">
-                        ${perfData.matches} Matches
+                        ${parseInt(perfData.matches)} Matches
                     </span>
                 </h4>
             </div>
-            <p><strong>Draw Date:</strong> ${details.draw_date}</p>
-            <p><strong>Game:</strong> ${details.game_type}</p>
+            <p><strong>Draw Date:</strong> ${escapeHtml(details.draw_date)}</p>
+            <p><strong>Game:</strong> ${escapeHtml(details.game_type)}</p>
             <p><strong>Actual Numbers:</strong></p>
             <div class="lottery-numbers-container mb-2">${actualCircles}</div>
             <p><strong>Predicted Numbers:</strong></p>
             <div class="lottery-numbers-container mb-2">${predictedCircles}</div>
-            <p><strong>Rank:</strong> #${details.rank}</p>
-            ${details.prediction_type ? `<p><strong>Algorithm:</strong> ${details.prediction_type}</p>` : ''}
+            <p><strong>Rank:</strong> #${parseInt(details.rank)}</p>
+            ${details.prediction_type ? `<p><strong>Algorithm:</strong> ${escapeHtml(details.prediction_type)}</p>` : ''}
             ${matchedMarkup}
             ${snapshotMarkup}
         `;
@@ -737,7 +737,7 @@
     }
 
     function showError(message) {
-        alert('Error: ' + message);
+        showAlert(message, 'error');
     }
 
     function showInlineEmptyState(message) {

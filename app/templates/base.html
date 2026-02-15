@@ -60,6 +60,20 @@
         </div>
     </footer>
 
+    <!-- Alert Modal -->
+    <div id="alertModal" class="alert-modal-backdrop" style="display: none;" onclick="closeAlertModal(event)">
+        <div class="alert-modal">
+            <div class="alert-modal-icon" id="alertModalIcon">
+                <i class="fas fa-info-circle"></i>
+            </div>
+            <div class="alert-modal-body">
+                <h3 class="alert-modal-title" id="alertModalTitle">Notice</h3>
+                <p class="alert-modal-message" id="alertModalMessage"></p>
+            </div>
+            <button class="alert-modal-btn" onclick="closeAlertModal()">OK</button>
+        </div>
+    </div>
+
     <!-- Chart.js - Using stable version 3.9.1 for better compatibility -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0/dist/chartjs-plugin-annotation.min.js"></script>

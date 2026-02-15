@@ -1402,7 +1402,7 @@ function exportCurrentAnalysis() {
     if (reportFilename && reportFilename !== '') {
         window.location.href = `/api/export-analysis/${reportFilename}`;
     } else {
-        alert('Report filename not available for export.');
+        showAlert('Report filename not available for export.', 'warning');
     }
 }
 

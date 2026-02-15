@@ -62,8 +62,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 
     <script>
-        console.log('Test page loaded');
-
         // Update status
         document.getElementById('status').textContent = 'Initializing...';
 
@@ -117,7 +115,6 @@
                     }
                 });
 
-                console.log('Chart created successfully!', myChart);
                 document.getElementById('status').textContent = 'SUCCESS! Chart rendered correctly.';
             } catch (error) {
                 console.error('Error creating chart:', error);

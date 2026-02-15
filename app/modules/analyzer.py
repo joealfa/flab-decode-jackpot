@@ -477,7 +477,7 @@ class LotteryAnalyzer:
                     )
                     amount = float(clean_jackpot)
                     jackpot_amounts.append(amount)
-                except (ValueError, AttributeError):
+                except ValueError, AttributeError:
                     pass
 
         analysis = {
@@ -568,7 +568,7 @@ class LotteryAnalyzer:
                 else:
                     date = r["date"]
                 winning_dates.append(date)
-            except (ValueError, KeyError):
+            except ValueError, KeyError:
                 continue
 
         winning_dates.sort()

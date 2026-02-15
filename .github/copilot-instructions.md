@@ -152,11 +152,16 @@ def analyze_pattern(self) -> Dict:
 
 ## Important Gotchas
 
-⚠️ **NumPy Serialization:** Always convert before JSON  
-⚠️ **Progress Files:** Use atomic writes (already implemented)  
-⚠️ **ChromeDriver:** Multi-strategy initialization (already implemented)  
-⚠️ **SSL Warnings:** Python 3.14 RC2 issue, safely ignored  
+⚠️ **NumPy Serialization:** Always convert before JSON
+⚠️ **Progress Files:** Use atomic writes (already implemented)
+⚠️ **ChromeDriver:** Multi-strategy initialization (already implemented)
+⚠️ **SSL Warnings:** Python 3.14 RC2 issue, safely ignored
 ⚠️ **Date Formats:** PCSO uses `MM/DD/YYYY`, app uses `YYYY-MM-DD`
+⚠️ **No alert():** Use `showAlert(message, type)` instead of browser `alert()` (types: `info`, `success`, `error`, `warning`)
+⚠️ **No console.log:** Avoid `console.log()` in production code; use it only during active debugging and remove before committing
+⚠️ **Path Traversal:** Always use `validate_filename(name, dir)` for user-supplied filenames
+⚠️ **XSS Prevention:** Always use `escapeHtml()` when inserting dynamic data into `innerHTML`
+⚠️ **Error Responses:** Never expose internal error details (`str(e)`) to clients
 
 ## Dependencies Management
 
@@ -234,6 +239,35 @@ config.PAGE_TIMEOUT       # Selenium timeout
 - `POST /api/analyze` - API analysis (JSON)
 - `GET /api/files` - List result files
 - `POST /api/submit-actual-result` - Submit draw result
+- `GET /api/accuracy/dashboard-data` - Accuracy dashboard data
+- `GET /health` - Health check
+
+## Frontend Patterns
+
+### User Notifications
+Use the custom modal instead of browser `alert()`:
+```javascript
+// Types: 'info', 'success', 'error', 'warning'
+showAlert('Operation completed successfully!', 'success');
+showAlert('Please enter valid numbers.', 'warning');
+showAlert('Failed to load data.', 'error');
+```
+
+### XSS Prevention
+Always escape dynamic data before inserting into `innerHTML`:
+```javascript
+// BAD - XSS vulnerable:
+element.innerHTML = `<p>${serverData.message}</p>`;
+
+// GOOD - escaped:
+element.innerHTML = `<p>${escapeHtml(serverData.message)}</p>`;
+```
+
+### Path Safety (Backend)
+Always validate user-supplied filenames:
+```python
+filepath = validate_filename(user_filename, config.DATA_PATH)
+```
 
 ## References
 

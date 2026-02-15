@@ -63,18 +63,16 @@ class ProgressTracker:
         # Write to temp file first, then atomic rename to avoid race conditions
         # Use delete=False to manually control file cleanup
         temp_fd, temp_path = tempfile.mkstemp(
-            dir=self.progress_dir, 
-            suffix='.json',
-            prefix='tmp_progress_'
+            dir=self.progress_dir, suffix=".json", prefix="tmp_progress_"
         )
         try:
-            with os.fdopen(temp_fd, 'w') as f:
+            with os.fdopen(temp_fd, "w") as f:
                 json.dump(data, f)
-            
+
             # Ensure both paths are absolute for Windows compatibility
             abs_temp_path = os.path.abspath(temp_path)
             abs_progress_file = os.path.abspath(progress_file)
-            
+
             # Retry mechanism for Windows file locking issues
             max_retries = 3
             for attempt in range(max_retries):
@@ -97,7 +95,9 @@ class ProgressTracker:
             except OSError:
                 pass
             # Re-raise with more context
-            raise Exception(f"Failed to update progress for task {task_id}: {str(e)}") from e
+            raise Exception(
+                f"Failed to update progress for task {task_id}: {str(e)}"
+            ) from e
 
     def get_progress(self, task_id: str) -> Optional[Dict]:
         """Get progress for a task."""
@@ -128,7 +128,7 @@ class ProgressTracker:
             except Exception:
                 # For any other error, return None
                 return None
-        
+
         return None
 
     def complete_task(self, task_id: str, message: str = "Completed") -> None:
@@ -149,18 +149,16 @@ class ProgressTracker:
 
         # Write to temp file first, then atomic rename to avoid race conditions
         temp_fd, temp_path = tempfile.mkstemp(
-            dir=self.progress_dir, 
-            suffix='.json',
-            prefix='tmp_progress_'
+            dir=self.progress_dir, suffix=".json", prefix="tmp_progress_"
         )
         try:
-            with os.fdopen(temp_fd, 'w') as f:
+            with os.fdopen(temp_fd, "w") as f:
                 json.dump(data, f)
-            
+
             # Ensure both paths are absolute for Windows compatibility
             abs_temp_path = os.path.abspath(temp_path)
             abs_progress_file = os.path.abspath(progress_file)
-            
+
             # Retry mechanism for Windows file locking issues
             max_retries = 3
             for attempt in range(max_retries):
@@ -198,18 +196,16 @@ class ProgressTracker:
 
         # Write to temp file first, then atomic rename to avoid race conditions
         temp_fd, temp_path = tempfile.mkstemp(
-            dir=self.progress_dir, 
-            suffix='.json',
-            prefix='tmp_progress_'
+            dir=self.progress_dir, suffix=".json", prefix="tmp_progress_"
         )
         try:
-            with os.fdopen(temp_fd, 'w') as f:
+            with os.fdopen(temp_fd, "w") as f:
                 json.dump(data, f)
-            
+
             # Ensure both paths are absolute for Windows compatibility
             abs_temp_path = os.path.abspath(temp_path)
             abs_progress_file = os.path.abspath(progress_file)
-            
+
             # Retry mechanism for Windows file locking issues
             max_retries = 3
             for attempt in range(max_retries):
@@ -265,9 +261,13 @@ class ProgressTracker:
 
                 # Check if task is completed or failed
                 status = data.get("status", "")
-                
+
                 # Use completion/failure timestamp if available, otherwise updated_at
-                completion_time = data.get("completed_at") or data.get("failed_at") or data.get("updated_at", 0)
+                completion_time = (
+                    data.get("completed_at")
+                    or data.get("failed_at")
+                    or data.get("updated_at", 0)
+                )
                 age = current_time - completion_time
 
                 # Clean up completed/failed tasks older than max_age
@@ -275,7 +275,7 @@ class ProgressTracker:
                     os.remove(filepath)
                     cleaned_count += 1
 
-            except (json.JSONDecodeError, IOError, OSError):
+            except json.JSONDecodeError, IOError, OSError:
                 # If file is corrupted or inaccessible, remove it
                 try:
                     os.remove(filepath)
@@ -288,10 +288,10 @@ class ProgressTracker:
     def cleanup_stale_tasks(self, max_age_seconds: int = 600) -> int:
         """
         Clean up stale tasks (stuck in 'started' status) that haven't been updated.
-        
+
         Args:
             max_age_seconds: Maximum age in seconds for stale tasks (default: 10 minutes)
-            
+
         Returns:
             Number of tasks cleaned up
         """
@@ -320,7 +320,7 @@ class ProgressTracker:
                     os.remove(filepath)
                     cleaned_count += 1
 
-            except (json.JSONDecodeError, IOError, OSError):
+            except json.JSONDecodeError, IOError, OSError:
                 # If file is corrupted, remove it
                 try:
                     os.remove(filepath)
@@ -364,7 +364,7 @@ class ProgressTracker:
                     os.remove(filepath)
                     cleaned_count += 1
 
-            except (json.JSONDecodeError, IOError, OSError):
+            except json.JSONDecodeError, IOError, OSError:
                 # If file is corrupted, remove it
                 try:
                     os.remove(filepath)
@@ -377,17 +377,21 @@ class ProgressTracker:
     def cleanup_all(self) -> Dict[str, int]:
         """
         Comprehensive cleanup of all old and stale progress files.
-        
+
         Returns:
             Dictionary with counts of different cleanup operations
         """
-        completed_count = self.cleanup_completed_tasks(max_age_seconds=180)  # 3 minutes for completed
-        stale_count = self.cleanup_stale_tasks(max_age_seconds=600)  # 10 minutes for stale
+        completed_count = self.cleanup_completed_tasks(
+            max_age_seconds=180
+        )  # 3 minutes for completed
+        stale_count = self.cleanup_stale_tasks(
+            max_age_seconds=600
+        )  # 10 minutes for stale
         old_count = self.cleanup_all_old_tasks(max_age_hours=24)  # 24 hours for any
-        
+
         return {
             "completed_cleaned": completed_count,
             "stale_cleaned": stale_count,
             "old_cleaned": old_count,
-            "total_cleaned": completed_count + stale_count + old_count
+            "total_cleaned": completed_count + stale_count + old_count,
         }
