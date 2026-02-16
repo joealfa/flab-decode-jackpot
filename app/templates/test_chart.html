@@ -1,8 +1,10 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <title>Chart Test</title>
-    <style>
+<html lang="en">
+    <head>
+        <meta name="description" content="Chart.js test page for Fortune Lab application.">
+        <meta name="keywords" content="chart, test, Fortune Lab">
+        <title>Chart Test</title>
+        <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
@@ -36,32 +38,29 @@
             border-radius: 5px;
             margin: 10px 0;
         }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Chart.js Test Page</h1>
-
-        <div class="info">
-            <strong>Status:</strong> <span id="status">Testing...</span><br>
-            <strong>Chart.js Version:</strong> <span id="version">Checking...</span>
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Chart.js Test Page</h1>
+            <div class="info">
+                <strong>Status:</strong> <span id="status">Testing...</span>
+                <br>
+                <strong>Chart.js Version:</strong> <span id="version">Checking...</span>
+            </div>
+            <div class="chart-box">
+                <h3>Test Chart</h3>
+                <canvas id="testChart"></canvas>
+            </div>
+            <div id="errorLog"
+                 class="error-log">
+                <strong>Errors:</strong>
+                <pre id="errors"></pre>
+            </div>
         </div>
-
-        <div class="chart-box">
-            <h3>Test Chart</h3>
-            <canvas id="testChart"></canvas>
-        </div>
-
-        <div id="errorLog" style="background: #ffebee; padding: 15px; border-radius: 5px; display: none;">
-            <strong>Errors:</strong>
-            <pre id="errors"></pre>
-        </div>
-    </div>
-
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-
-    <script>
+        <!-- Chart.js -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+        <script>
         // Update status
         document.getElementById('status').textContent = 'Initializing...';
 
@@ -123,6 +122,6 @@
                 document.getElementById('errors').textContent = error.stack;
             }
         }
-    </script>
-</body>
+        </script>
+    </body>
 </html>

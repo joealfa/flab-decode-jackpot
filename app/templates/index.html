@@ -1,93 +1,205 @@
 {% extends "base.html" %}
-
 {% block title %}Fortune Lab - Home{% endblock %}
-
 {% block content %}
-<div class="container hero-section">
-    <div class="hero-content">
-        <h1 class="hero-title">Decode the Jackpot</h1>
-        <p class="hero-subtitle">Advanced lottery analysis powered by data science</p>
-    </div>
-
-    <!-- Data Collection Section -->
-    <div class="card">
-        <div class="card-header">
-            <h2><i class="fas fa-download"></i> Get Lottery Data</h2>
+    <div class="container hero-section">
+        <div class="hero-content">
+            <h1 class="hero-title">Decode the Jackpot</h1>
+            <p class="hero-subtitle">Advanced lottery analysis powered by data science</p>
         </div>
-        <div class="card-body">
-            <form id="scrapeForm" class="scrape-form">
-                <div class="form-group">
-                    <label for="gameType">
-                        <i class="fas fa-gamepad"></i> Game Type
-                    </label>
-                    <select id="gameType" name="gameType" class="form-control" required>
-                        <option value="">Select a game...</option>
-                        <option value="Lotto 6/42">Lotto 6/42</option>
-                        <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
-                        <option value="Super Lotto 6/49">Super Lotto 6/49</option>
-                        <option value="Grand Lotto 6/55">Grand Lotto 6/55</option>
-                        <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
-                    </select>
-                </div>
-
-                <div class="form-row">
+        <!-- Data Collection Section -->
+        <div class="card">
+            <div class="card-header">
+                <h2>
+                    <i class="fas fa-download"></i> Get Lottery Data
+                </h2>
+            </div>
+            <div class="card-body">
+                <form id="scrapeForm" class="scrape-form">
                     <div class="form-group">
-                        <label for="startDate">
-                            <i class="fas fa-calendar-alt"></i> Start Date
+                        <label for="gameType">
+                            <i class="fas fa-gamepad"></i> Game Type
                         </label>
-                        <input type="date" id="startDate" name="startDate" class="form-control" value="2020-01-01" required>
+                        <select id="gameType" name="gameType" class="form-control" required>
+                            <option value="">Select a game...</option>
+                            <option value="Lotto 6/42">Lotto 6/42</option>
+                            <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
+                            <option value="Super Lotto 6/49">Super Lotto 6/49</option>
+                            <option value="Grand Lotto 6/55">Grand Lotto 6/55</option>
+                            <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
+                        </select>
                     </div>
-
-                    <div class="form-group">
-                        <label for="endDate">
-                            <i class="fas fa-calendar-check"></i> End Date
-                        </label>
-                        <input type="date" id="endDate" name="endDate" class="form-control" required>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-large" id="generateBtn">
-                    <i class="fas fa-download"></i> Get Data
-                </button>
-
-                <div id="loadingIndicator" class="loading-indicator" style="display: none;">
-                    <div class="progress-container">
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progressFill"></div>
-                        </div>
-                        <p id="progressText">Preparing to load data...</p>
-                        <div class="progress-warning">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <strong>Please do not:</strong> close this tab, refresh the page, or navigate away.
-                            <br>
-                            <small>Interrupting the process may cause data corruption or incomplete results.</small>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="messageBox" class="message-box" style="display: none;"></div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Add Actual Result Section -->
-    <div class="card">
-        <div class="card-header">
-            <h2><i class="fas fa-clipboard-check"></i> Add Actual Draw Result</h2>
-            <p class="subtitle">Add latest draw results before analyzing to include them in predictions</p>
-        </div>
-        <div class="card-body">
-            <button class="btn btn-primary" onclick="toggleAddResultForm()">
-                <i class="fas fa-plus-circle"></i> Add New Result
-            </button>
-
-            <div id="addResultForm" style="display: none; margin-top: 20px;">
-                <form id="actualResultForm" onsubmit="submitActualResult(event)">
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="resultGameType">Game Type</label>
-                            <select id="resultGameType" required class="form-control" onchange="loadResultFiles()">
-                                <option value="">Select Game Type</option>
+                            <label for="startDate">
+                                <i class="fas fa-calendar-alt"></i> Start Date
+                            </label>
+                            <input type="date"
+                                   id="startDate"
+                                   name="startDate"
+                                   class="form-control"
+                                   value="2020-01-01"
+                                   required>
+                        </div>
+                        <div class="form-group">
+                            <label for="endDate">
+                                <i class="fas fa-calendar-check"></i> End Date
+                            </label>
+                            <input type="date" id="endDate" name="endDate" class="form-control" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-large" id="generateBtn">
+                        <i class="fas fa-download"></i> Get Data
+                    </button>
+                    <div id="loadingIndicator" class="loading-indicator d-none">
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <p id="progressText">Preparing to load data...</p>
+                            <div class="progress-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Please do not:</strong> close this tab, refresh the page, or navigate away.
+                                <br>
+                                <small>Interrupting the process may cause data corruption or incomplete results.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="messageBox" class="message-box d-none"></div>
+                </form>
+            </div>
+        </div>
+        <!-- Add Actual Result Section -->
+        <div class="card">
+            <div class="card-header">
+                <h2>
+                    <i class="fas fa-clipboard-check"></i> Add Actual Draw Result
+                </h2>
+                <p class="subtitle">Add latest draw results before analyzing to include them in predictions</p>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-primary" onclick="toggleAddResultForm()">
+                    <i class="fas fa-plus-circle"></i> Add New Result
+                </button>
+                <div id="addResultForm" class="d-none mt-20">
+                    <form id="actualResultForm" onsubmit="submitActualResult(event)">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="resultGameType">Game Type</label>
+                                <select id="resultGameType"
+                                        required
+                                        class="form-control"
+                                        onchange="loadResultFiles()">
+                                    <option value="">Select Game Type</option>
+                                    <option value="Lotto 6/42">Lotto 6/42</option>
+                                    <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
+                                    <option value="Super Lotto 6/49">Super Lotto 6/49</option>
+                                    <option value="Grand Lotto 6/55">Grand Lotto 6/55</option>
+                                    <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="targetResultFile">Target Result File</label>
+                                <select id="targetResultFile" class="form-control">
+                                    <option value="">Select game type first...</option>
+                                </select>
+                                <small class="form-text text-muted">Choose which historical file to add this result to</small>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="resultDrawDate">Draw Date</label>
+                                <input type="date" id="resultDrawDate" required class="form-control">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Winning Numbers (6 numbers)</label>
+                            <div class="number-inputs">
+                                <input type="number"
+                                       class="number-input"
+                                       min="1"
+                                       max="58"
+                                       required
+                                       placeholder="1">
+                                <input type="number"
+                                       class="number-input"
+                                       min="1"
+                                       max="58"
+                                       required
+                                       placeholder="2">
+                                <input type="number"
+                                       class="number-input"
+                                       min="1"
+                                       max="58"
+                                       required
+                                       placeholder="3">
+                                <input type="number"
+                                       class="number-input"
+                                       min="1"
+                                       max="58"
+                                       required
+                                       placeholder="4">
+                                <input type="number"
+                                       class="number-input"
+                                       min="1"
+                                       max="58"
+                                       required
+                                       placeholder="5">
+                                <input type="number"
+                                       class="number-input"
+                                       min="1"
+                                       max="58"
+                                       required
+                                       placeholder="6">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="resultJackpot">Jackpot (Optional)</label>
+                                <input type="text"
+                                       id="resultJackpot"
+                                       class="form-control"
+                                       placeholder="e.g., 50,000,000.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="resultWinners">Winners (Optional)</label>
+                                <input type="text"
+                                       id="resultWinners"
+                                       class="form-control"
+                                       placeholder="e.g., 2">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Add Result to Dataset
+                        </button>
+                        <button type="button"
+                                class="btn btn-secondary"
+                                onclick="toggleAddResultForm()">Cancel</button>
+                    </form>
+                    <div id="addResultMessage" class="d-none mt-15"></div>
+                </div>
+            </div>
+        </div>
+        <!-- Existing Results Section -->
+        {% if result_files %}
+            <div class="card">
+                <div class="card-header">
+                    <h2>
+                        <i class="fas fa-folder-open"></i> Saved Results
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <!-- Search and Filter Controls -->
+                    <div class="search-filter-controls">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text"
+                                   id="searchInput"
+                                   placeholder="Search by game type or date..."
+                                   onkeyup="filterResults()">
+                        </div>
+                        <div class="filter-controls">
+                            <select id="gameTypeFilter" class="form-control" onchange="filterResults()">
+                                <option value="">All Game Types</option>
                                 <option value="Lotto 6/42">Lotto 6/42</option>
                                 <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
                                 <option value="Super Lotto 6/49">Super Lotto 6/49</option>
@@ -95,140 +207,74 @@
                                 <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label for="targetResultFile">Target Result File</label>
-                            <select id="targetResultFile" class="form-control">
-                                <option value="">Select game type first...</option>
-                            </select>
-                            <small class="form-text text-muted">Choose which historical file to add this result to</small>
-                        </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="resultDrawDate">Draw Date</label>
-                            <input type="date" id="resultDrawDate" required class="form-control">
-                        </div>
+                    <div class="results-grid" id="resultsGrid">
+                        {% for file in result_files %}
+                            <div class="result-card"
+                                 data-game-type="{{ file.game_type }}"
+                                 data-date="{{ file.date }}"
+                                 data-filename="{{ file.filename }}">
+                                <div class="result-icon">
+                                    <i class="fas fa-file-chart"></i>
+                                </div>
+                                <div class="result-info">
+                                    <h3>{{ file.game_type }}</h3>
+                                    <p class="result-date">
+                                        <i class="fas fa-calendar"></i> {{ file.date }}
+                                    </p>
+                                    <p class="result-filename">
+                                        <small>{{ file.filename }}</small>
+                                    </p>
+                                    <div class="button-group">
+                                        <button class="btn btn-primary"
+                                                onclick="openAnalysisModal('{{ file.filename }}')">
+                                            <i class="fas fa-chart-bar"></i> Analyze Now
+                                        </button>
+                                        <button class="btn btn-secondary"
+                                                onclick="viewHistory('{{ file.filename }}')">
+                                            <i class="fas fa-history"></i> History
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
                     </div>
-                    <div class="form-group">
-                        <label>Winning Numbers (6 numbers)</label>
-                        <div class="number-inputs">
-                            <input type="number" class="number-input" min="1" max="58" required placeholder="1">
-                            <input type="number" class="number-input" min="1" max="58" required placeholder="2">
-                            <input type="number" class="number-input" min="1" max="58" required placeholder="3">
-                            <input type="number" class="number-input" min="1" max="58" required placeholder="4">
-                            <input type="number" class="number-input" min="1" max="58" required placeholder="5">
-                            <input type="number" class="number-input" min="1" max="58" required placeholder="6">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="resultJackpot">Jackpot (Optional)</label>
-                            <input type="text" id="resultJackpot" class="form-control" placeholder="e.g., 50,000,000.00">
-                        </div>
-                        <div class="form-group">
-                            <label for="resultWinners">Winners (Optional)</label>
-                            <input type="text" id="resultWinners" class="form-control" placeholder="e.g., 2">
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Add Result to Dataset
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="toggleAddResultForm()">
-                        Cancel
-                    </button>
-                </form>
-                <div id="addResultMessage" style="display: none; margin-top: 15px;"></div>
+                </div>
+            </div>
+        {% endif %}
+        <!-- Features Section -->
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h3>Advanced Analytics</h3>
+                <p>Deep statistical analysis of historical lottery data</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-calendar-week"></i>
+                </div>
+                <h3>Day-Specific Insights</h3>
+                <p>Analyze patterns for each day of the week</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <h3>Smart Predictions</h3>
+                <p>AI-powered combination suggestions based on probability</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <h3>Visual Reports</h3>
+                <p>Beautiful charts and graphs for easy understanding</p>
             </div>
         </div>
     </div>
-
-    <!-- Existing Results Section -->
-    {% if result_files %}
-    <div class="card">
-        <div class="card-header">
-            <h2><i class="fas fa-folder-open"></i> Saved Results</h2>
-        </div>
-        <div class="card-body">
-            <!-- Search and Filter Controls -->
-            <div class="search-filter-controls">
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" placeholder="Search by game type or date..." onkeyup="filterResults()">
-                </div>
-                <div class="filter-controls">
-                    <select id="gameTypeFilter" class="form-control" onchange="filterResults()">
-                        <option value="">All Game Types</option>
-                        <option value="Lotto 6/42">Lotto 6/42</option>
-                        <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
-                        <option value="Super Lotto 6/49">Super Lotto 6/49</option>
-                        <option value="Grand Lotto 6/55">Grand Lotto 6/55</option>
-                        <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
-                    </select>
-                </div>
-            </div>
-            <div class="results-grid" id="resultsGrid">
-                {% for file in result_files %}
-                <div class="result-card" data-game-type="{{ file.game_type }}" data-date="{{ file.date }}" data-filename="{{ file.filename }}">
-                    <div class="result-icon">
-                        <i class="fas fa-file-chart"></i>
-                    </div>
-                    <div class="result-info">
-                        <h3>{{ file.game_type }}</h3>
-                        <p class="result-date"><i class="fas fa-calendar"></i> {{ file.date }}</p>
-                        <p class="result-filename"><small>{{ file.filename }}</small></p>
-                        <div class="button-group">
-                            <button class="btn btn-primary" onclick="openAnalysisModal('{{ file.filename }}')">
-                                <i class="fas fa-chart-bar"></i> Analyze Now
-                            </button>
-                            <button class="btn btn-secondary" onclick="viewHistory('{{ file.filename }}')">
-                                <i class="fas fa-history"></i> History
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Features Section -->
-    <div class="features-grid">
-        <div class="feature-card">
-            <div class="feature-icon">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <h3>Advanced Analytics</h3>
-            <p>Deep statistical analysis of historical lottery data</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">
-                <i class="fas fa-calendar-week"></i>
-            </div>
-            <h3>Day-Specific Insights</h3>
-            <p>Analyze patterns for each day of the week</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">
-                <i class="fas fa-brain"></i>
-            </div>
-            <h3>Smart Predictions</h3>
-            <p>AI-powered combination suggestions based on probability</p>
-        </div>
-
-        <div class="feature-card">
-            <div class="feature-icon">
-                <i class="fas fa-chart-pie"></i>
-            </div>
-            <h3>Visual Reports</h3>
-            <p>Beautiful charts and graphs for easy understanding</p>
-        </div>
-    </div>
-</div>
-
-<script>
+    <script>
 // Set today's date as default end date
 document.getElementById('endDate').valueAsDate = new Date();
 
@@ -372,7 +418,13 @@ function closeHistory(event) {
 // Toggle add result form
 function toggleAddResultForm() {
     const form = document.getElementById('addResultForm');
-    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    const isHidden = form.classList.contains('d-none') || form.style.display === 'none';
+    if (isHidden) {
+        form.classList.remove('d-none');
+        form.style.display = 'block';
+    } else {
+        form.style.display = 'none';
+    }
 
     // Clear message when toggling
     document.getElementById('addResultMessage').style.display = 'none';
@@ -1097,6 +1149,5 @@ function renderMarkdown(text) {
     return html;
 }
 
-</script>
-
+    </script>
 {% endblock %}

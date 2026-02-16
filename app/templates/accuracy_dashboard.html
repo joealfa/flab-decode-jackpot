@@ -1,246 +1,230 @@
 {% extends "base.html" %}
-
 {% block title %}Accuracy Dashboard - Fortune Lab{% endblock %}
-
 {% block content %}
-<div class="container mt-4 accuracy-dashboard">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h1 class="mb-2">🎯 Accuracy Dashboard</h1>
-                    <p class="text-muted">Track prediction performance and algorithm accuracy</p>
-                </div>
-                <div>
-                    <a href="/" class="btn btn-outline-primary">
-                        <i class="bi bi-house-door"></i> Home
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {% if not has_data %}
-    <!-- No Data State -->
-    <div class="row">
-        <div class="col-12">
-            <div class="alert alert-info">
-                <h4 class="alert-heading">
-                    <i class="bi bi-info-circle"></i> No Accuracy Data Yet
-                </h4>
-                <p>You haven't submitted any actual lottery results for comparison yet.</p>
-                <hr>
-                <p class="mb-0">
-                    To start tracking accuracy:
-                    <ol>
-                        <li>Generate predictions by analyzing lottery data</li>
-                        <li>Wait for the actual draw to occur</li>
-                        <li>Submit the actual results via the analysis dashboard</li>
-                    </ol>
-                </p>
-            </div>
-        </div>
-    </div>
-    {% else %}
-
-    <!-- Filter Section -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <label for="gameTypeFilter" class="form-label">Filter by Game Type</label>
-            <select class="form-select" id="gameTypeFilter">
-                <option value="">All Games</option>
-                <option value="Lotto 6/42">Lotto 6/42</option>
-                <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
-                <option value="Super Lotto 6/49">Super Lotto 6/49</option>
-                <option value="Grand Lotto 6/55">Grand Lotto 6/55</option>
-                <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
-            </select>
-        </div>
-        <div class="col-md-6 d-flex align-items-end">
-            <button class="btn btn-primary" id="refreshBtn">
-                <i class="bi bi-arrow-clockwise"></i> Refresh Analysis
-            </button>
-        </div>
-    </div>
-
-    <!-- Summary Cards -->
-    <div class="row mb-4" id="summaryCards">
-        <!-- Cards will be populated by JavaScript -->
-    </div>
-
-    <!-- Best Algorithm Card -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-success">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-trophy"></i> Best Performing Algorithm
-                    </h5>
-                </div>
-                <div class="card-body" id="bestAlgorithmCard">
-                    <!-- Will be populated by JavaScript -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Charts Section -->
-    <div class="row mb-4">
-        <!-- Match Distribution Chart -->
-        <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Match Distribution</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="matchDistributionChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Algorithm Performance Chart -->
-        <div class="col-md-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Algorithm Performance</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="algorithmPerformanceChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Game Breakdown Table -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Performance by Game Type</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="gameBreakdownTable">
-                            <thead>
-                                <tr>
-                                    <th>Game Type</th>
-                                    <th>Submissions</th>
-                                    <th>Total Predictions</th>
-                                    <th>Avg Matches</th>
-                                    <th>Best Prediction</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Will be populated by JavaScript -->
-                            </tbody>
-                        </table>
+    <div class="container mt-4 accuracy-dashboard">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h1 class="mb-2">🎯 Accuracy Dashboard</h1>
+                        <p class="text-muted">Track prediction performance and algorithm accuracy</p>
+                    </div>
+                    <div>
+                        <a href="/" class="btn btn-outline-primary">
+                            <i class="bi bi-house-door"></i> Home
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Recent Submissions -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Recent Submissions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm" id="recentSubmissionsTable">
-                            <thead>
-                                <tr>
-                                    <th>Draw Date</th>
-                                    <th>Game Type</th>
-                                    <th>Actual Numbers</th>
-                                    <th>Matched Numbers</th>
-                                    <th>Best Prediction</th>
-                                    <th>Best Algorithm</th>
-                                    <th>
-                                        In History
-                                        <i class="bi bi-question-circle text-muted" title="Verifies if this draw exists in historical dataset. Click 'Yes' to view original draw details."></i>
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Will be populated by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="alert alert-info mt-3 mb-0">
-                        <small>
-                            <i class="bi bi-info-circle"></i> 
-                            <strong>Green "Yes"</strong> = Draw found in historical data (click to view original draw details) • 
-                            <strong>Yellow "No"</strong> = Manually submitted draw (not in scraped history)
-                        </small>
+        {% if not has_data %}
+            <!-- No Data State -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <h4 class="alert-heading">
+                            <i class="bi bi-info-circle"></i> No Accuracy Data Yet
+                        </h4>
+                        <p>You haven't submitted any actual lottery results for comparison yet.</p>
+                        <hr>
+                        <p class="mb-0">
+                            To start tracking accuracy:
+                            <ol>
+                                <li>Generate predictions by analyzing lottery data</li>
+                                <li>Wait for the actual draw to occur</li>
+                                <li>Submit the actual results via the analysis dashboard</li>
+                            </ol>
+                        </p>
                     </div>
                 </div>
             </div>
+        {% else %}
+            <!-- Filter Section -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="gameTypeFilter" class="form-label">Filter by Game Type</label>
+                    <select class="form-select" id="gameTypeFilter">
+                        <option value="">All Games</option>
+                        <option value="Lotto 6/42">Lotto 6/42</option>
+                        <option value="Mega Lotto 6/45">Mega Lotto 6/45</option>
+                        <option value="Super Lotto 6/49">Super Lotto 6/49</option>
+                        <option value="Grand Lotto 6/55">Grand Lotto 6/55</option>
+                        <option value="Ultra Lotto 6/58">Ultra Lotto 6/58</option>
+                    </select>
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <button class="btn btn-primary" id="refreshBtn">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh Analysis
+                    </button>
+                </div>
+            </div>
+            <!-- Summary Cards -->
+            <div class="row mb-4" id="summaryCards">
+                <!-- Cards will be populated by JavaScript -->
+            </div>
+            <!-- Best Algorithm Card -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="bi bi-trophy"></i> Best Performing Algorithm
+                            </h5>
+                        </div>
+                        <div class="card-body" id="bestAlgorithmCard">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Charts Section -->
+            <div class="row mb-4">
+                <!-- Match Distribution Chart -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Match Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="matchDistributionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <!-- Algorithm Performance Chart -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Algorithm Performance</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="algorithmPerformanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Game Breakdown Table -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Performance by Game Type</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="gameBreakdownTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Game Type</th>
+                                            <th>Submissions</th>
+                                            <th>Total Predictions</th>
+                                            <th>Avg Matches</th>
+                                            <th>Best Prediction</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Recent Submissions -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Recent Submissions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm" id="recentSubmissionsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Draw Date</th>
+                                            <th>Game Type</th>
+                                            <th>Actual Numbers</th>
+                                            <th>Matched Numbers</th>
+                                            <th>Best Prediction</th>
+                                            <th>Best Algorithm</th>
+                                            <th>
+                                                In History
+                                                <i class="bi bi-question-circle text-muted"
+                                                   title="Verifies if this draw exists in historical dataset. Click 'Yes' to view original draw details."></i>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="alert alert-info mt-3 mb-0">
+                                <small>
+                                    <i class="bi bi-info-circle"></i>
+                                    <strong>Green "Yes"</strong> = Draw found in historical data (click to view original draw details) •
+                                    <strong>Yellow "No"</strong> = Manually submitted draw (not in scraped history)
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Best Performances -->
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning">
+                            <h5 class="mb-0">🌟 Overall Best Prediction</h5>
+                        </div>
+                        <div class="card-body" id="bestPerformanceCard">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Top Predictions Best Prediction</h5>
+                        </div>
+                        <div class="card-body" id="bestTopPredictionCard">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Winning Predictions Best Prediction</h5>
+                        </div>
+                        <div class="card-body" id="bestWinningPredictionCard">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Pattern Predictions Best Prediction</h5>
+                        </div>
+                        <div class="card-body" id="bestPatternPredictionCard">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="d-none">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
         </div>
     </div>
-
-    <!-- Best Performances -->
-    <div class="row mb-4">
-        <div class="col-md-6 mb-3">
-            <div class="card border-warning">
-                <div class="card-header bg-warning">
-                    <h5 class="mb-0">🌟 Overall Best Prediction</h5>
-                </div>
-                <div class="card-body" id="bestPerformanceCard">
-                    <!-- Will be populated by JavaScript -->
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 mb-3">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Top Predictions Best Prediction</h5>
-                </div>
-                <div class="card-body" id="bestTopPredictionCard">
-                    <!-- Will be populated by JavaScript -->
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 mb-3">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Winning Predictions Best Prediction</h5>
-                </div>
-                <div class="card-body" id="bestWinningPredictionCard">
-                    <!-- Will be populated by JavaScript -->
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6 mb-3">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Pattern Predictions Best Prediction</h5>
-                </div>
-                <div class="card-body" id="bestPatternPredictionCard">
-                    <!-- Will be populated by JavaScript -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {% endif %}
-</div>
-
-<!-- Loading Overlay -->
-<div id="loadingOverlay" style="display: none;">
-    <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
-    </div>
-</div>
 {% endblock %}
-
 {% block extra_js %}
-<script>
+    <script>
     let currentAnalysis = null;
     let matchDistributionChart = null;
     let algorithmPerformanceChart = null;
@@ -778,5 +762,5 @@
             refreshBtn.addEventListener('click', loadAccuracyAnalysis);
         }
     });
-</script>
+    </script>
 {% endblock %}

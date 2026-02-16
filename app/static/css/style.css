@@ -3286,3 +3286,28 @@ body {
     outline-offset: 2px;
 }
 
+/* Utility classes */
+.d-none {
+    display: none;
+}
+
+.mr-10 {
+    margin-right: 10px;
+}
+
+.mt-20 {
+    margin-top: 20px;
+}
+
+.mt-15 {
+    margin-top: 15px;
+}
+
+/* test_chart.html error log */
+.error-log {
+    background: #ffebee;
+    padding: 15px;
+    border-radius: 5px;
+    display: none;
+}
+

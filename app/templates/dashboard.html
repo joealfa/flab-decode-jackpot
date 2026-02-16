@@ -1,882 +1,898 @@
 {% extends "base.html" %}
-
 {% block title %}Analysis Dashboard - {{ data.game_type }}{% endblock %}
-
 {% block content %}
-<div class="container dashboard">
-    <!-- Header -->
-    <div class="dashboard-header">
-        <div class="header-content">
-            <h1>
-                <i class="fas fa-chart-line"></i>
-                {{ data.game_type }} Analysis
-            </h1>
-            <p class="subtitle">
-                {{ overall_stats.total_draws }} draws from {{ data.start_date }} to {{ data.end_date }}
-            </p>
-        </div>
-        <div class="header-actions">
-            {% if report_filename %}
-            <button onclick="exportCurrentAnalysis()" class="btn btn-success" style="margin-right: 10px;">
-                <i class="fas fa-download"></i> Export Analysis
-            </button>
-            {% endif %}
-            <a href="{{ url_for('index') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back to Home
-            </a>
-        </div>
-    </div>
-
-    <!-- Ultimate Predictions (NEW) -->
-    {% if ultimate_predictions %}
-    <div class="card predictions-card ultimate-section accordion-card">
-        <div class="card-header gradient-header-ultimate accordion-header" onclick="toggleAccordion(this)">
-            <div>
-                <h2><i class="fas fa-star"></i> Ultimate Predictions - Comprehensive Analysis</h2>
-                <p>Combining ALL analysis methods: frequency, temporal patterns, recent trends, and winning patterns</p>
+    <div class="container dashboard">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="header-content">
+                <h1>
+                    <i class="fas fa-chart-line"></i>
+                    {{ data.game_type }} Analysis
+                </h1>
+                <p class="subtitle">{{ overall_stats.total_draws }} draws from {{ data.start_date }} to {{ data.end_date }}</p>
             </div>
-            <i class="fas fa-chevron-down accordion-icon rotated"></i>
-        </div>
-        <div class="card-body accordion-content active">
-            <div class="randomness-disclaimer">
-                <i class="fas fa-info-circle"></i>
-                <strong>Important:</strong> {{ ultimate_predictions[0].analysis.randomness_acknowledgment if ultimate_predictions else "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results." }}
+            <div class="header-actions">
+                {% if report_filename %}
+                    <button onclick="exportCurrentAnalysis()"
+                            class="btn btn-success mr-10">
+                        <i class="fas fa-download"></i> Export Analysis
+                    </button>
+                {% endif %}
+                <a href="{{ url_for("index") }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
             </div>
-
-            <div class="predictions-grid">
-                {% for prediction in ultimate_predictions %}
-                <div class="prediction-item ultimate-pred rank-{{ loop.index }}">
-                    <div class="prediction-rank ultimate-rank">#{{ loop.index }}</div>
-                    <div class="prediction-content">
-                        <div class="prediction-numbers">
-                            {% for num in prediction.numbers %}
-                            <span class="number-ball ultimate-ball">{{ num }}</span>
-                            {% endfor %}
-                        </div>
-                        <div class="prediction-stats">
-                            <div class="stat">
-                                <span class="stat-label">Ultimate Score</span>
-                                <span class="stat-value ultimate-score">{{ prediction.ultimate_confidence_score }}%</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Pattern</span>
-                                <span class="stat-value">{{ prediction.analysis.even_odd }}</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Sum</span>
-                                <span class="stat-value">{{ prediction.analysis.sum }}</span>
-                            </div>
-                        </div>
-                        <div class="scoring-breakdown">
-                            <div class="breakdown-title">Score Breakdown:</div>
-                            <div class="breakdown-items">
-                                <span class="breakdown-item">Freq: {{ prediction.scoring_components.frequency_score }}%</span>
-                                <span class="breakdown-item">Pattern: {{ prediction.scoring_components.pattern_match }}%</span>
-                                <span class="breakdown-item">Temporal: {{ prediction.scoring_components.temporal_consistency }}%</span>
-                                <span class="breakdown-item">Balance: {{ prediction.scoring_components.balance_score }}%</span>
-                            </div>
-                        </div>
+        </div>
+        <!-- Ultimate Predictions (NEW) -->
+        {% if ultimate_predictions %}
+            <div class="card predictions-card ultimate-section accordion-card">
+                <div class="card-header gradient-header-ultimate accordion-header"
+                     onclick="toggleAccordion(this)">
+                    <div>
+                        <h2>
+                            <i class="fas fa-star"></i> Ultimate Predictions - Comprehensive Analysis
+                        </h2>
+                        <p>Combining ALL analysis methods: frequency, temporal patterns, recent trends, and winning patterns</p>
                     </div>
+                    <i class="fas fa-chevron-down accordion-icon rotated"></i>
                 </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Top Predictions -->
-    <div class="card predictions-card accordion-card">
-        <div class="card-header gradient-header accordion-header" onclick="toggleAccordion(this)">
-            <div>
-                <h2><i class="fas fa-lightbulb"></i> Top 5 Predicted Combinations</h2>
-                <p>Based on comprehensive probability analysis</p>
-            </div>
-            <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="card-body accordion-content">
-            <div class="predictions-grid">
-                {% for prediction in top_predictions %}
-                <div class="prediction-item rank-{{ loop.index }}">
-                    <div class="prediction-rank">#{{ loop.index }}</div>
-                    <div class="prediction-content">
-                        <div class="prediction-numbers">
-                            {% for num in prediction.numbers %}
-                            <span class="number-ball">{{ num }}</span>
-                            {% endfor %}
-                        </div>
-                        <div class="prediction-stats">
-                            <div class="stat">
-                                <span class="stat-label">Confidence</span>
-                                <span class="stat-value">{{ prediction.confidence_score }}%</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Pattern</span>
-                                <span class="stat-value">{{ prediction.analysis.even_odd }}</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Sum</span>
-                                <span class="stat-value">{{ prediction.analysis.sum }}</span>
-                            </div>
-                        </div>
+                <div class="card-body accordion-content active">
+                    <div class="randomness-disclaimer">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Important:</strong> {{ ultimate_predictions[0].analysis.randomness_acknowledgment if ultimate_predictions else "While based on historical patterns, lottery draws are random. Past performance does not guarantee future results." }}
                     </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Winner-Optimized Predictions -->
-    <div class="card predictions-card winner-section accordion-card">
-        <div class="card-header gradient-header-winner accordion-header" onclick="toggleAccordion(this)">
-            <div>
-                <h2><i class="fas fa-trophy"></i> Winner-Optimized Predictions</h2>
-                <p>Based on analysis of draws that had jackpot winners</p>
-            </div>
-            <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="card-body accordion-content">
-            <div class="predictions-grid">
-                {% for prediction in winning_predictions %}
-                <div class="prediction-item winner-pred rank-{{ loop.index }}">
-                    <div class="prediction-rank winner-rank">#{{ loop.index }}</div>
-                    <div class="prediction-content">
-                        <div class="prediction-numbers">
-                            {% for num in prediction.numbers %}
-                            <span class="number-ball winner-ball">{{ num }}</span>
-                            {% endfor %}
-                        </div>
-                        <div class="prediction-stats">
-                            <div class="stat">
-                                <span class="stat-label">Win Probability</span>
-                                <span class="stat-value winner-score">{{ prediction.win_probability_score }}%</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Pattern</span>
-                                <span class="stat-value">{{ prediction.analysis.even_odd }}</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Type</span>
-                                <span class="stat-value winner-badge">{{ prediction.prediction_type }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Pattern Analysis Report -->
-    {% if pattern_analysis and pattern_analysis.latest_draw %}
-    <div class="card pattern-analysis-card accordion-card">
-        <div class="card-header gradient-header-pattern accordion-header" onclick="toggleAccordion(this)">
-            <div>
-                <h2><i class="fas fa-chart-line"></i> Consecutive Draw Pattern Analysis</h2>
-                <p>Analysis of how numbers transition from one draw to the next</p>
-            </div>
-            <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="card-body accordion-content">
-            <div class="pattern-analysis-content">
-                <!-- Latest Draw Info -->
-                <div class="analysis-section">
-                    <h3><i class="fas fa-calendar-check"></i> Most Recent Draw</h3>
-                    <div class="latest-draw-box">
-                        <div class="draw-date">
-                            <i class="fas fa-clock"></i> {{ pattern_analysis.latest_draw.date }}
-                        </div>
-                        <div class="draw-numbers">
-                            {% for num in pattern_analysis.latest_draw.numbers %}
-                            <span class="number-ball-large">{{ num }}</span>
-                            {% endfor %}
-                        </div>
-                        <div class="draw-sum">
-                            Sum: <strong>{{ pattern_analysis.latest_draw.sum }}</strong>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Carryover Analysis -->
-                <div class="analysis-section">
-                    <h3><i class="fas fa-exchange-alt"></i> Number Carryover Patterns</h3>
-                    <p class="section-description">How many numbers typically repeat from one draw to the next</p>
-                    <div class="pattern-metrics">
-                        <div class="metric-card">
-                            <div class="metric-icon"><i class="fas fa-chart-bar"></i></div>
-                            <div class="metric-content">
-                                <span class="metric-label">Average Carryover</span>
-                                <span class="metric-value">{{ pattern_analysis.average_carryover }}</span>
-                                <span class="metric-description">numbers per draw</span>
-                            </div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-icon"><i class="fas fa-trophy"></i></div>
-                            <div class="metric-content">
-                                <span class="metric-label">Most Common</span>
-                                <span class="metric-value">{{ pattern_analysis.most_common_carryover }}</span>
-                                <span class="metric-description">numbers repeated</span>
-                            </div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-icon"><i class="fas fa-plus-circle"></i></div>
-                            <div class="metric-content">
-                                <span class="metric-label">Average New Numbers</span>
-                                <span class="metric-value">{{ pattern_analysis.average_new_numbers }}</span>
-                                <span class="metric-description">fresh numbers per draw</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Carryover Distribution -->
-                    <div class="distribution-section">
-                        <h4>Carryover Distribution</h4>
-                        <div class="distribution-bars">
-                            {% for count, frequency in pattern_analysis.carryover_distribution.items()|sort %}
-                            <div class="distribution-item">
-                                <span class="dist-label">{{ count }} numbers</span>
-                                <div class="dist-bar-container">
-                                    <div class="dist-bar" style="width: {{ (frequency / pattern_analysis.carryover_distribution.values()|max * 100)|round }}%">
-                                        <span class="dist-value">{{ frequency }}</span>
+                    <div class="predictions-grid">
+                        {% for prediction in ultimate_predictions %}
+                            <div class="prediction-item ultimate-pred rank-{{ loop.index }}">
+                                <div class="prediction-rank ultimate-rank">#{{ loop.index }}</div>
+                                <div class="prediction-content">
+                                    <div class="prediction-numbers">
+                                        {% for num in prediction.numbers %}<span class="number-ball ultimate-ball">{{ num }}</span>{% endfor %}
+                                    </div>
+                                    <div class="prediction-stats">
+                                        <div class="stat">
+                                            <span class="stat-label">Ultimate Score</span>
+                                            <span class="stat-value ultimate-score">{{ prediction.ultimate_confidence_score }}%</span>
+                                        </div>
+                                        <div class="stat">
+                                            <span class="stat-label">Pattern</span>
+                                            <span class="stat-value">{{ prediction.analysis.even_odd }}</span>
+                                        </div>
+                                        <div class="stat">
+                                            <span class="stat-label">Sum</span>
+                                            <span class="stat-value">{{ prediction.analysis.sum }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="scoring-breakdown">
+                                        <div class="breakdown-title">Score Breakdown:</div>
+                                        <div class="breakdown-items">
+                                            <span class="breakdown-item">Freq: {{ prediction.scoring_components.frequency_score }}%</span>
+                                            <span class="breakdown-item">Pattern: {{ prediction.scoring_components.pattern_match }}%</span>
+                                            <span class="breakdown-item">Temporal: {{ prediction.scoring_components.temporal_consistency }}%</span>
+                                            <span class="breakdown-item">Balance: {{ prediction.scoring_components.balance_score }}%</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pattern Transitions -->
-                <div class="analysis-section">
-                    <h3><i class="fas fa-arrows-alt-h"></i> Even/Odd Pattern Transitions</h3>
-                    <p class="section-description">How even/odd patterns change between consecutive draws</p>
-                    <div class="transition-highlight">
-                        <div class="highlight-label">Most Common Transition</div>
-                        <div class="highlight-value">{{ pattern_analysis.most_common_pattern_transition }}</div>
-                    </div>
-
-                    <div class="transitions-grid">
-                        {% for transition, count in (pattern_analysis.pattern_transitions.items()|list|sort(attribute=1, reverse=True))[:10] %}
-                        <div class="transition-card">
-                            <span class="transition-pattern">{{ transition }}</span>
-                            <span class="transition-count">{{ count }} times</span>
-                        </div>
                         {% endfor %}
                     </div>
                 </div>
-
-                <!-- Sum Differences -->
-                <div class="analysis-section">
-                    <h3><i class="fas fa-calculator"></i> Sum Variation Between Draws</h3>
-                    <div class="metric-card highlight-metric">
-                        <div class="metric-icon"><i class="fas fa-chart-area"></i></div>
-                        <div class="metric-content">
-                            <span class="metric-label">Average Sum Difference</span>
-                            <span class="metric-value">{{ pattern_analysis.average_sum_difference }}</span>
-                            <span class="metric-description">points change between consecutive draws</span>
-                        </div>
-                    </div>
+            </div>
+        {% endif %}
+        <!-- Top Predictions -->
+        <div class="card predictions-card accordion-card">
+            <div class="card-header gradient-header accordion-header"
+                 onclick="toggleAccordion(this)">
+                <div>
+                    <h2>
+                        <i class="fas fa-lightbulb"></i> Top 5 Predicted Combinations
+                    </h2>
+                    <p>Based on comprehensive probability analysis</p>
                 </div>
+                <i class="fas fa-chevron-down accordion-icon"></i>
             </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Pattern-Based Predictions -->
-    {% if pattern_predictions %}
-    <div class="card predictions-card pattern-section accordion-card">
-        <div class="card-header gradient-header-pattern accordion-header" onclick="toggleAccordion(this)">
-            <div>
-                <h2><i class="fas fa-chart-network"></i> Pattern-Based Predictions</h2>
-                <p>Based on consecutive draw pattern analysis</p>
-            </div>
-            <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="card-body accordion-content">
-
-            <div class="predictions-grid" style="margin-top: 20px;">
-                {% for prediction in pattern_predictions %}
-                <div class="prediction-item pattern-pred rank-{{ loop.index }}">
-                    <div class="prediction-rank pattern-rank">#{{ loop.index }}</div>
-                    <div class="prediction-content">
-                        <div class="prediction-numbers">
-                            {% for num in prediction.numbers %}
-                            <span class="number-ball pattern-ball">{{ num }}</span>
-                            {% endfor %}
-                        </div>
-                        <div class="prediction-stats">
-                            <div class="stat">
-                                <span class="stat-label">Pattern Score</span>
-                                <span class="stat-value pattern-score">{{ prediction.pattern_score }}%</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Carryover</span>
-                                <span class="stat-value">{{ prediction.carryover_count }} nums</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">New</span>
-                                <span class="stat-value">{{ prediction.new_count }} nums</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-label">Type</span>
-                                <span class="stat-value pattern-badge">{{ prediction.prediction_type }}</span>
+            <div class="card-body accordion-content">
+                <div class="predictions-grid">
+                    {% for prediction in top_predictions %}
+                        <div class="prediction-item rank-{{ loop.index }}">
+                            <div class="prediction-rank">#{{ loop.index }}</div>
+                            <div class="prediction-content">
+                                <div class="prediction-numbers">
+                                    {% for num in prediction.numbers %}<span class="number-ball">{{ num }}</span>{% endfor %}
+                                </div>
+                                <div class="prediction-stats">
+                                    <div class="stat">
+                                        <span class="stat-label">Confidence</span>
+                                        <span class="stat-value">{{ prediction.confidence_score }}%</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label">Pattern</span>
+                                        <span class="stat-value">{{ prediction.analysis.even_odd }}</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label">Sum</span>
+                                        <span class="stat-value">{{ prediction.analysis.sum }}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Historical Observations (NEW) -->
-    {% if historical_observations %}
-    <div class="card observations-card accordion-card">
-        <div class="card-header gradient-header-observations accordion-header" onclick="toggleAccordion(this)">
-            <div>
-                <h2><i class="fas fa-book-open"></i> Historical Data Observations</h2>
-                <p>Key insights from analyzing historical lottery data</p>
-            </div>
-            <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="card-body accordion-content">
-            <!-- Highly Frequent Numbers -->
-            {% if historical_observations.highly_frequent_numbers %}
-            <div class="observation-section">
-                <h3><i class="fas fa-chart-line"></i> Highly Frequent Numbers</h3>
-                <div class="observation-grid">
-                    {% for item in historical_observations.highly_frequent_numbers[:10] %}
-                    <div class="observation-item">
-                        <span class="obs-number">{{ item.number }}</span>
-                        <div class="obs-details">
-                            <span class="obs-freq">{{ item.frequency }} times</span>
-                            <span class="obs-rate">{{ item.appearance_rate }}%</span>
-                            <p class="obs-text">{{ item.observation }}</p>
-                        </div>
-                    </div>
                     {% endfor %}
                 </div>
             </div>
-            {% endif %}
-
-            <!-- Year-to-Year Insights -->
-            {% if historical_observations.year_to_year_insights %}
-            <div class="observation-section">
-                <h3><i class="fas fa-calendar-alt"></i> Year-to-Year Consistency</h3>
-                <p class="section-description">Numbers that perform consistently across multiple years</p>
-                <div class="consistency-grid">
-                    {% for item in historical_observations.year_to_year_insights[:8] %}
-                    <div class="consistency-card">
-                        <div class="consist-number">{{ item.number }}</div>
-                        <div class="consist-details">
-                            <div class="consist-stat">
-                                <span class="stat-label">Consistency Score</span>
-                                <span class="stat-value">{{ (item.consistency_score * 100)|round(1) }}%</span>
+        </div>
+        <!-- Winner-Optimized Predictions -->
+        <div class="card predictions-card winner-section accordion-card">
+            <div class="card-header gradient-header-winner accordion-header"
+                 onclick="toggleAccordion(this)">
+                <div>
+                    <h2>
+                        <i class="fas fa-trophy"></i> Winner-Optimized Predictions
+                    </h2>
+                    <p>Based on analysis of draws that had jackpot winners</p>
+                </div>
+                <i class="fas fa-chevron-down accordion-icon"></i>
+            </div>
+            <div class="card-body accordion-content">
+                <div class="predictions-grid">
+                    {% for prediction in winning_predictions %}
+                        <div class="prediction-item winner-pred rank-{{ loop.index }}">
+                            <div class="prediction-rank winner-rank">#{{ loop.index }}</div>
+                            <div class="prediction-content">
+                                <div class="prediction-numbers">
+                                    {% for num in prediction.numbers %}<span class="number-ball winner-ball">{{ num }}</span>{% endfor %}
+                                </div>
+                                <div class="prediction-stats">
+                                    <div class="stat">
+                                        <span class="stat-label">Win Probability</span>
+                                        <span class="stat-value winner-score">{{ prediction.win_probability_score }}%</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label">Pattern</span>
+                                        <span class="stat-value">{{ prediction.analysis.even_odd }}</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label">Type</span>
+                                        <span class="stat-value winner-badge">{{ prediction.prediction_type }}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="consist-stat">
-                                <span class="stat-label">Years Appeared</span>
-                                <span class="stat-value">{{ item.years_appeared }}</span>
-                            </div>
-                            <p class="consist-note">{{ item.observation }}</p>
                         </div>
-                    </div>
                     {% endfor %}
                 </div>
             </div>
-            {% endif %}
-
-            <!-- Common Repeating Patterns -->
-            {% if historical_observations.common_repeating_patterns %}
-            <div class="observation-section">
-                <h3><i class="fas fa-sync-alt"></i> Common Repeating Numbers</h3>
-                <p class="section-description">Numbers that frequently appear in consecutive draws</p>
-                <div class="repeating-grid">
-                    {% for item in historical_observations.common_repeating_patterns[:10] %}
-                    <div class="repeating-item">
-                        <span class="repeat-number">{{ item.number }}</span>
-                        <span class="repeat-count">{{ item.consecutive_occurrences }} consecutive</span>
-                        <p class="repeat-text">{{ item.observation }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Temporal Insights -->
-            {% if historical_observations.temporal_insights %}
-            <div class="observation-section">
-                <h3><i class="fas fa-clock"></i> Monthly Patterns</h3>
-                <div class="monthly-patterns-grid">
-                    {% for item in historical_observations.temporal_insights[:6] %}
-                    <div class="monthly-pattern-card">
-                        <h4>{{ item.month }}</h4>
-                        <div class="month-numbers">
-                            {% for num in item.hot_numbers %}
-                            <span class="number-badge">{{ num }}</span>
-                            {% endfor %}
-                        </div>
-                        <p class="month-obs">{{ item.observation }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
         </div>
-    </div>
-    {% endif %}
-
-    <!-- Temporal Pattern Analysis (NEW) -->
-    {% if temporal_patterns %}
-    <div class="card temporal-card accordion-card">
-        <div class="card-header gradient-header-temporal accordion-header" onclick="toggleAccordion(this)">
-            <div>
-                <h2><i class="fas fa-layer-group"></i> Temporal Pattern Analysis</h2>
-                <p>Analysis across years, months, weeks, and days</p>
-            </div>
-            <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="card-body accordion-content">
-            <!-- Year-over-Year Trends -->
-            {% if temporal_patterns.year_over_year_trends %}
-            <div class="temporal-section">
-                <h3><i class="fas fa-chart-area"></i> Year-over-Year Analysis</h3>
-                <p class="section-description">Analyzed {{ temporal_patterns.year_over_year_trends.total_years }} years: {{ temporal_patterns.year_over_year_trends.years_analyzed|join(', ') }}</p>
-
-                {% if temporal_patterns.year_over_year_trends.consistent_performers %}
-                <div class="performers-section">
-                    <h4>Most Consistent Performers Across Years</h4>
-                    <div class="performers-grid">
-                        {% for perf in temporal_patterns.year_over_year_trends.consistent_performers[:12] %}
-                        <div class="performer-card">
-                            <span class="perf-number">{{ perf.number }}</span>
-                            <div class="perf-stats">
-                                <span class="perf-label">Avg Frequency</span>
-                                <span class="perf-value">{{ perf.average_frequency }}</span>
-                            </div>
-                            <div class="perf-stats">
-                                <span class="perf-label">Consistency</span>
-                                <span class="perf-value">{{ (perf.consistency_score * 100)|round(0) }}%</span>
+        <!-- Pattern Analysis Report -->
+        {% if pattern_analysis and pattern_analysis.latest_draw %}
+            <div class="card pattern-analysis-card accordion-card">
+                <div class="card-header gradient-header-pattern accordion-header"
+                     onclick="toggleAccordion(this)">
+                    <div>
+                        <h2>
+                            <i class="fas fa-chart-line"></i> Consecutive Draw Pattern Analysis
+                        </h2>
+                        <p>Analysis of how numbers transition from one draw to the next</p>
+                    </div>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="card-body accordion-content">
+                    <div class="pattern-analysis-content">
+                        <!-- Latest Draw Info -->
+                        <div class="analysis-section">
+                            <h3>
+                                <i class="fas fa-calendar-check"></i> Most Recent Draw
+                            </h3>
+                            <div class="latest-draw-box">
+                                <div class="draw-date">
+                                    <i class="fas fa-clock"></i> {{ pattern_analysis.latest_draw.date }}
+                                </div>
+                                <div class="draw-numbers">
+                                    {% for num in pattern_analysis.latest_draw.numbers %}<span class="number-ball-large">{{ num }}</span>{% endfor %}
+                                </div>
+                                <div class="draw-sum">
+                                    Sum: <strong>{{ pattern_analysis.latest_draw.sum }}</strong>
+                                </div>
                             </div>
                         </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if temporal_patterns.year_over_year_trends.distinct_high_performers %}
-                <div class="distinct-performers-section">
-                    <h4>Distinct High Performers (Exceptional years)</h4>
-                    <div class="distinct-grid">
-                        {% for perf in temporal_patterns.year_over_year_trends.distinct_high_performers[:8] %}
-                        <div class="distinct-card">
-                            <div class="distinct-header">
-                                <span class="distinct-number">{{ perf.number }}</span>
-                                <span class="distinct-year">{{ perf.year }}</span>
+                        <!-- Carryover Analysis -->
+                        <div class="analysis-section">
+                            <h3>
+                                <i class="fas fa-exchange-alt"></i> Number Carryover Patterns
+                            </h3>
+                            <p class="section-description">How many numbers typically repeat from one draw to the next</p>
+                            <div class="pattern-metrics">
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-chart-bar"></i>
+                                    </div>
+                                    <div class="metric-content">
+                                        <span class="metric-label">Average Carryover</span>
+                                        <span class="metric-value">{{ pattern_analysis.average_carryover }}</span>
+                                        <span class="metric-description">numbers per draw</span>
+                                    </div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-trophy"></i>
+                                    </div>
+                                    <div class="metric-content">
+                                        <span class="metric-label">Most Common</span>
+                                        <span class="metric-value">{{ pattern_analysis.most_common_carryover }}</span>
+                                        <span class="metric-description">numbers repeated</span>
+                                    </div>
+                                </div>
+                                <div class="metric-card">
+                                    <div class="metric-icon">
+                                        <i class="fas fa-plus-circle"></i>
+                                    </div>
+                                    <div class="metric-content">
+                                        <span class="metric-label">Average New Numbers</span>
+                                        <span class="metric-value">{{ pattern_analysis.average_new_numbers }}</span>
+                                        <span class="metric-description">fresh numbers per draw</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="distinct-info">
-                                <span class="improve-badge">+{{ perf.improvement_over_average|round(0) }}% above average</span>
-                                <span class="freq-text">{{ perf.frequency }} times</span>
+                            <!-- Carryover Distribution -->
+                            <div class="distribution-section">
+                                <h4>Carryover Distribution</h4>
+                                <div class="distribution-bars">
+                                    {% for count, frequency in pattern_analysis.carryover_distribution.items()|sort %}
+                                        <div class="distribution-item">
+                                            <span class="dist-label">{{ count }} numbers</span>
+                                            <div class="dist-bar-container">
+                                                <div class="dist-bar"
+                                                     style="width: {{ (frequency / pattern_analysis.carryover_distribution.values() |max * 100)|round }}%">
+                                                    <span class="dist-value">{{ frequency }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
                             </div>
                         </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
-
-            <!-- By Month Analysis -->
-            {% if temporal_patterns.by_month %}
-            <div class="temporal-section">
-                <h3><i class="fas fa-calendar"></i> Monthly Breakdown</h3>
-                <div class="monthly-breakdown">
-                    {% for month, data in temporal_patterns.by_month.items() %}
-                    <div class="month-breakdown-card">
-                        <h4>{{ month }}</h4>
-                        <span class="month-draws">{{ data.total_draws }} draws</span>
-                        <div class="month-hot-numbers">
-                            {% for num in data.hot_numbers %}
-                            <span class="hot-num-badge">{{ num }}</span>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Winner Analysis Stats -->
-    {% if overall_stats.winner_analysis and overall_stats.winner_analysis.total_winning_draws > 0 %}
-    <div class="card winner-stats-card accordion-card">
-        <div class="card-header accordion-header" onclick="toggleAccordion(this)">
-            <h2><i class="fas fa-trophy-alt"></i> Winner Analysis</h2>
-            <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="card-body accordion-content">
-            <div class="stats-grid">
-                <div class="stat-card winner-stat">
-                    <div class="stat-icon winner-icon">
-                        <i class="fas fa-award"></i>
-                    </div>
-                    <h3>Total Winning Draws</h3>
-                    <p class="big-stat">{{ overall_stats.winner_analysis.total_winning_draws }}</p>
-                    <p class="stat-detail">Win Rate: {{ overall_stats.winner_analysis.win_rate }}%</p>
-                </div>
-
-                <div class="stat-card winner-stat">
-                    <div class="stat-icon winner-icon">
-                        <i class="fas fa-fire-alt"></i>
-                    </div>
-                    <h3>Hot Winning Numbers</h3>
-                    <div class="number-list">
-                        {% for num in overall_stats.winner_analysis.hot_winning_numbers[:6] %}
-                        <span class="number-tag winner">{{ num }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <div class="stat-card winner-stat">
-                    <div class="stat-icon winner-icon">
-                        <i class="fas fa-calendar-star"></i>
-                    </div>
-                    <h3>Best Winning Days</h3>
-                    <div class="best-days">
-                        {% for day, count in overall_stats.winner_analysis.best_winning_days %}
-                        <div class="day-item">
-                            <span class="day-name">{{ day }}</span>
-                            <span class="day-count">{{ count }} wins</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <div class="stat-card winner-stat">
-                    <div class="stat-icon winner-icon">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
-                    <h3>Best Winning Months</h3>
-                    <div class="best-months">
-                        {% for month, count in overall_stats.winner_analysis.best_winning_months %}
-                        <div class="month-item">
-                            <span class="month-name">
-                                {% if month == 1 %}January
-                                {% elif month == 2 %}February
-                                {% elif month == 3 %}March
-                                {% elif month == 4 %}April
-                                {% elif month == 5 %}May
-                                {% elif month == 6 %}June
-                                {% elif month == 7 %}July
-                                {% elif month == 8 %}August
-                                {% elif month == 9 %}September
-                                {% elif month == 10 %}October
-                                {% elif month == 11 %}November
-                                {% elif month == 12 %}December
-                                {% endif %}
-                            </span>
-                            <span class="month-count">{{ count }} wins</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Next Win Probability -->
-            {% if overall_stats.winner_analysis.next_win_probability and overall_stats.winner_analysis.next_win_probability.average_days_between_wins %}
-            <div class="win-probability-section">
-                <h3><i class="fas fa-clock"></i> Next Win Probability</h3>
-                <div class="probability-grid">
-                    <div class="prob-card">
-                        <span class="prob-label">Last Win</span>
-                        <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.last_win_date }}</span>
-                    </div>
-                    <div class="prob-card">
-                        <span class="prob-label">Days Since</span>
-                        <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.days_since_last_win }} days</span>
-                    </div>
-                    <div class="prob-card">
-                        <span class="prob-label">Average Gap</span>
-                        <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.average_days_between_wins }} days</span>
-                    </div>
-                    <div class="prob-card highlight">
-                        <span class="prob-label">Probability Status</span>
-                        <span class="prob-value status">{{ overall_stats.winner_analysis.next_win_probability.probability_status }}</span>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Winning Patterns -->
-            <div class="winning-patterns">
-                <h3><i class="fas fa-pattern"></i> Winning Patterns</h3>
-                <div class="pattern-grid">
-                    <div class="pattern-card">
-                        <h4>Even/Odd in Wins</h4>
-                        <p class="pattern-highlight">{{ overall_stats.winner_analysis.winning_even_odd_patterns.most_common_pattern }}</p>
-                        <small>Appeared in {{ overall_stats.winner_analysis.winning_even_odd_patterns.most_common_count }} winning draws</small>
-                    </div>
-                    <div class="pattern-card">
-                        <h4>High/Low in Wins</h4>
-                        <p class="pattern-highlight">{{ overall_stats.winner_analysis.winning_high_low_patterns.most_common_pattern }}</p>
-                        <small>Appeared in {{ overall_stats.winner_analysis.winning_high_low_patterns.most_common_count }} winning draws</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% else %}
-    <div class="card">
-        <div class="card-body">
-            <div class="empty-state">
-                <i class="fas fa-info-circle"></i>
-                <p>No winning draws found in the dataset. Analysis is based on all draws.</p>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Overall Statistics -->
-    <div class="card accordion-card">
-        <div class="card-header accordion-header" onclick="toggleAccordion(this)">
-            <h2><i class="fas fa-chart-bar"></i> Overall Statistics</h2>
-            <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="card-body accordion-content">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-fire"></i>
-                    </div>
-                    <h3>Hot Numbers</h3>
-                    <div class="number-list">
-                        {% for num in overall_stats.hot_numbers %}
-                        <span class="number-tag hot">{{ num }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-snowflake"></i>
-                    </div>
-                    <h3>Cold Numbers</h3>
-                    <div class="number-list">
-                        {% for num in overall_stats.cold_numbers %}
-                        <span class="number-tag cold">{{ num }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-balance-scale"></i>
-                    </div>
-                    <h3>Even/Odd Pattern</h3>
-                    <p class="pattern-text">Most Common: <strong>{{ overall_stats.even_odd_analysis.most_common_pattern }}</strong></p>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="fas fa-sort-amount-up"></i>
-                    </div>
-                    <h3>High/Low Pattern</h3>
-                    <p class="pattern-text">Most Common: <strong>{{ overall_stats.high_low_analysis.most_common_pattern }}</strong></p>
-                </div>
-            </div>
-
-            <!-- Charts Row -->
-            <div class="charts-row">
-                <div class="chart-container">
-                    <h3>Number Frequency Distribution</h3>
-                    <canvas id="frequencyChart" data-chart-id="frequencyChart"></canvas>
-                </div>
-
-                <div class="chart-container">
-                    <h3>Sum Distribution</h3>
-                    <canvas id="sumChart" data-chart-id="sumChart"></canvas>
-                </div>
-            </div>
-
-            <div class="charts-row">
-                <div class="chart-container">
-                    <h3>Even/Odd Patterns</h3>
-                    <canvas id="evenOddChart" data-chart-id="evenOddChart"></canvas>
-                </div>
-
-                <div class="chart-container">
-                    <h3>Day of Week Distribution</h3>
-                    <canvas id="dayChart" data-chart-id="dayChart"></canvas>
-                </div>
-            </div>
-
-            <!-- New Heatmaps (NEW) -->
-            {% if chart_data.heatmap %}
-            <div class="heatmaps-section">
-                <h3><i class="fas fa-th"></i> Heatmap Visualizations</h3>
-                <p class="section-description">Frequency patterns across time dimensions</p>
-
-                <div class="heatmap-grid">
-                    {% if chart_data.heatmap.by_month %}
-                    <div class="heatmap-container">
-                        <h4>{{ chart_data.heatmap.by_month.title }}</h4>
-                        <canvas id="heatmapMonth" data-chart-id="heatmapMonth"></canvas>
-                    </div>
-                    {% endif %}
-
-                    {% if chart_data.heatmap.by_year %}
-                    <div class="heatmap-container">
-                        <h4>{{ chart_data.heatmap.by_year.title }}</h4>
-                        <canvas id="heatmapYear" data-chart-id="heatmapYear"></canvas>
-                    </div>
-                    {% endif %}
-
-                    {% if chart_data.heatmap.by_day %}
-                    <div class="heatmap-container">
-                        <h4>{{ chart_data.heatmap.by_day.title }}</h4>
-                        <canvas id="heatmapDay" data-chart-id="heatmapDay"></canvas>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- New Trend Graphs (NEW) -->
-            {% if chart_data.trends %}
-            <div class="trends-section">
-                <h3><i class="fas fa-chart-line"></i> Trend Analysis Over Time</h3>
-                <p class="section-description">Track how patterns evolve over time</p>
-
-                <div class="trend-grid">
-                    {% if chart_data.trends.top_numbers_over_time %}
-                    <div class="trend-container full-width">
-                        <h4>{{ chart_data.trends.top_numbers_over_time.title }}</h4>
-                        <canvas id="trendTopNumbers" data-chart-id="trendTopNumbers"></canvas>
-                    </div>
-                    {% endif %}
-
-                    {% if chart_data.trends.average_sum_trend %}
-                    <div class="trend-container">
-                        <h4>{{ chart_data.trends.average_sum_trend.title }}</h4>
-                        <canvas id="trendAvgSum" data-chart-id="trendAvgSum"></canvas>
-                    </div>
-                    {% endif %}
-
-                    {% if chart_data.trends.even_odd_ratio_trend %}
-                    <div class="trend-container">
-                        <h4>{{ chart_data.trends.even_odd_ratio_trend.title }}</h4>
-                        <canvas id="trendEvenOdd" data-chart-id="trendEvenOdd"></canvas>
-                    </div>
-                    {% endif %}
-
-                    {% if chart_data.trends.consistency_trend %}
-                    <div class="trend-container full-width">
-                        <h4>{{ chart_data.trends.consistency_trend.title }}</h4>
-                        <canvas id="trendConsistency" data-chart-id="trendConsistency"></canvas>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Day-Specific Analysis -->
-    <div class="card accordion-card">
-        <div class="card-header accordion-header" onclick="toggleAccordion(this)">
-            <h2><i class="fas fa-calendar-week"></i> Day-Specific Analysis</h2>
-            <i class="fas fa-chevron-down accordion-icon"></i>
-        </div>
-        <div class="card-body accordion-content">
-            <div class="days-tabs">
-                <button class="day-tab active" data-day="Monday">Monday</button>
-                <button class="day-tab" data-day="Tuesday">Tuesday</button>
-                <button class="day-tab" data-day="Wednesday">Wednesday</button>
-                <button class="day-tab" data-day="Thursday">Thursday</button>
-                <button class="day-tab" data-day="Friday">Friday</button>
-                <button class="day-tab" data-day="Saturday">Saturday</button>
-                <button class="day-tab" data-day="Sunday">Sunday</button>
-            </div>
-
-            {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-            <div class="day-content" id="day-{{ day }}" {% if day != 'Monday' %}style="display: none;"{% endif %}>
-                {% if day_analysis[day].total_draws > 0 %}
-                <div class="day-stats">
-                    <div class="day-header">
-                        <h3>{{ day }}</h3>
-                        <span class="badge">{{ day_analysis[day].total_draws }} draws</span>
-                    </div>
-
-                    <div class="day-grid">
-                        <div class="day-section">
-                            <h4><i class="fas fa-fire"></i> Hot Numbers for {{ day }}</h4>
-                            <div class="number-list">
-                                {% for num in day_analysis[day].hot_numbers %}
-                                <span class="number-tag hot">{{ num }}</span>
+                        <!-- Pattern Transitions -->
+                        <div class="analysis-section">
+                            <h3>
+                                <i class="fas fa-arrows-alt-h"></i> Even/Odd Pattern Transitions
+                            </h3>
+                            <p class="section-description">How even/odd patterns change between consecutive draws</p>
+                            <div class="transition-highlight">
+                                <div class="highlight-label">Most Common Transition</div>
+                                <div class="highlight-value">{{ pattern_analysis.most_common_pattern_transition }}</div>
+                            </div>
+                            <div class="transitions-grid">
+                                {% for transition, count in (pattern_analysis.pattern_transitions.items()|list|sort(attribute=1, reverse=True))[:10] %}
+                                    <div class="transition-card">
+                                        <span class="transition-pattern">{{ transition }}</span>
+                                        <span class="transition-count">{{ count }} times</span>
+                                    </div>
                                 {% endfor %}
                             </div>
                         </div>
-
-                        <div class="day-section">
-                            <h4><i class="fas fa-star"></i> Top Predictions for {{ day }}</h4>
-                            <div class="day-predictions">
-                                {% for pred in day_analysis[day].predicted_combinations %}
-                                <div class="day-prediction">
-                                    <span class="pred-rank">#{{ loop.index }}</span>
-                                    <div class="pred-numbers">
-                                        {% for num in pred.numbers %}
-                                        <span class="number-ball small">{{ num }}</span>
+                        <!-- Sum Differences -->
+                        <div class="analysis-section">
+                            <h3>
+                                <i class="fas fa-calculator"></i> Sum Variation Between Draws
+                            </h3>
+                            <div class="metric-card highlight-metric">
+                                <div class="metric-icon">
+                                    <i class="fas fa-chart-area"></i>
+                                </div>
+                                <div class="metric-content">
+                                    <span class="metric-label">Average Sum Difference</span>
+                                    <span class="metric-value">{{ pattern_analysis.average_sum_difference }}</span>
+                                    <span class="metric-description">points change between consecutive draws</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        <!-- Pattern-Based Predictions -->
+        {% if pattern_predictions %}
+            <div class="card predictions-card pattern-section accordion-card">
+                <div class="card-header gradient-header-pattern accordion-header"
+                     onclick="toggleAccordion(this)">
+                    <div>
+                        <h2>
+                            <i class="fas fa-chart-network"></i> Pattern-Based Predictions
+                        </h2>
+                        <p>Based on consecutive draw pattern analysis</p>
+                    </div>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="card-body accordion-content">
+                    <div class="predictions-grid mt-20">
+                        {% for prediction in pattern_predictions %}
+                            <div class="prediction-item pattern-pred rank-{{ loop.index }}">
+                                <div class="prediction-rank pattern-rank">#{{ loop.index }}</div>
+                                <div class="prediction-content">
+                                    <div class="prediction-numbers">
+                                        {% for num in prediction.numbers %}<span class="number-ball pattern-ball">{{ num }}</span>{% endfor %}
+                                    </div>
+                                    <div class="prediction-stats">
+                                        <div class="stat">
+                                            <span class="stat-label">Pattern Score</span>
+                                            <span class="stat-value pattern-score">{{ prediction.pattern_score }}%</span>
+                                        </div>
+                                        <div class="stat">
+                                            <span class="stat-label">Carryover</span>
+                                            <span class="stat-value">{{ prediction.carryover_count }} nums</span>
+                                        </div>
+                                        <div class="stat">
+                                            <span class="stat-label">New</span>
+                                            <span class="stat-value">{{ prediction.new_count }} nums</span>
+                                        </div>
+                                        <div class="stat">
+                                            <span class="stat-label">Type</span>
+                                            <span class="stat-value pattern-badge">{{ prediction.prediction_type }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        <!-- Historical Observations (NEW) -->
+        {% if historical_observations %}
+            <div class="card observations-card accordion-card">
+                <div class="card-header gradient-header-observations accordion-header"
+                     onclick="toggleAccordion(this)">
+                    <div>
+                        <h2>
+                            <i class="fas fa-book-open"></i> Historical Data Observations
+                        </h2>
+                        <p>Key insights from analyzing historical lottery data</p>
+                    </div>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="card-body accordion-content">
+                    <!-- Highly Frequent Numbers -->
+                    {% if historical_observations.highly_frequent_numbers %}
+                        <div class="observation-section">
+                            <h3>
+                                <i class="fas fa-chart-line"></i> Highly Frequent Numbers
+                            </h3>
+                            <div class="observation-grid">
+                                {% for item in historical_observations.highly_frequent_numbers[:10] %}
+                                    <div class="observation-item">
+                                        <span class="obs-number">{{ item.number }}</span>
+                                        <div class="obs-details">
+                                            <span class="obs-freq">{{ item.frequency }} times</span>
+                                            <span class="obs-rate">{{ item.appearance_rate }}%</span>
+                                            <p class="obs-text">{{ item.observation }}</p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                    <!-- Year-to-Year Insights -->
+                    {% if historical_observations.year_to_year_insights %}
+                        <div class="observation-section">
+                            <h3>
+                                <i class="fas fa-calendar-alt"></i> Year-to-Year Consistency
+                            </h3>
+                            <p class="section-description">Numbers that perform consistently across multiple years</p>
+                            <div class="consistency-grid">
+                                {% for item in historical_observations.year_to_year_insights[:8] %}
+                                    <div class="consistency-card">
+                                        <div class="consist-number">{{ item.number }}</div>
+                                        <div class="consist-details">
+                                            <div class="consist-stat">
+                                                <span class="stat-label">Consistency Score</span>
+                                                <span class="stat-value">{{ (item.consistency_score * 100)|round(1) }}%</span>
+                                            </div>
+                                            <div class="consist-stat">
+                                                <span class="stat-label">Years Appeared</span>
+                                                <span class="stat-value">{{ item.years_appeared }}</span>
+                                            </div>
+                                            <p class="consist-note">{{ item.observation }}</p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                    <!-- Common Repeating Patterns -->
+                    {% if historical_observations.common_repeating_patterns %}
+                        <div class="observation-section">
+                            <h3>
+                                <i class="fas fa-sync-alt"></i> Common Repeating Numbers
+                            </h3>
+                            <p class="section-description">Numbers that frequently appear in consecutive draws</p>
+                            <div class="repeating-grid">
+                                {% for item in historical_observations.common_repeating_patterns[:10] %}
+                                    <div class="repeating-item">
+                                        <span class="repeat-number">{{ item.number }}</span>
+                                        <span class="repeat-count">{{ item.consecutive_occurrences }} consecutive</span>
+                                        <p class="repeat-text">{{ item.observation }}</p>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                    <!-- Temporal Insights -->
+                    {% if historical_observations.temporal_insights %}
+                        <div class="observation-section">
+                            <h3>
+                                <i class="fas fa-clock"></i> Monthly Patterns
+                            </h3>
+                            <div class="monthly-patterns-grid">
+                                {% for item in historical_observations.temporal_insights[:6] %}
+                                    <div class="monthly-pattern-card">
+                                        <h4>{{ item.month }}</h4>
+                                        <div class="month-numbers">
+                                            {% for num in item.hot_numbers %}<span class="number-badge">{{ num }}</span>{% endfor %}
+                                        </div>
+                                        <p class="month-obs">{{ item.observation }}</p>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+        <!-- Temporal Pattern Analysis (NEW) -->
+        {% if temporal_patterns %}
+            <div class="card temporal-card accordion-card">
+                <div class="card-header gradient-header-temporal accordion-header"
+                     onclick="toggleAccordion(this)">
+                    <div>
+                        <h2>
+                            <i class="fas fa-layer-group"></i> Temporal Pattern Analysis
+                        </h2>
+                        <p>Analysis across years, months, weeks, and days</p>
+                    </div>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="card-body accordion-content">
+                    <!-- Year-over-Year Trends -->
+                    {% if temporal_patterns.year_over_year_trends %}
+                        <div class="temporal-section">
+                            <h3>
+                                <i class="fas fa-chart-area"></i> Year-over-Year Analysis
+                            </h3>
+                            <p class="section-description">
+                                Analyzed {{ temporal_patterns.year_over_year_trends.total_years }} years: {{ temporal_patterns.year_over_year_trends.years_analyzed|join(", ") }}
+                            </p>
+                            {% if temporal_patterns.year_over_year_trends.consistent_performers %}
+                                <div class="performers-section">
+                                    <h4>Most Consistent Performers Across Years</h4>
+                                    <div class="performers-grid">
+                                        {% for perf in temporal_patterns.year_over_year_trends.consistent_performers[:12] %}
+                                            <div class="performer-card">
+                                                <span class="perf-number">{{ perf.number }}</span>
+                                                <div class="perf-stats">
+                                                    <span class="perf-label">Avg Frequency</span>
+                                                    <span class="perf-value">{{ perf.average_frequency }}</span>
+                                                </div>
+                                                <div class="perf-stats">
+                                                    <span class="perf-label">Consistency</span>
+                                                    <span class="perf-value">{{ (perf.consistency_score * 100)|round(0) }}%</span>
+                                                </div>
+                                            </div>
                                         {% endfor %}
                                     </div>
-                                    <span class="pred-confidence">{{ pred.confidence_score }}%</span>
                                 </div>
+                            {% endif %}
+                            {% if temporal_patterns.year_over_year_trends.distinct_high_performers %}
+                                <div class="distinct-performers-section">
+                                    <h4>Distinct High Performers (Exceptional years)</h4>
+                                    <div class="distinct-grid">
+                                        {% for perf in temporal_patterns.year_over_year_trends.distinct_high_performers[:8] %}
+                                            <div class="distinct-card">
+                                                <div class="distinct-header">
+                                                    <span class="distinct-number">{{ perf.number }}</span>
+                                                    <span class="distinct-year">{{ perf.year }}</span>
+                                                </div>
+                                                <div class="distinct-info">
+                                                    <span class="improve-badge">+{{ perf.improvement_over_average|round(0) }}% above average</span>
+                                                    <span class="freq-text">{{ perf.frequency }} times</span>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    <!-- By Month Analysis -->
+                    {% if temporal_patterns.by_month %}
+                        <div class="temporal-section">
+                            <h3>
+                                <i class="fas fa-calendar"></i> Monthly Breakdown
+                            </h3>
+                            <div class="monthly-breakdown">
+                                {% for month, data in temporal_patterns.by_month.items() %}
+                                    <div class="month-breakdown-card">
+                                        <h4>{{ month }}</h4>
+                                        <span class="month-draws">{{ data.total_draws }} draws</span>
+                                        <div class="month-hot-numbers">
+                                            {% for num in data.hot_numbers %}<span class="hot-num-badge">{{ num }}</span>{% endfor %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+        <!-- Winner Analysis Stats -->
+        {% if overall_stats.winner_analysis and overall_stats.winner_analysis.total_winning_draws > 0 %}
+            <div class="card winner-stats-card accordion-card">
+                <div class="card-header accordion-header" onclick="toggleAccordion(this)">
+                    <h2>
+                        <i class="fas fa-trophy-alt"></i> Winner Analysis
+                    </h2>
+                    <i class="fas fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="card-body accordion-content">
+                    <div class="stats-grid">
+                        <div class="stat-card winner-stat">
+                            <div class="stat-icon winner-icon">
+                                <i class="fas fa-award"></i>
+                            </div>
+                            <h3>Total Winning Draws</h3>
+                            <p class="big-stat">{{ overall_stats.winner_analysis.total_winning_draws }}</p>
+                            <p class="stat-detail">Win Rate: {{ overall_stats.winner_analysis.win_rate }}%</p>
+                        </div>
+                        <div class="stat-card winner-stat">
+                            <div class="stat-icon winner-icon">
+                                <i class="fas fa-fire-alt"></i>
+                            </div>
+                            <h3>Hot Winning Numbers</h3>
+                            <div class="number-list">
+                                {% for num in overall_stats.winner_analysis.hot_winning_numbers[:6] %}
+                                    <span class="number-tag winner">{{ num }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="stat-card winner-stat">
+                            <div class="stat-icon winner-icon">
+                                <i class="fas fa-calendar-star"></i>
+                            </div>
+                            <h3>Best Winning Days</h3>
+                            <div class="best-days">
+                                {% for day, count in overall_stats.winner_analysis.best_winning_days %}
+                                    <div class="day-item">
+                                        <span class="day-name">{{ day }}</span>
+                                        <span class="day-count">{{ count }} wins</span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="stat-card winner-stat">
+                            <div class="stat-icon winner-icon">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <h3>Best Winning Months</h3>
+                            <div class="best-months">
+                                {% for month, count in overall_stats.winner_analysis.best_winning_months %}
+                                    <div class="month-item">
+                                        <span class="month-name">
+                                            {% if month == 1 %}
+                                                January
+                                            {% elif month == 2 %}
+                                                February
+                                            {% elif month == 3 %}
+                                                March
+                                            {% elif month == 4 %}
+                                                April
+                                            {% elif month == 5 %}
+                                                May
+                                            {% elif month == 6 %}
+                                                June
+                                            {% elif month == 7 %}
+                                                July
+                                            {% elif month == 8 %}
+                                                August
+                                            {% elif month == 9 %}
+                                                September
+                                            {% elif month == 10 %}
+                                                October
+                                            {% elif month == 11 %}
+                                                November
+                                            {% elif month == 12 %}
+                                                December
+                                            {% endif %}
+                                        </span>
+                                        <span class="month-count">{{ count }} wins</span>
+                                    </div>
                                 {% endfor %}
                             </div>
                         </div>
                     </div>
+                    <!-- Next Win Probability -->
+                    {% if overall_stats.winner_analysis.next_win_probability and overall_stats.winner_analysis.next_win_probability.average_days_between_wins %}
+                        <div class="win-probability-section">
+                            <h3>
+                                <i class="fas fa-clock"></i> Next Win Probability
+                            </h3>
+                            <div class="probability-grid">
+                                <div class="prob-card">
+                                    <span class="prob-label">Last Win</span>
+                                    <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.last_win_date }}</span>
+                                </div>
+                                <div class="prob-card">
+                                    <span class="prob-label">Days Since</span>
+                                    <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.days_since_last_win }} days</span>
+                                </div>
+                                <div class="prob-card">
+                                    <span class="prob-label">Average Gap</span>
+                                    <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.average_days_between_wins }} days</span>
+                                </div>
+                                <div class="prob-card highlight">
+                                    <span class="prob-label">Probability Status</span>
+                                    <span class="prob-value status">{{ overall_stats.winner_analysis.next_win_probability.probability_status }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    <!-- Winning Patterns -->
+                    <div class="winning-patterns">
+                        <h3>
+                            <i class="fas fa-pattern"></i> Winning Patterns
+                        </h3>
+                        <div class="pattern-grid">
+                            <div class="pattern-card">
+                                <h4>Even/Odd in Wins</h4>
+                                <p class="pattern-highlight">{{ overall_stats.winner_analysis.winning_even_odd_patterns.most_common_pattern }}</p>
+                                <small>Appeared in {{ overall_stats.winner_analysis.winning_even_odd_patterns.most_common_count }} winning draws</small>
+                            </div>
+                            <div class="pattern-card">
+                                <h4>High/Low in Wins</h4>
+                                <p class="pattern-highlight">{{ overall_stats.winner_analysis.winning_high_low_patterns.most_common_pattern }}</p>
+                                <small>Appeared in {{ overall_stats.winner_analysis.winning_high_low_patterns.most_common_count }} winning draws</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                {% else %}
-                <div class="empty-state">
-                    <i class="fas fa-calendar-times"></i>
-                    <p>No draws found for {{ day }}</p>
+            </div>
+        {% else %}
+            <div class="card">
+                <div class="card-body">
+                    <div class="empty-state">
+                        <i class="fas fa-info-circle"></i>
+                        <p>No winning draws found in the dataset. Analysis is based on all draws.</p>
+                    </div>
                 </div>
+            </div>
+        {% endif %}
+        <!-- Overall Statistics -->
+        <div class="card accordion-card">
+            <div class="card-header accordion-header" onclick="toggleAccordion(this)">
+                <h2>
+                    <i class="fas fa-chart-bar"></i> Overall Statistics
+                </h2>
+                <i class="fas fa-chevron-down accordion-icon"></i>
+            </div>
+            <div class="card-body accordion-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <h3>Hot Numbers</h3>
+                        <div class="number-list">
+                            {% for num in overall_stats.hot_numbers %}<span class="number-tag hot">{{ num }}</span>{% endfor %}
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-snowflake"></i>
+                        </div>
+                        <h3>Cold Numbers</h3>
+                        <div class="number-list">
+                            {% for num in overall_stats.cold_numbers %}<span class="number-tag cold">{{ num }}</span>{% endfor %}
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-balance-scale"></i>
+                        </div>
+                        <h3>Even/Odd Pattern</h3>
+                        <p class="pattern-text">
+                            Most Common: <strong>{{ overall_stats.even_odd_analysis.most_common_pattern }}</strong>
+                        </p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-sort-amount-up"></i>
+                        </div>
+                        <h3>High/Low Pattern</h3>
+                        <p class="pattern-text">
+                            Most Common: <strong>{{ overall_stats.high_low_analysis.most_common_pattern }}</strong>
+                        </p>
+                    </div>
+                </div>
+                <!-- Charts Row -->
+                <div class="charts-row">
+                    <div class="chart-container">
+                        <h3>Number Frequency Distribution</h3>
+                        <canvas id="frequencyChart" data-chart-id="frequencyChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Sum Distribution</h3>
+                        <canvas id="sumChart" data-chart-id="sumChart"></canvas>
+                    </div>
+                </div>
+                <div class="charts-row">
+                    <div class="chart-container">
+                        <h3>Even/Odd Patterns</h3>
+                        <canvas id="evenOddChart" data-chart-id="evenOddChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Day of Week Distribution</h3>
+                        <canvas id="dayChart" data-chart-id="dayChart"></canvas>
+                    </div>
+                </div>
+                <!-- New Heatmaps (NEW) -->
+                {% if chart_data.heatmap %}
+                    <div class="heatmaps-section">
+                        <h3>
+                            <i class="fas fa-th"></i> Heatmap Visualizations
+                        </h3>
+                        <p class="section-description">Frequency patterns across time dimensions</p>
+                        <div class="heatmap-grid">
+                            {% if chart_data.heatmap.by_month %}
+                                <div class="heatmap-container">
+                                    <h4>{{ chart_data.heatmap.by_month.title }}</h4>
+                                    <canvas id="heatmapMonth" data-chart-id="heatmapMonth"></canvas>
+                                </div>
+                            {% endif %}
+                            {% if chart_data.heatmap.by_year %}
+                                <div class="heatmap-container">
+                                    <h4>{{ chart_data.heatmap.by_year.title }}</h4>
+                                    <canvas id="heatmapYear" data-chart-id="heatmapYear"></canvas>
+                                </div>
+                            {% endif %}
+                            {% if chart_data.heatmap.by_day %}
+                                <div class="heatmap-container">
+                                    <h4>{{ chart_data.heatmap.by_day.title }}</h4>
+                                    <canvas id="heatmapDay" data-chart-id="heatmapDay"></canvas>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+                <!-- New Trend Graphs (NEW) -->
+                {% if chart_data.trends %}
+                    <div class="trends-section">
+                        <h3>
+                            <i class="fas fa-chart-line"></i> Trend Analysis Over Time
+                        </h3>
+                        <p class="section-description">Track how patterns evolve over time</p>
+                        <div class="trend-grid">
+                            {% if chart_data.trends.top_numbers_over_time %}
+                                <div class="trend-container full-width">
+                                    <h4>{{ chart_data.trends.top_numbers_over_time.title }}</h4>
+                                    <canvas id="trendTopNumbers" data-chart-id="trendTopNumbers"></canvas>
+                                </div>
+                            {% endif %}
+                            {% if chart_data.trends.average_sum_trend %}
+                                <div class="trend-container">
+                                    <h4>{{ chart_data.trends.average_sum_trend.title }}</h4>
+                                    <canvas id="trendAvgSum" data-chart-id="trendAvgSum"></canvas>
+                                </div>
+                            {% endif %}
+                            {% if chart_data.trends.even_odd_ratio_trend %}
+                                <div class="trend-container">
+                                    <h4>{{ chart_data.trends.even_odd_ratio_trend.title }}</h4>
+                                    <canvas id="trendEvenOdd" data-chart-id="trendEvenOdd"></canvas>
+                                </div>
+                            {% endif %}
+                            {% if chart_data.trends.consistency_trend %}
+                                <div class="trend-container full-width">
+                                    <h4>{{ chart_data.trends.consistency_trend.title }}</h4>
+                                    <canvas id="trendConsistency" data-chart-id="trendConsistency"></canvas>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 {% endif %}
             </div>
-            {% endfor %}
         </div>
-    </div>
-
-    <!-- Detailed Statistics -->
-    <div class="card accordion-card">
-        <div class="card-header accordion-header" onclick="toggleAccordion(this)">
-            <h2><i class="fas fa-list"></i> Detailed Statistics</h2>
-            <i class="fas fa-chevron-down accordion-icon"></i>
+        <!-- Day-Specific Analysis -->
+        <div class="card accordion-card">
+            <div class="card-header accordion-header" onclick="toggleAccordion(this)">
+                <h2>
+                    <i class="fas fa-calendar-week"></i> Day-Specific Analysis
+                </h2>
+                <i class="fas fa-chevron-down accordion-icon"></i>
+            </div>
+            <div class="card-body accordion-content">
+                <div class="days-tabs">
+                    <button class="day-tab active" data-day="Monday">Monday</button>
+                    <button class="day-tab" data-day="Tuesday">Tuesday</button>
+                    <button class="day-tab" data-day="Wednesday">Wednesday</button>
+                    <button class="day-tab" data-day="Thursday">Thursday</button>
+                    <button class="day-tab" data-day="Friday">Friday</button>
+                    <button class="day-tab" data-day="Saturday">Saturday</button>
+                    <button class="day-tab" data-day="Sunday">Sunday</button>
+                </div>
+                {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                    <div class="day-content"
+                         id="day-{{ day }}"
+                         {% if day != 'Monday' %}style="display: none;"{% endif %}>
+                        {% if day_analysis[day].total_draws > 0 %}
+                            <div class="day-stats">
+                                <div class="day-header">
+                                    <h3>{{ day }}</h3>
+                                    <span class="badge">{{ day_analysis[day].total_draws }} draws</span>
+                                </div>
+                                <div class="day-grid">
+                                    <div class="day-section">
+                                        <h4>
+                                            <i class="fas fa-fire"></i> Hot Numbers for {{ day }}
+                                        </h4>
+                                        <div class="number-list">
+                                            {% for num in day_analysis[day].hot_numbers %}<span class="number-tag hot">{{ num }}</span>{% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="day-section">
+                                        <h4>
+                                            <i class="fas fa-star"></i> Top Predictions for {{ day }}
+                                        </h4>
+                                        <div class="day-predictions">
+                                            {% for pred in day_analysis[day].predicted_combinations %}
+                                                <div class="day-prediction">
+                                                    <span class="pred-rank">#{{ loop.index }}</span>
+                                                    <div class="pred-numbers">
+                                                        {% for num in pred.numbers %}<span class="number-ball small">{{ num }}</span>{% endfor %}
+                                                    </div>
+                                                    <span class="pred-confidence">{{ pred.confidence_score }}%</span>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="empty-state">
+                                <i class="fas fa-calendar-times"></i>
+                                <p>No draws found for {{ day }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
         </div>
-        <div class="card-body accordion-content">
-            <div class="detailed-stats">
-                <div class="detail-row">
-                    <span class="detail-label">Total Draws:</span>
-                    <span class="detail-value">{{ overall_stats.total_draws }}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Average Sum:</span>
-                    <span class="detail-value">{{ "%.2f"|format(overall_stats.sum_analysis.average_sum) }}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Sum Range:</span>
-                    <span class="detail-value">{{ overall_stats.sum_analysis.min_sum }} - {{ overall_stats.sum_analysis.max_sum }}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Draws with Consecutive Numbers:</span>
-                    <span class="detail-value">{{ overall_stats.consecutive_analysis.draws_with_consecutive }} ({{ "%.1f"|format(overall_stats.consecutive_analysis.percentage_with_consecutive) }}%)</span>
+        <!-- Detailed Statistics -->
+        <div class="card accordion-card">
+            <div class="card-header accordion-header" onclick="toggleAccordion(this)">
+                <h2>
+                    <i class="fas fa-list"></i> Detailed Statistics
+                </h2>
+                <i class="fas fa-chevron-down accordion-icon"></i>
+            </div>
+            <div class="card-body accordion-content">
+                <div class="detailed-stats">
+                    <div class="detail-row">
+                        <span class="detail-label">Total Draws:</span>
+                        <span class="detail-value">{{ overall_stats.total_draws }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Average Sum:</span>
+                        <span class="detail-value">{{ "%.2f"|format(overall_stats.sum_analysis.average_sum) }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Sum Range:</span>
+                        <span class="detail-value">{{ overall_stats.sum_analysis.min_sum }} - {{ overall_stats.sum_analysis.max_sum }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Draws with Consecutive Numbers:</span>
+                        <span class="detail-value">{{ overall_stats.consecutive_analysis.draws_with_consecutive }} ({{ "%.1f"|format(overall_stats.consecutive_analysis.percentage_with_consecutive) }}%)</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<script>
+    <script>
 // Chart data from Flask
 if (typeof chartData === 'undefined') {
     var chartData;
@@ -1489,6 +1505,5 @@ function displayComparisonResults(results) {
     container.style.display = 'block';
     container.scrollIntoView({ behavior: 'smooth' });
 }
-</script>
-
+    </script>
 {% endblock %}
