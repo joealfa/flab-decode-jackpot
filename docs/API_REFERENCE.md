@@ -30,9 +30,18 @@ All API responses follow this structure:
 {
   "success": false,
   "error": "Error message description",
-  "details": { ... }  // Optional
+  "details": { ... }
 }
 ```
+
+## Security Headers
+
+All responses include the following security headers:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains` (production only)
 
 ---
 
@@ -42,7 +51,7 @@ All API responses follow this structure:
 
 **Endpoint:** `GET /`
 
-**Description:** Main landing page with result file browser
+**Description:** Main landing page with result file browser, scraping form, and file management.
 
 **Response:** HTML page
 
@@ -53,7 +62,7 @@ All API responses follow this structure:
 
 ---
 
-### 2. Dashboard
+### 2. Analysis Dashboard
 
 **Endpoint:** `GET /analyze/<filename>`
 
@@ -106,7 +115,19 @@ GET /view-report/analysis_result_Lotto_6-42_20251030_20251030_120530.json
 
 ---
 
-### 4. Test Chart
+### 4. Accuracy Dashboard
+
+**Endpoint:** `GET /accuracy-dashboard`
+
+**Description:** Dashboard for viewing prediction accuracy analysis and comparisons
+
+**Response:** HTML page
+
+**Template:** `accuracy_dashboard.html`
+
+---
+
+### 5. Test Chart
 
 **Endpoint:** `GET /test-chart`
 
@@ -131,7 +152,7 @@ GET /view-report/analysis_result_Lotto_6-42_20251030_20251030_120530.json
 {
   "game_type": "Lotto 6/42",
   "start_date": "2015-01-01",
-  "end_date": "2025-10-30"
+  "end_date": "2026-02-15"
 }
 ```
 
@@ -166,13 +187,10 @@ GET /view-report/analysis_result_Lotto_6-42_20251030_20251030_120530.json
 }
 ```
 
-**Error Response (400):**
-```json
-{
-  "success": false,
-  "error": "Start date must be before end date"
-}
-```
+**Notes:**
+- Validates date range against PCSO available data
+- Returns cached results if data file already exists
+- Runs scraping in a background thread
 
 **Example:**
 ```bash
@@ -274,51 +292,13 @@ curl http://localhost:5000/api/progress/123e4567-e89b-12d3-a456-426614174000
   "success": true,
   "data": {
     "game_type": "Lotto 6/42",
-    "total_draws": 500,
-    // ... complete lottery data
+    "total_draws": 500
   },
-  "overall_stats": {
-    "total_draws": 500,
-    "most_frequent_numbers": [[5, 120], [12, 115], ...],
-    "hot_numbers": [5, 12, 23, 34, 38, 42],
-    // ... more statistics
-  },
-  "day_analysis": {
-    "Monday": { ... },
-    "Tuesday": { ... },
-    // ... all days
-  },
-  "top_predictions": [
-    {
-      "numbers": [5, 12, 23, 34, 38, 42],
-      "confidence_score": 85.5,
-      "analysis": {
-        "even_odd": "3E-3O",
-        "high_low": "3L-3H",
-        "sum": 154,
-        "consecutive_pairs": 0
-      }
-    },
-    // ... more predictions
-  ],
+  "overall_stats": { ... },
+  "day_analysis": { ... },
+  "top_predictions": [ ... ],
   "winning_predictions": [ ... ],
   "chart_data": { ... }
-}
-```
-
-**Error Response (400):**
-```json
-{
-  "success": false,
-  "error": "Filename is required"
-}
-```
-
-**Error Response (404):**
-```json
-{
-  "success": false,
-  "error": "Result file not found"
 }
 ```
 
@@ -326,14 +306,104 @@ curl http://localhost:5000/api/progress/123e4567-e89b-12d3-a456-426614174000
 ```bash
 curl -X POST http://localhost:5000/api/analyze \
   -H "Content-Type: application/json" \
-  -d '{
-    "filename": "result_Lotto_6-42_20251030.json"
-  }'
+  -d '{"filename": "result_Lotto_6-42_20251030.json"}'
 ```
 
 ---
 
-### 4. List Result Files
+### 4. AI-Powered Analysis
+
+**Endpoint:** `POST /api/ai-analyze`
+
+**Description:** Generate AI-powered interpretation of a lottery analysis using Ollama
+
+**Content-Type:** `application/json`
+
+**Request Body:**
+```json
+{
+  "filename": "analysis_result_Lotto_6-42_20251030_20260215_120530.json"
+}
+```
+
+**Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| filename | string | Yes | Analysis or result filename. If a result file is provided, the latest analysis for it will be used. |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "model": "llama3.1:8b",
+  "game_type": "Lotto 6/42",
+  "analysis": "## Executive Summary\n...(markdown content)...",
+  "total_draws_analyzed": 500,
+  "date_range": {
+    "start": "2024-01-01",
+    "end": "2024-12-31"
+  }
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "success": false,
+  "error": "AI analysis is not enabled. Set OLLAMA_ENABLED=True in configuration."
+}
+```
+
+**Error Response (500):**
+```json
+{
+  "success": false,
+  "error": "Ollama is not running. Please start Ollama service.",
+  "details": { "error": "Connection refused" }
+}
+```
+
+**Prerequisites:**
+- Ollama must be running (`ollama serve`)
+- Configured model must be available (`ollama pull llama3.1:8b`)
+- `OLLAMA_ENABLED=True` in configuration
+
+**Example:**
+```bash
+curl -X POST http://localhost:5000/api/ai-analyze \
+  -H "Content-Type: application/json" \
+  -d '{"filename": "analysis_result_Lotto_6-42_20251030_20260215_120530.json"}'
+```
+
+---
+
+### 5. Ollama Status
+
+**Endpoint:** `GET /api/ollama-status`
+
+**Description:** Check Ollama service status and model availability
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "status": {
+    "running": true,
+    "model_available": true,
+    "available_models": ["llama3.1:8b", "llama3.2:3b"],
+    "configured_model": "llama3.1:8b"
+  }
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:5000/api/ollama-status
+```
+
+---
+
+### 6. List Result Files
 
 **Endpoint:** `GET /api/files`
 
@@ -349,9 +419,8 @@ curl -X POST http://localhost:5000/api/analyze \
       "game_type": "Lotto 6/42",
       "total_draws": 500,
       "date_range": "2024-01-01 to 2024-12-31",
-      "scraped_at": "2025-10-30 12:00:00"
-    },
-    // ... more files
+      "scraped_at": "2026-02-15 12:00:00"
+    }
   ]
 }
 ```
@@ -363,7 +432,41 @@ curl http://localhost:5000/api/files
 
 ---
 
-### 5. Get Analysis History
+### 7. Get Result Files by Game Type
+
+**Endpoint:** `GET /api/result-files`
+
+**Description:** Get result files filtered by a specific game type
+
+**Query Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| game_type | string | Yes | Game type (e.g., "Lotto 6/42") |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "files": [
+    {
+      "filename": "result_Lotto_6-42_20251030.json",
+      "display_name": "Lotto 6/42 - 2024-01-01 to 2024-12-31 (500 draws)",
+      "end_date": "2024-12-31",
+      "total_draws": 500,
+      "scraped_at": "2026-02-15 12:00:00"
+    }
+  ]
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:5000/api/result-files?game_type=Lotto%206/42"
+```
+
+---
+
+### 8. Get Analysis History
 
 **Endpoint:** `GET /api/analysis-history/<filename>`
 
@@ -378,12 +481,11 @@ curl http://localhost:5000/api/files
   "success": true,
   "reports": [
     {
-      "filename": "analysis_result_Lotto_6-42_20251030_20251030_120530.json",
-      "analyzed_at": "2025-10-30 12:05:30",
-      "created_at": "2025-10-30 12:05:30",
+      "filename": "analysis_result_Lotto_6-42_20251030_20260215_120530.json",
+      "analyzed_at": "2026-02-15 12:05:30",
+      "created_at": "2026-02-15 12:05:30",
       "size": 524288
-    },
-    // ... more reports
+    }
   ],
   "count": 5
 }
@@ -396,11 +498,11 @@ curl http://localhost:5000/api/analysis-history/result_Lotto_6-42_20251030.json
 
 ---
 
-### 6. Submit Actual Result
+### 9. Submit Actual Result
 
 **Endpoint:** `POST /api/submit-actual-result`
 
-**Description:** Submit actual draw result for accuracy tracking
+**Description:** Submit actual draw result for accuracy tracking and add to historical dataset
 
 **Content-Type:** `application/json`
 
@@ -408,10 +510,11 @@ curl http://localhost:5000/api/analysis-history/result_Lotto_6-42_20251030.json
 ```json
 {
   "game_type": "Lotto 6/42",
-  "draw_date": "2025-10-30",
+  "draw_date": "2026-02-15",
   "numbers": [5, 12, 23, 34, 38, 42],
   "jackpot": "₱50,000,000",
-  "winners": "2"
+  "winners": "2",
+  "target_filename": "result_Lotto_6-42_20251030.json"
 }
 ```
 
@@ -423,6 +526,7 @@ curl http://localhost:5000/api/analysis-history/result_Lotto_6-42_20251030.json
 | numbers | array | Yes | Array of 6 unique integers |
 | jackpot | string | No | Jackpot amount (default: "N/A") |
 | winners | string | No | Number of winners (default: "N/A") |
+| target_filename | string | No | Specific result file to update |
 
 **Success Response (200):**
 ```json
@@ -431,30 +535,15 @@ curl http://localhost:5000/api/analysis-history/result_Lotto_6-42_20251030.json
   "message": "Actual result added successfully",
   "accuracy_results": {
     "actual_numbers": [5, 12, 23, 34, 38, 42],
-    "draw_date": "2025-10-30",
+    "draw_date": "2026-02-15",
     "game_type": "Lotto 6/42",
-    "top_predictions_comparison": [
-      {
-        "rank": 1,
-        "predicted_numbers": [5, 12, 23, 34, 38, 40],
-        "matches": 5,
-        "confidence_score": 85.5
-      },
-      // ... more comparisons
-    ],
+    "top_predictions_comparison": [ ... ],
     "winning_predictions_comparison": [ ... ],
-    "pattern_predictions_comparison": [ ... ]
+    "pattern_predictions_comparison": [ ... ],
+    "ultimate_predictions_comparison": [ ... ]
   },
   "result_file": "result_Lotto_6-42_20251030.json",
   "total_draws": 501
-}
-```
-
-**Error Response (400):**
-```json
-{
-  "success": false,
-  "error": "Numbers must be an array of 6 integers"
 }
 ```
 
@@ -464,16 +553,14 @@ curl -X POST http://localhost:5000/api/submit-actual-result \
   -H "Content-Type: application/json" \
   -d '{
     "game_type": "Lotto 6/42",
-    "draw_date": "2025-10-30",
-    "numbers": [5, 12, 23, 34, 38, 42],
-    "jackpot": "₱50,000,000",
-    "winners": "2"
+    "draw_date": "2026-02-15",
+    "numbers": [5, 12, 23, 34, 38, 42]
   }'
 ```
 
 ---
 
-### 7. Delete Analysis Report
+### 10. Delete Analysis Report
 
 **Endpoint:** `DELETE /api/delete-report/<report_filename>`
 
@@ -490,22 +577,14 @@ curl -X POST http://localhost:5000/api/submit-actual-result \
 }
 ```
 
-**Error Response (404):**
-```json
-{
-  "success": false,
-  "error": "Report not found"
-}
-```
-
 **Example:**
 ```bash
-curl -X DELETE http://localhost:5000/api/delete-report/analysis_result_Lotto_6-42_20251030_20251030_120530.json
+curl -X DELETE http://localhost:5000/api/delete-report/analysis_result_Lotto_6-42_20251030_20260215_120530.json
 ```
 
 ---
 
-### 8. Export Analysis Report
+### 11. Export Analysis Report
 
 **Endpoint:** `GET /api/export-analysis/<report_filename>`
 
@@ -519,22 +598,14 @@ curl -X DELETE http://localhost:5000/api/delete-report/analysis_result_Lotto_6-4
 - Content-Disposition: `attachment; filename=<report_filename>`
 - Body: Complete analysis report JSON
 
-**Error Response (404):**
-```json
-{
-  "success": false,
-  "error": "Report not found"
-}
-```
-
 **Example:**
 ```bash
-curl -O -J http://localhost:5000/api/export-analysis/analysis_result_Lotto_6-42_20251030_20251030_120530.json
+curl -O -J http://localhost:5000/api/export-analysis/analysis_result_Lotto_6-42_20251030_20260215_120530.json
 ```
 
 ---
 
-### 9. Cleanup Progress Files
+### 12. Cleanup Progress Files
 
 **Endpoint:** `POST /api/cleanup-progress`
 
@@ -563,6 +634,8 @@ curl -O -J http://localhost:5000/api/export-analysis/analysis_result_Lotto_6-42_
 }
 ```
 
+**Notes:** Progress files are also cleaned automatically every 5 minutes via APScheduler with multi-tier cleanup (completed: 3min, stale: 10min, old: 24h).
+
 **Example:**
 ```bash
 curl -X POST http://localhost:5000/api/cleanup-progress \
@@ -572,7 +645,193 @@ curl -X POST http://localhost:5000/api/cleanup-progress \
 
 ---
 
-### 10. Health Check
+### 13. Accuracy Analysis
+
+**Endpoint:** `GET /api/accuracy-analysis`
+
+**Description:** Get comprehensive accuracy analysis across all submitted results
+
+**Query Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| game_type | string | No | Filter by game type (e.g., "Lotto 6/42") |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "total_submissions": 10,
+    "game_types": ["Lotto 6/42"],
+    "accuracy_by_algorithm": { ... },
+    "overall_accuracy": { ... }
+  }
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:5000/api/accuracy-analysis?game_type=Lotto%206/42"
+```
+
+---
+
+### 14. Accuracy Summary
+
+**Endpoint:** `GET /api/accuracy-summary`
+
+**Description:** Get quick accuracy summary metrics
+
+**Query Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| game_type | string | No | Filter by game type |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "total_submissions": 10,
+    "average_matches": 1.5,
+    "best_match": 3,
+    "accuracy_by_algorithm": { ... }
+  }
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:5000/api/accuracy-summary?game_type=Mega%20Lotto%206/45"
+```
+
+---
+
+### 15. Accuracy Provenance
+
+**Endpoint:** `GET /api/accuracy-provenance`
+
+**Description:** Get detailed provenance/audit trail for accuracy submissions
+
+**Query Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| game_type | string | No | Filter by game type |
+| draw_date | string | No | Filter by draw date (YYYY-MM-DD) |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "entries": [
+      {
+        "game_type": "Lotto 6/42",
+        "draw_date": "2026-02-15",
+        "snapshot_context": { ... },
+        "algorithm_summaries": { ... }
+      }
+    ]
+  }
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:5000/api/accuracy-provenance?game_type=Lotto%206/42&draw_date=2026-02-15"
+```
+
+---
+
+### 16. Verify Result Integrity
+
+**Endpoint:** `GET /api/verify-result`
+
+**Description:** Verify whether a submitted draw result exists in the historical dataset and whether it was originally scraped or manually added
+
+**Query Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| game_type | string | Yes | Game type (e.g., "Lotto 6/42") |
+| draw_date | string | Yes | Draw date (YYYY-MM-DD) |
+
+**Success Response (200) - Found:**
+```json
+{
+  "success": true,
+  "exists": true,
+  "is_original": true,
+  "message": "Draw result for 2026-02-15 found in original scraped data",
+  "data": {
+    "source_file": "result_Lotto_6-42_20260215.json",
+    "draw_details": {
+      "date": "02/15/2026",
+      "numbers": [5, 12, 23, 34, 38, 42],
+      "jackpot": "₱50,000,000",
+      "winners": "2",
+      "day_of_week": "Sunday"
+    },
+    "original_cutoff_date": "2026-02-15"
+  }
+}
+```
+
+**Success Response (200) - Not Found:**
+```json
+{
+  "success": true,
+  "exists": false,
+  "message": "Draw result for 2026-02-15 not found in historical data",
+  "data": {
+    "source_file": "result_Lotto_6-42_20260215.json",
+    "total_draws_in_file": 500
+  }
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:5000/api/verify-result?game_type=Lotto%206/42&draw_date=2026-02-15"
+```
+
+---
+
+### 17. List Accuracy Files
+
+**Endpoint:** `GET /api/accuracy-files`
+
+**Description:** List all accuracy comparison files
+
+**Query Parameters:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| game_type | string | No | Filter by game type |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "total": 10,
+  "data": [
+    {
+      "filename": "accuracy_Lotto_6-42_20260215.json",
+      "game_type": "Lotto 6/42",
+      "draw_date": "2026-02-15",
+      "actual_numbers": [5, 12, 23, 34, 38, 42],
+      "timestamp": "2026-02-15T12:00:00"
+    }
+  ]
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:5000/api/accuracy-files?game_type=Lotto%206/42"
+```
+
+---
+
+### 18. Health Check
 
 **Endpoint:** `GET /health`
 
@@ -582,7 +841,7 @@ curl -X POST http://localhost:5000/api/cleanup-progress \
 ```json
 {
   "status": "healthy",
-  "timestamp": "2025-10-30T12:00:00.000000"
+  "timestamp": "2026-02-16T12:00:00.000000"
 }
 ```
 
@@ -603,7 +862,7 @@ curl http://localhost:5000/health
   "start_date": "2024-01-01",
   "end_date": "2024-12-31",
   "total_draws": 500,
-  "scraped_at": "2025-10-30 12:00:00",
+  "scraped_at": "2026-02-15 12:00:00",
   "filename": "result_Lotto_6-42_20241231.json",
   "cached": false,
   "results": [
@@ -623,7 +882,7 @@ curl http://localhost:5000/health
 
 ```json
 {
-  "analyzed_at": "2025-10-30 12:05:30",
+  "analyzed_at": "2026-02-15 12:05:30",
   "source_file": "result_Lotto_6-42_20241231.json",
   "game_type": "Lotto 6/42",
   "date_range": {
@@ -631,16 +890,16 @@ curl http://localhost:5000/health
     "end": "2024-12-31"
   },
   "total_draws": 500,
-  "overall_stats": { /* Overall Statistics */ },
-  "day_analysis": { /* Day-specific Analysis */ },
-  "top_predictions": [ /* Top Predictions */ ],
-  "winning_predictions": [ /* Winner-optimized Predictions */ ],
-  "pattern_predictions": [ /* Pattern-based Predictions */ ],
-  "pattern_analysis": { /* Consecutive Pattern Analysis */ },
-  "temporal_patterns": { /* Temporal Analysis */ },
-  "historical_observations": { /* Historical Insights */ },
-  "ultimate_predictions": [ /* Ultimate Predictions */ ],
-  "chart_data": { /* Chart Visualization Data */ }
+  "overall_stats": { },
+  "day_analysis": { },
+  "top_predictions": [ ],
+  "winning_predictions": [ ],
+  "pattern_predictions": [ ],
+  "pattern_analysis": { },
+  "temporal_patterns": { },
+  "historical_observations": { },
+  "ultimate_predictions": [ ],
+  "chart_data": { }
 }
 ```
 
@@ -667,8 +926,8 @@ curl http://localhost:5000/health
 | Code | Description |
 |------|-------------|
 | 200 | Success |
-| 400 | Bad Request (invalid input) |
-| 404 | Not Found (file/report not found) |
+| 400 | Bad Request (invalid input, missing fields) |
+| 404 | Not Found (file/report/data not found) |
 | 500 | Internal Server Error |
 
 ---
@@ -682,20 +941,12 @@ Currently, no rate limits are enforced. Recommended for production:
 
 ---
 
-## Webhooks (Future)
-
-Planned webhook support for:
-- Scraping completion
-- Analysis completion
-- New draw results
-
----
-
 ## SDK Examples
 
 ### Python
 ```python
 import requests
+import time
 
 # Scrape data
 response = requests.post('http://localhost:5000/scrape', json={
@@ -713,11 +964,17 @@ while True:
     time.sleep(2)
 
 # Analyze
+filename = progress['progress']['result']['filename']
 analysis = requests.post('http://localhost:5000/api/analyze', json={
-    'filename': progress['progress']['result']['filename']
+    'filename': filename
 }).json()
 
-print(analysis['top_predictions'])
+# AI Analysis (optional - requires Ollama)
+ai_result = requests.post('http://localhost:5000/api/ai-analyze', json={
+    'filename': filename
+}).json()
+
+print(ai_result['analysis'])
 ```
 
 ### JavaScript
@@ -739,20 +996,28 @@ let completed = false;
 while (!completed) {
   const progressResponse = await fetch(`http://localhost:5000/api/progress/${task_id}`);
   const { progress } = await progressResponse.json();
-  
+
   if (progress.status === 'completed') {
     completed = true;
-    
+    const filename = progress.result.filename;
+
     // Analyze
     const analysisResponse = await fetch('http://localhost:5000/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: progress.result.filename })
+      body: JSON.stringify({ filename })
     });
     const analysis = await analysisResponse.json();
-    console.log(analysis.top_predictions);
+
+    // AI Analysis (optional)
+    const aiResponse = await fetch('http://localhost:5000/api/ai-analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename })
+    });
+    const aiResult = await aiResponse.json();
   }
-  
+
   await new Promise(resolve => setTimeout(resolve, 2000));
 }
 ```
@@ -761,7 +1026,20 @@ while (!completed) {
 
 ## Changelog
 
-### Version 1.0.0 (Current)
+### Version 2.0.0 (Current)
+- Added AI-powered analysis via Ollama (`/api/ai-analyze`)
+- Added Ollama status check (`/api/ollama-status`)
+- Added accuracy tracking endpoints (`/api/accuracy-*`)
+- Added result integrity verification (`/api/verify-result`)
+- Added game-specific result file listing (`/api/result-files`)
+- Added security headers to all responses
+- Added path traversal prevention with `validate_filename()`
+- Added accuracy dashboard page (`/accuracy-dashboard`)
+- Improved error handling with custom exception hierarchy
+- Removed file-based logging (console only)
+- Secured default configuration (DEBUG=False, HOST=127.0.0.1)
+
+### Version 1.0.0
 - Initial API release
 - Core scraping and analysis endpoints
 - Progress tracking
@@ -772,10 +1050,9 @@ while (!completed) {
 - Rate limiting
 - Webhook support
 - Batch operations
-- Advanced filtering and search
 - Real-time WebSocket updates
 
 ---
 
-**Last Updated:** October 30, 2025  
-**API Version:** 1.0.0
+**Last Updated:** February 16, 2026
+**API Version:** 2.0.0

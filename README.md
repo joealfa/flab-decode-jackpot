@@ -152,8 +152,7 @@ flab-decode-jackpot/
 The application uses the following default settings:
 
 - **Data Path**: `app/data/`
-- **Default Start Date**: January 1, 2015
-- **Default End Date**: Current date
+- **Date Range**: Dynamically determined from available years on the PCSO website
 - **Headless Browser**: Enabled (can be changed in scraper initialization)
 
 ## Important Notes

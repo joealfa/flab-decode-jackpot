@@ -6,7 +6,6 @@ Main Flask Application
 import os
 import json
 import logging
-import logging.handlers
 import uuid
 import threading
 import time
@@ -16,54 +15,47 @@ import numpy as np
 from datetime import datetime
 from typing import Any, Dict, Optional
 from flask import Flask, render_template, request, jsonify, make_response
-
-# Load environment variables
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
+
+# Load environment variables BEFORE importing app modules that read config
 load_dotenv()
 
-# Import configuration and exceptions
-from app.config import config
-from app.exceptions import (
-    InvalidGameTypeException,
-    DateRangeException,
+from app.config import config  # noqa: E402
+from app.exceptions import (  # noqa: E402
+    ValidationException,
     DataNotFoundException,
     BadRequestException,
-    NotFoundException,
     InternalServerException,
 )
+from app.validators import (  # noqa: E402
+    require_json_body,
+    require_fields,
+    validate_game_type,
+    parse_date,
+    validate_date_range,
+    validate_lottery_numbers,
+    validate_cleanup_strategy,
+    game_type_to_slug,
+)
+from app.modules.scraper import PCSOScraper  # noqa: E402
+from app.modules.analyzer import LotteryAnalyzer  # noqa: E402
+from app.modules.progress_tracker import ProgressTracker  # noqa: E402
+from app.modules.accuracy_analyzer import AccuracyAnalyzer  # noqa: E402
+from app.modules.ai_analyzer import AIAnalyzer  # noqa: E402
 
-from app.modules.scraper import PCSOScraper
-from app.modules.analyzer import LotteryAnalyzer
-from app.modules.progress_tracker import ProgressTracker
-from app.modules.accuracy_analyzer import AccuracyAnalyzer
-
-# Configure logging with rotation
-os.makedirs('logs', exist_ok=True)
-log_config = config.get_log_config()
-
+# Configure logging (console only)
 logging.basicConfig(
-    level=getattr(logging, log_config['level']),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=getattr(logging, config.LOG_LEVEL),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
 logger = logging.getLogger(__name__)
 
-# Add file handler with rotation
-file_handler = logging.handlers.RotatingFileHandler(
-    f'logs/{log_config["file"]}',
-    maxBytes=log_config['max_bytes'],
-    backupCount=log_config['backup_count']
-)
-file_handler.setLevel(logging.DEBUG)
-file_formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
-)
-file_handler.setFormatter(file_formatter)
-logging.getLogger().addHandler(file_handler)
-
 # Suppress noisy third-party loggers
-logging.getLogger('selenium').setLevel(logging.WARNING)
-logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger("selenium").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 logger.info("=" * 60)
 logger.info("Fortune Lab Application Starting")
@@ -76,6 +68,15 @@ app = Flask(__name__, template_folder="app/templates", static_folder="app/static
 # Apply configuration from centralized config
 app.config.update(config.flask_config)
 
+# Initialize rate limiter
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=[config.RATE_LIMIT_GENERAL],
+    enabled=config.RATE_LIMIT_ENABLED,
+    storage_uri="memory://",
+)
+
 # Initialize progress tracker
 progress_tracker = ProgressTracker(progress_dir=config.PROGRESS_PATH)
 
@@ -83,12 +84,13 @@ progress_tracker = ProgressTracker(progress_dir=config.PROGRESS_PATH)
 scheduler = BackgroundScheduler()
 scheduler.start()
 
+
 # Scheduled cleanup job - runs every 5 minutes
 def scheduled_progress_cleanup():
     """Background task to clean up old progress files."""
     try:
         results = progress_tracker.cleanup_all()
-        if results['total_cleaned'] > 0:
+        if results["total_cleaned"] > 0:
             logger.info(
                 f"Scheduled cleanup: {results['total_cleaned']} files removed "
                 f"(completed: {results['completed_cleaned']}, "
@@ -98,14 +100,15 @@ def scheduled_progress_cleanup():
     except Exception as e:
         logger.error(f"Error in scheduled cleanup: {str(e)}", exc_info=True)
 
+
 # Add job to run every 5 minutes
 scheduler.add_job(
     func=scheduled_progress_cleanup,
     trigger="interval",
     minutes=5,
-    id='progress_cleanup',
-    name='Clean up old progress files',
-    replace_existing=True
+    id="progress_cleanup",
+    name="Clean up old progress files",
+    replace_existing=True,
 )
 
 # Shutdown scheduler when app exits
@@ -160,10 +163,57 @@ def build_error_response(exception: Exception, default_status: int = 400):
     return jsonify(payload), status_code
 
 
+def validate_filename(filename: str, allowed_dir: str) -> str:
+    """Validate a filename to prevent path traversal attacks.
+
+    Args:
+        filename: The user-supplied filename to validate.
+        allowed_dir: The directory the file must reside in.
+
+    Returns:
+        The safe, resolved file path.
+
+    Raises:
+        BadRequestException: If the filename contains path traversal sequences.
+    """
+    if not filename:
+        raise BadRequestException("Filename is required")
+
+    # Strip any path components - only allow the base filename
+    safe_name = os.path.basename(filename)
+    if safe_name != filename:
+        raise BadRequestException(
+            "Invalid filename",
+            details={"reason": "Filename must not contain path separators"},
+        )
+
+    filepath = os.path.realpath(os.path.join(allowed_dir, safe_name))
+    allowed_real = os.path.realpath(allowed_dir)
+
+    if not filepath.startswith(allowed_real + os.sep) and filepath != allowed_real:
+        raise BadRequestException(
+            "Invalid filename", details={"reason": "Path traversal detected"}
+        )
+
+    return filepath
+
+
+@app.after_request
+def set_security_headers(response):
+    """Add security headers to all responses."""
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    if not config.DEBUG:
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+    return response
+
+
 def select_analysis_snapshot(
-    game_slug: str,
-    analysis_dir: str,
-    draw_date: datetime
+    game_slug: str, analysis_dir: str, draw_date: datetime
 ) -> Optional[Dict[str, Any]]:
     """Select the most relevant analysis snapshot for a given draw date.
 
@@ -192,7 +242,9 @@ def select_analysis_snapshot(
     fallback_latest: Optional[Dict[str, Any]] = None
 
     for filename in os.listdir(analysis_dir):
-        if not filename.startswith(f"analysis_result_{game_slug}_") or not filename.endswith(".json"):
+        if not filename.startswith(
+            f"analysis_result_{game_slug}_"
+        ) or not filename.endswith(".json"):
             continue
 
         filepath = os.path.join(analysis_dir, filename)
@@ -202,8 +254,10 @@ def select_analysis_snapshot(
                 analysis_data = json.load(analysis_file)
         except Exception as exc:  # Defensive: skip unreadable files
             logger.error(
-                "Failed to read analysis snapshot %s: %s", filename, str(exc),
-                exc_info=True
+                "Failed to read analysis snapshot %s: %s",
+                filename,
+                str(exc),
+                exc_info=True,
             )
             continue
 
@@ -213,17 +267,19 @@ def select_analysis_snapshot(
             try:
                 analyzed_at = datetime.strptime(analyzed_at_raw, "%Y-%m-%d %H:%M:%S")
             except ValueError:
-                logger.warning("Invalid analyzed_at format in %s: %s", filename, analyzed_at_raw)
+                logger.warning(
+                    "Invalid analyzed_at format in %s: %s", filename, analyzed_at_raw
+                )
 
-        coverage_end_raw = (
-            analysis_data.get("date_range", {}).get("end")
-        )
+        coverage_end_raw = analysis_data.get("date_range", {}).get("end")
         coverage_end = None
         if coverage_end_raw:
             try:
                 coverage_end = datetime.strptime(coverage_end_raw, "%Y-%m-%d").date()
             except ValueError:
-                logger.warning("Invalid coverage end date in %s: %s", filename, coverage_end_raw)
+                logger.warning(
+                    "Invalid coverage end date in %s: %s", filename, coverage_end_raw
+                )
 
         candidate = {
             "filename": filename,
@@ -238,7 +294,9 @@ def select_analysis_snapshot(
             fallback_latest = candidate
         else:
             try:
-                if os.path.getmtime(filepath) > os.path.getmtime(fallback_latest["filepath"]):
+                if os.path.getmtime(filepath) > os.path.getmtime(
+                    fallback_latest["filepath"]
+                ):
                     fallback_latest = candidate
             except OSError:
                 fallback_latest = candidate
@@ -317,7 +375,7 @@ def index():
                             formatted_date = f"{year}-{month}-{day}"
                         else:
                             formatted_date = date_str
-                    except (ValueError, IndexError, TypeError):
+                    except ValueError, IndexError, TypeError:
                         formatted_date = date_str
 
                     result_files.append(
@@ -401,7 +459,7 @@ def scrape_data_thread(task_id, game_type, start_date, end_date, data_path):
 
         with open(progress_file, "w") as f:
             json.dump(data, f)
-        
+
         # Schedule cleanup of this completed task after 3 minutes
         def delayed_cleanup():
             time.sleep(180)  # Wait 3 minutes
@@ -410,13 +468,13 @@ def scrape_data_thread(task_id, game_type, start_date, end_date, data_path):
                 logger.info(f"Cleaned up completed task {task_id}")
             except Exception as cleanup_error:
                 logger.error(f"Error cleaning up task {task_id}: {str(cleanup_error)}")
-        
+
         threading.Thread(target=delayed_cleanup, daemon=True).start()
 
     except Exception as e:
         logger.error(f"Error in scraping thread: {str(e)}", exc_info=True)
         progress_tracker.fail_task(task_id, str(e))
-        
+
         # Schedule cleanup of this failed task after 5 minutes
         def delayed_cleanup():
             time.sleep(300)  # Wait 5 minutes
@@ -425,11 +483,12 @@ def scrape_data_thread(task_id, game_type, start_date, end_date, data_path):
                 logger.info(f"Cleaned up failed task {task_id}")
             except Exception as cleanup_error:
                 logger.error(f"Error cleaning up task {task_id}: {str(cleanup_error)}")
-        
+
         threading.Thread(target=delayed_cleanup, daemon=True).start()
 
 
 @app.route("/scrape", methods=["POST"])
+@limiter.limit(config.RATE_LIMIT_SCRAPE)
 def scrape_data():
     """
     Endpoint to trigger data scraping.
@@ -439,55 +498,16 @@ def scrape_data():
     logger.info("Received scrape request")
 
     try:
-        data = request.get_json()
-        if not data:
-            raise BadRequestException("Request body must be JSON")
-        
+        data = require_json_body(request.get_json())
         logger.info(f"Request data: {data}")
 
-        game_type = data.get("game_type")
-        start_date_str = data.get("start_date")
-        end_date_str = data.get("end_date")
+        require_fields(data, ["game_type", "start_date", "end_date"])
+        game_type = validate_game_type(data["game_type"])
+        start_date = parse_date(data["start_date"], "start_date")
+        end_date = parse_date(data["end_date"], "end_date")
+        validate_date_range(start_date, end_date)
 
-        # Validate required fields
-        if not all([game_type, start_date_str, end_date_str]):
-            raise BadRequestException(
-                "Missing required fields",
-                details={
-                    "required": ["game_type", "start_date", "end_date"],
-                    "provided": list(data.keys())
-                }
-            )
-
-        # Validate game type
-        valid_game_types = [
-            "Lotto 6/42", "Mega Lotto 6/45", "Super Lotto 6/49",
-            "Grand Lotto 6/55", "Ultra Lotto 6/58"
-        ]
-        if game_type not in valid_game_types:
-            raise InvalidGameTypeException(game_type, valid_game_types)
-
-        # Parse dates
-        try:
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
-        except ValueError as e:
-            raise BadRequestException(
-                "Invalid date format. Use YYYY-MM-DD",
-                details={"error": str(e)}
-            )
-        
         logger.info(f"Parsed dates - Start: {start_date}, End: {end_date}")
-
-        # Validate date range
-        if start_date > end_date:
-            raise DateRangeException(
-                "Start date must be before end date",
-                details={
-                    "start_date": start_date_str,
-                    "end_date": end_date_str
-                }
-            )
 
         # Generate unique task ID
         task_id = str(uuid.uuid4())
@@ -505,15 +525,12 @@ def scrape_data():
             {"success": True, "task_id": task_id, "message": "Scraping started"}
         )
 
-    except (BadRequestException, InvalidGameTypeException, DateRangeException) as e:
+    except (ValidationException, BadRequestException) as e:
         logger.warning(f"Validation error: {str(e)}")
         return build_error_response(e, 400)
     except Exception as e:
         logger.error(f"Unexpected error during scraping: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "An unexpected error occurred",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("An unexpected error occurred", details={})
         return build_error_response(error, 500)
 
 
@@ -526,22 +543,20 @@ def get_progress(task_id):
         if not progress:
             return jsonify({"success": False, "error": "Task not found"}), 404
 
-        # Auto-cleanup: Run comprehensive cleanup in background
-        # This ensures completed, failed, and stale tasks are cleaned up
-        threading.Thread(
-            target=lambda: progress_tracker.cleanup_all(),
-            daemon=True
-        ).start()
+        # Cleanup is handled by the scheduled background job (every 5 minutes)
+        # No need to spawn a thread on every progress check
 
         return jsonify({"success": True, "progress": progress})
     except Exception as e:
         # Log the error but don't crash - return a temporary error response
         logger.error(f"Error getting progress for task {task_id}: {str(e)}")
-        return jsonify({
-            "success": False, 
-            "error": "Temporary error reading progress. Please try again.",
-            "retry": True
-        }), 500
+        return jsonify(
+            {
+                "success": False,
+                "error": "Temporary error reading progress. Please try again.",
+                "retry": True,
+            }
+        ), 500
 
 
 @app.route("/analyze/<filename>")
@@ -551,7 +566,7 @@ def analyze(filename):
     """
     try:
         # Load lottery data
-        filepath = os.path.join(config.DATA_PATH, filename)
+        filepath = validate_filename(filename, config.DATA_PATH)
 
         if not os.path.exists(filepath):
             return "Result file not found", 404
@@ -632,12 +647,16 @@ def analyze(filename):
             report_filename=report_filename,
         )
 
+    except BadRequestException as e:
+        return build_error_response(e, 400)
     except Exception as e:
         logger.error(f"Error analyzing data: {str(e)}", exc_info=True)
-        return f"Error analyzing data: {str(e)}", 500
+        error = InternalServerException("Analysis failed")
+        return build_error_response(error, 500)
 
 
 @app.route("/api/analyze", methods=["POST"])
+@limiter.limit(config.RATE_LIMIT_ANALYZE)
 def api_analyze():
     """
     API endpoint to analyze a specific result file.
@@ -651,7 +670,7 @@ def api_analyze():
             raise BadRequestException("Filename is required")
 
         # Load data
-        filepath = os.path.join(config.DATA_PATH, filename)
+        filepath = validate_filename(filename, config.DATA_PATH)
 
         if not os.path.exists(filepath):
             raise DataNotFoundException(filename)
@@ -689,11 +708,115 @@ def api_analyze():
         return build_error_response(e, 400)
     except Exception as e:
         logger.error(f"Error in API analyze: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Analysis failed",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Analysis failed", details={})
         return build_error_response(error, 500)
+
+
+@app.route("/api/ai-analyze", methods=["POST"])
+@limiter.limit(config.RATE_LIMIT_ANALYZE)
+def api_ai_analyze():
+    """
+    API endpoint for AI-powered analysis.
+    Takes an analysis filename and returns AI interpretation.
+    """
+    try:
+        # Check if AI is enabled
+        if not config.OLLAMA_ENABLED:
+            raise BadRequestException(
+                "AI analysis is not enabled. Set OLLAMA_ENABLED=True in configuration."
+            )
+
+        data = request.get_json()
+        analysis_filename = data.get("filename")
+
+        if not analysis_filename:
+            raise BadRequestException("Analysis filename is required")
+
+        # Determine if it's a result or analysis file
+        if analysis_filename.startswith("analysis_"):
+            # It's already an analysis file
+            analysis_path = os.path.join(config.ANALYSIS_PATH, analysis_filename)
+        else:
+            # It's a result file, find the latest analysis
+            # Try to find corresponding analysis file
+            base_name = analysis_filename.replace(".json", "")
+            analysis_files = []
+
+            if os.path.exists(config.ANALYSIS_PATH):
+                for f in os.listdir(config.ANALYSIS_PATH):
+                    if f.startswith(f"analysis_{base_name}_") and f.endswith(".json"):
+                        analysis_files.append(f)
+
+            if not analysis_files:
+                raise DataNotFoundException(
+                    f"No analysis found for {analysis_filename}. Please generate analysis first."
+                )
+
+            # Get the most recent analysis file
+            analysis_files.sort(reverse=True)
+            analysis_path = os.path.join(config.ANALYSIS_PATH, analysis_files[0])
+
+        # Load analysis data
+        if not os.path.exists(analysis_path):
+            raise DataNotFoundException(f"Analysis file not found: {analysis_filename}")
+
+        logger.info(f"Loading analysis for AI: {analysis_path}")
+
+        with open(analysis_path, "r", encoding="utf-8") as f:
+            analysis_data = json.load(f)
+
+        # Initialize AI analyzer
+        ai_analyzer = AIAnalyzer()
+
+        # Check Ollama status first
+        status = ai_analyzer.check_ollama_status()
+        if not status.get("running"):
+            raise InternalServerException(
+                "Ollama is not running. Please start Ollama service.",
+                details={"error": status.get("error", "Unknown error")},
+            )
+
+        if not status.get("model_available"):
+            raise InternalServerException(
+                f"Model '{ai_analyzer.model}' is not available.",
+                details={
+                    "available_models": status.get("available_models", []),
+                    "configured_model": ai_analyzer.model,
+                },
+            )
+
+        # Perform AI analysis
+        logger.info(f"Starting AI analysis for {analysis_filename}")
+        ai_result = ai_analyzer.analyze_lottery_report(analysis_data)
+
+        logger.info("AI analysis completed successfully")
+
+        return jsonify(ai_result)
+
+    except BadRequestException as e:
+        logger.warning(f"Bad request in AI analyze: {str(e)}")
+        return build_error_response(e, 400)
+    except DataNotFoundException as e:
+        logger.warning(f"Data not found in AI analyze: {str(e)}")
+        return build_error_response(e, 404)
+    except InternalServerException as e:
+        logger.error(f"Internal error in AI analyze: {str(e)}")
+        return build_error_response(e, 500)
+    except Exception as e:
+        logger.error(f"Unexpected error in AI analyze: {str(e)}", exc_info=True)
+        error = InternalServerException("AI analysis failed", details={"error": str(e)})
+        return build_error_response(error, 500)
+
+
+@app.route("/api/ollama-status", methods=["GET"])
+def api_ollama_status():
+    """Check Ollama service status."""
+    try:
+        ai_analyzer = AIAnalyzer()
+        status = ai_analyzer.check_ollama_status()
+        return jsonify({"success": True, "status": status})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/api/files")
@@ -728,10 +851,7 @@ def api_list_files():
 
     except Exception as e:
         logger.error(f"Error listing files: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Failed to list files",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Failed to list files", details={})
         return jsonify(error.to_response_dict())
 
 
@@ -779,10 +899,7 @@ def get_analysis_history(filename):
 
     except Exception as e:
         logger.error(f"Error getting analysis history: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Failed to get analysis history",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Failed to get analysis history", details={})
         return jsonify(error.to_response_dict())
 
 
@@ -790,8 +907,7 @@ def get_analysis_history(filename):
 def view_report(report_filename):
     """View a specific analysis report."""
     try:
-        analysis_dir = config.ANALYSIS_PATH
-        report_path = os.path.join(analysis_dir, report_filename)
+        report_path = validate_filename(report_filename, config.ANALYSIS_PATH)
 
         if not os.path.exists(report_path):
             return "Analysis report not found", 404
@@ -827,9 +943,12 @@ def view_report(report_filename):
             is_historical=True,
         )
 
+    except BadRequestException as e:
+        return build_error_response(e, 400)
     except Exception as e:
         logger.error(f"Error viewing report: {str(e)}", exc_info=True)
-        return f"Error viewing report: {str(e)}", 500
+        error = InternalServerException("Failed to load report")
+        return build_error_response(error, 500)
 
 
 @app.route("/api/result-files")
@@ -837,86 +956,71 @@ def get_result_files_for_game():
     """Get all result files for a specific game type."""
     try:
         game_type = request.args.get("game_type")
-        
+
         if not game_type:
-            return jsonify({"success": False, "error": "game_type parameter is required"}), 400
-        
+            raise BadRequestException("game_type parameter is required")
+
+        validate_game_type(game_type)
+
         data_path = config.DATA_PATH
         result_files = []
-        game_slug = game_type.replace(" ", "_").replace("/", "-")
+        game_slug = game_type_to_slug(game_type)
 
         if os.path.exists(data_path):
             for filename in os.listdir(data_path):
-                if filename.startswith(f"result_{game_slug}_") and filename.endswith(".json"):
+                if filename.startswith(f"result_{game_slug}_") and filename.endswith(
+                    ".json"
+                ):
                     filepath = os.path.join(data_path, filename)
-                    
+
                     # Get file metadata
                     with open(filepath, "r", encoding="utf-8") as f:
                         data = json.load(f)
-                    
-                    # Extract date from filename
-                    date_part = filename.replace(f"result_{game_slug}_", "").replace(".json", "")
-                    
-                    result_files.append({
-                        "filename": filename,
-                        "display_name": f"{data.get('game_type')} - {data.get('start_date')} to {data.get('end_date')} ({data.get('total_draws')} draws)",
-                        "end_date": data.get("end_date"),
-                        "total_draws": data.get("total_draws"),
-                        "scraped_at": data.get("scraped_at")
-                    })
-        
+
+                    result_files.append(
+                        {
+                            "filename": filename,
+                            "display_name": f"{data.get('game_type')} - {data.get('start_date')} to {data.get('end_date')} ({data.get('total_draws')} draws)",
+                            "end_date": data.get("end_date"),
+                            "total_draws": data.get("total_draws"),
+                            "scraped_at": data.get("scraped_at"),
+                        }
+                    )
+
         # Sort by end date (most recent first)
         result_files.sort(key=lambda x: x["end_date"], reverse=True)
-        
+
         return jsonify({"success": True, "files": result_files})
 
+    except (ValidationException, BadRequestException) as e:
+        logger.warning(f"Validation error: {str(e)}")
+        return build_error_response(e, 400)
     except Exception as e:
-        logger.error(f"Error getting result files for {game_type}: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
+        logger.error(f"Error getting result files: {str(e)}", exc_info=True)
+        error = InternalServerException("Failed to list result files", details={})
+        return build_error_response(error, 500)
 
 
 @app.route("/api/submit-actual-result", methods=["POST"])
 def submit_actual_result():
     """Submit actual draw result for accuracy comparison and add to dataset."""
     try:
-        data = request.get_json()
+        data = require_json_body(request.get_json())
 
-        game_type = data.get("game_type")
-        draw_date_str = data.get("draw_date")
-        numbers = data.get("numbers")
+        require_fields(data, ["game_type", "draw_date", "numbers"])
+        game_type = validate_game_type(data["game_type"])
+        draw_date = parse_date(data["draw_date"], "draw_date")
+        actual_numbers = validate_lottery_numbers(data["numbers"], game_type)
+
         jackpot = data.get("jackpot", "N/A")
         winners = data.get("winners", "N/A")
-        target_filename = data.get("target_filename")  # Optional: specific file to update
-
-        if not all([game_type, draw_date_str, numbers]):
-            raise BadRequestException(
-                "Missing required fields",
-                details={
-                    "required": ["game_type", "draw_date", "numbers"],
-                    "provided": list(data.keys())
-                }
-            )
-
-        # Validate numbers
-        if not isinstance(numbers, list) or len(numbers) != 6:
-            raise BadRequestException(
-                "Numbers must be an array of 6 integers",
-                details={"provided": numbers}
-            )
-
-        # Parse draw date
-        try:
-            draw_date = datetime.strptime(draw_date_str, "%Y-%m-%d")
-        except ValueError as e:
-            raise BadRequestException(
-                "Invalid date format. Use YYYY-MM-DD",
-                details={"error": str(e)}
-            )
+        target_filename = data.get("target_filename")
+        draw_date_str = data["draw_date"]
 
         # Find result files for this game type
         data_path = config.DATA_PATH
         result_files = []
-        game_slug = game_type.replace(" ", "_").replace("/", "-")
+        game_slug = game_type_to_slug(game_type)
 
         for filename in os.listdir(data_path):
             if filename.startswith(f"result_{game_slug}_") and filename.endswith(
@@ -937,7 +1041,10 @@ def submit_actual_result():
             target_file = os.path.join(data_path, target_filename)
             if not os.path.exists(target_file):
                 return jsonify(
-                    {"success": False, "error": f"Target file {target_filename} not found"}
+                    {
+                        "success": False,
+                        "error": f"Target file {target_filename} not found",
+                    }
                 ), 404
             result_file_path = target_file
             logger.info(f"Using user-selected file: {target_filename}")
@@ -952,7 +1059,6 @@ def submit_actual_result():
             result_data = json.load(f)
 
         # Create new draw entry
-        actual_numbers = sorted([int(n) for n in numbers])
         new_draw = {
             "game": game_type,
             "date": draw_date.strftime("%m/%d/%Y"),
@@ -1019,7 +1125,9 @@ def submit_actual_result():
                     "pattern_predictions_comparison": [],
                     "analysis_snapshot": {
                         "filename": snapshot["filename"],
-                        "generated_at": analysis_generated_at.strftime("%Y-%m-%d %H:%M:%S")
+                        "generated_at": analysis_generated_at.strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        )
                         if analysis_generated_at
                         else analysis_data.get("analyzed_at"),
                         "coverage_end": coverage_end.strftime("%Y-%m-%d")
@@ -1032,7 +1140,9 @@ def submit_actual_result():
                 # Check top predictions
                 for idx, pred in enumerate(analysis_data.get("top_predictions", []), 1):
                     predicted_numbers = sorted(pred["numbers"])
-                    matched_numbers = sorted(set(actual_numbers) & set(predicted_numbers))
+                    matched_numbers = sorted(
+                        set(actual_numbers) & set(predicted_numbers)
+                    )
                     matches = len(matched_numbers)
 
                     accuracy_results["top_predictions_comparison"].append(
@@ -1050,7 +1160,9 @@ def submit_actual_result():
                     analysis_data.get("winning_predictions", []), 1
                 ):
                     predicted_numbers = sorted(pred["numbers"])
-                    matched_numbers = sorted(set(actual_numbers) & set(predicted_numbers))
+                    matched_numbers = sorted(
+                        set(actual_numbers) & set(predicted_numbers)
+                    )
                     matches = len(matched_numbers)
 
                     accuracy_results["winning_predictions_comparison"].append(
@@ -1070,7 +1182,9 @@ def submit_actual_result():
                     analysis_data.get("pattern_predictions", []), 1
                 ):
                     predicted_numbers = sorted(pred["numbers"])
-                    matched_numbers = sorted(set(actual_numbers) & set(predicted_numbers))
+                    matched_numbers = sorted(
+                        set(actual_numbers) & set(predicted_numbers)
+                    )
                     matches = len(matched_numbers)
 
                     accuracy_results["pattern_predictions_comparison"].append(
@@ -1089,20 +1203,30 @@ def submit_actual_result():
 
                 # Remove outdated snapshots for the same draw to avoid confusion
                 for existing_filename in os.listdir(accuracy_dir):
-                    if not existing_filename.startswith(f"accuracy_{game_slug}_") or not existing_filename.endswith(".json"):
+                    if not existing_filename.startswith(
+                        f"accuracy_{game_slug}_"
+                    ) or not existing_filename.endswith(".json"):
                         continue
 
                     existing_path = os.path.join(accuracy_dir, existing_filename)
                     try:
-                        with open(existing_path, "r", encoding="utf-8") as existing_file:
+                        with open(
+                            existing_path, "r", encoding="utf-8"
+                        ) as existing_file:
                             existing_data = json.load(existing_file)
                     except Exception:
                         continue
 
-                    if existing_data.get("game_type") == game_type and existing_data.get("draw_date") == draw_date_str:
+                    if (
+                        existing_data.get("game_type") == game_type
+                        and existing_data.get("draw_date") == draw_date_str
+                    ):
                         try:
                             os.remove(existing_path)
-                            logger.info("Removed outdated accuracy snapshot %s", existing_filename)
+                            logger.info(
+                                "Removed outdated accuracy snapshot %s",
+                                existing_filename,
+                            )
                         except OSError as exc:
                             logger.warning(
                                 "Failed to remove outdated accuracy snapshot %s: %s",
@@ -1136,15 +1260,12 @@ def submit_actual_result():
     except DataNotFoundException as e:
         logger.warning(f"Data not found: {str(e)}")
         return build_error_response(e, 404)
-    except BadRequestException as e:
-        logger.warning(f"Bad request: {str(e)}")
+    except (ValidationException, BadRequestException) as e:
+        logger.warning(f"Validation error: {str(e)}")
         return build_error_response(e, 400)
     except Exception as e:
         logger.error(f"Error submitting actual result: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Failed to submit actual result",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Failed to submit actual result", details={})
         return build_error_response(error, 500)
 
 
@@ -1152,8 +1273,7 @@ def submit_actual_result():
 def delete_report(report_filename):
     """Delete an analysis report."""
     try:
-        analysis_dir = config.ANALYSIS_PATH
-        report_path = os.path.join(analysis_dir, report_filename)
+        report_path = validate_filename(report_filename, config.ANALYSIS_PATH)
 
         if not os.path.exists(report_path):
             raise DataNotFoundException(report_filename)
@@ -1169,10 +1289,7 @@ def delete_report(report_filename):
         return build_error_response(e, 404)
     except Exception as e:
         logger.error(f"Error deleting report: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Failed to delete report",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Failed to delete report", details={})
         return build_error_response(error, 500)
 
 
@@ -1180,8 +1297,7 @@ def delete_report(report_filename):
 def export_analysis(report_filename):
     """Export analysis report as downloadable JSON."""
     try:
-        analysis_dir = config.ANALYSIS_PATH
-        report_path = os.path.join(analysis_dir, report_filename)
+        report_path = validate_filename(report_filename, config.ANALYSIS_PATH)
 
         if not os.path.exists(report_path):
             raise DataNotFoundException(report_filename)
@@ -1192,7 +1308,9 @@ def export_analysis(report_filename):
         # Create a response with proper headers for download
         response = make_response(json.dumps(report, indent=2, ensure_ascii=False))
         response.headers["Content-Type"] = "application/json"
-        response.headers["Content-Disposition"] = f"attachment; filename={report_filename}"
+        response.headers["Content-Disposition"] = (
+            f"attachment; filename={report_filename}"
+        )
 
         return response
 
@@ -1201,10 +1319,7 @@ def export_analysis(report_filename):
         return build_error_response(e, 404)
     except Exception as e:
         logger.error(f"Error exporting analysis: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Failed to export analysis",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Failed to export analysis", details={})
         return build_error_response(error, 500)
 
 
@@ -1214,10 +1329,10 @@ def cleanup_progress():
     try:
         # Accept both JSON and no body (for simple curl requests)
         data = request.get_json(silent=True) or {}
-        
+
         # Support different cleanup strategies
-        strategy = data.get("strategy", "all")  # all, completed, stale, old
-        
+        strategy = validate_cleanup_strategy(data.get("strategy", "all"))
+
         if strategy == "all":
             # Comprehensive cleanup
             results = progress_tracker.cleanup_all()
@@ -1242,27 +1357,15 @@ def cleanup_progress():
             cleaned = progress_tracker.cleanup_all_old_tasks(max_age_hours)
             results = {"old_cleaned": cleaned, "total_cleaned": cleaned}
             message = f"Cleaned up {cleaned} old progress file(s)"
-        else:
-            raise BadRequestException(
-                f"Invalid cleanup strategy: {strategy}",
-                details={"valid_strategies": ["all", "completed", "stale", "old"]}
-            )
 
-        return jsonify({
-            "success": True,
-            "results": results,
-            "message": message
-        })
+        return jsonify({"success": True, "results": results, "message": message})
 
     except BadRequestException as e:
         logger.warning(f"Bad cleanup request: {str(e)}")
         return build_error_response(e, 400)
     except Exception as e:
         logger.error(f"Error cleaning up progress files: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Failed to cleanup progress files",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Failed to cleanup progress files", details={})
         return build_error_response(error, 500)
 
 
@@ -1270,33 +1373,27 @@ def cleanup_progress():
 def get_accuracy_analysis():
     """
     Get comprehensive accuracy analysis.
-    
+
     Query Parameters:
         game_type: Optional game type filter (e.g., "Lotto 6/42")
-    
+
     Returns:
         JSON with complete accuracy analysis
     """
     try:
         game_type = request.args.get("game_type")
-        
+
         analyzer = AccuracyAnalyzer()
         analysis = analyzer.analyze_overall_accuracy(game_type)
-        
-        return jsonify({
-            "success": True,
-            "data": analysis
-        })
-        
+
+        return jsonify({"success": True, "data": analysis})
+
     except DataNotFoundException as e:
         logger.warning(f"No accuracy data found: {str(e)}")
         return build_error_response(e, 404)
     except Exception as e:
         logger.error(f"Error analyzing accuracy: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Failed to analyze accuracy",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Failed to analyze accuracy", details={})
         return build_error_response(error, 500)
 
 
@@ -1304,33 +1401,27 @@ def get_accuracy_analysis():
 def get_accuracy_summary():
     """
     Get quick accuracy summary.
-    
+
     Query Parameters:
         game_type: Optional game type filter
-    
+
     Returns:
         JSON with summary metrics
     """
     try:
         game_type = request.args.get("game_type")
-        
+
         analyzer = AccuracyAnalyzer()
         summary = analyzer.get_accuracy_summary(game_type)
-        
-        return jsonify({
-            "success": True,
-            "data": summary
-        })
-        
+
+        return jsonify({"success": True, "data": summary})
+
     except DataNotFoundException as e:
         logger.warning(f"No accuracy data found: {str(e)}")
         return build_error_response(e, 404)
     except Exception as e:
         logger.error(f"Error getting accuracy summary: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Failed to get accuracy summary",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Failed to get accuracy summary", details={})
         return build_error_response(error, 500)
 
 
@@ -1353,8 +1444,7 @@ def get_accuracy_provenance():
         accuracy_files = analyzer.load_all_accuracy_files(game_type)
         if not accuracy_files:
             raise DataNotFoundException(
-                "No accuracy data found",
-                details={"game_type": game_type or "all"}
+                "No accuracy data found", details={"game_type": game_type or "all"}
             )
 
         # If draw_date filter applied, narrow
@@ -1365,23 +1455,22 @@ def get_accuracy_provenance():
             if not accuracy_files:
                 raise DataNotFoundException(
                     "No accuracy data found for draw date",
-                    details={"draw_date": draw_date_filter, "game_type": game_type or "all"}
+                    details={
+                        "draw_date": draw_date_filter,
+                        "game_type": game_type or "all",
+                    },
                 )
 
         provenance = analyzer._build_provenance_summary(accuracy_files)
 
-        return jsonify({
-            "success": True,
-            "data": provenance
-        })
+        return jsonify({"success": True, "data": provenance})
     except DataNotFoundException as e:
         logger.warning(f"No provenance data: {str(e)}")
         return build_error_response(e, 404)
     except Exception as e:
         logger.error(f"Error generating provenance: {str(e)}", exc_info=True)
         error = InternalServerException(
-            "Failed to generate provenance report",
-            details={"error": str(e)}
+            "Failed to generate provenance report", details={}
         )
         return build_error_response(error, 500)
 
@@ -1404,31 +1493,26 @@ def verify_result_integrity():
         if not game_type or not draw_date_str:
             raise BadRequestException(
                 "Missing required parameters",
-                details={"required": ["game_type", "draw_date"]}
+                details={"required": ["game_type", "draw_date"]},
             )
 
-        # Parse draw date
-        try:
-            draw_date = datetime.strptime(draw_date_str, "%Y-%m-%d")
-        except ValueError as e:
-            raise BadRequestException(
-                "Invalid date format. Use YYYY-MM-DD",
-                details={"error": str(e)}
-            )
+        validate_game_type(game_type)
+        draw_date = parse_date(draw_date_str, "draw_date")
 
         # Locate latest result file
         data_path = config.DATA_PATH
-        game_slug = game_type.replace(" ", "_").replace("/", "-")
+        game_slug = game_type_to_slug(game_type)
         result_files = []
 
         if not os.path.exists(data_path):
             raise DataNotFoundException(
-                "Data directory not found",
-                details={"path": data_path}
+                "Data directory not found", details={"path": data_path}
             )
 
         for filename in os.listdir(data_path):
-            if filename.startswith(f"result_{game_slug}_") and filename.endswith(".json"):
+            if filename.startswith(f"result_{game_slug}_") and filename.endswith(
+                ".json"
+            ):
                 filepath = os.path.join(data_path, filename)
                 mtime = os.path.getmtime(filepath)
                 result_files.append((filename, filepath, mtime))
@@ -1436,7 +1520,7 @@ def verify_result_integrity():
         if not result_files:
             raise DataNotFoundException(
                 f"No result files found for {game_type}",
-                details={"game_type": game_type}
+                details={"game_type": game_type},
             )
 
         # Get latest result file
@@ -1460,9 +1544,13 @@ def verify_result_integrity():
                     year = date_str[:4]
                     month = date_str[4:6]
                     day = date_str[6:8]
-                    original_scrape_cutoff = datetime.strptime(f"{year}-{month}-{day}", "%Y-%m-%d")
+                    original_scrape_cutoff = datetime.strptime(
+                        f"{year}-{month}-{day}", "%Y-%m-%d"
+                    )
         except Exception as e:
-            logger.warning(f"Could not parse scrape cutoff date from filename: {str(e)}")
+            logger.warning(
+                f"Could not parse scrape cutoff date from filename: {str(e)}"
+            )
 
         # Search for matching draw
         pcso_format_date = draw_date.strftime("%m/%d/%Y")
@@ -1478,46 +1566,52 @@ def verify_result_integrity():
                     "winners": draw.get("winners"),
                     "day_of_week": draw.get("day_of_week"),
                 }
-                
+
                 # Check if this draw was in the original scraped data
                 # If the draw date is ON OR BEFORE the original scrape cutoff date, it was originally scraped
                 if original_scrape_cutoff and draw_date <= original_scrape_cutoff:
                     is_original_scraped = True
-                
+
                 break
 
         if match_found:
-            return jsonify({
-                "success": True,
-                "exists": True,
-                "is_original": is_original_scraped,
-                "message": f"Draw result for {draw_date_str} found in {'original scraped' if is_original_scraped else 'manually added'} data",
-                "data": {
-                    "source_file": latest_result_filename,
-                    "draw_details": match_found,
-                    "original_cutoff_date": original_scrape_cutoff.strftime("%Y-%m-%d") if original_scrape_cutoff else None,
+            return jsonify(
+                {
+                    "success": True,
+                    "exists": True,
+                    "is_original": is_original_scraped,
+                    "message": f"Draw result for {draw_date_str} found in {'original scraped' if is_original_scraped else 'manually added'} data",
+                    "data": {
+                        "source_file": latest_result_filename,
+                        "draw_details": match_found,
+                        "original_cutoff_date": original_scrape_cutoff.strftime(
+                            "%Y-%m-%d"
+                        )
+                        if original_scrape_cutoff
+                        else None,
+                    },
                 }
-            })
+            )
         else:
-            return jsonify({
-                "success": True,
-                "exists": False,
-                "message": f"Draw result for {draw_date_str} not found in historical data",
-                "data": {
-                    "source_file": latest_result_filename,
-                    "total_draws_in_file": len(result_data.get("results", [])),
+            return jsonify(
+                {
+                    "success": True,
+                    "exists": False,
+                    "message": f"Draw result for {draw_date_str} not found in historical data",
+                    "data": {
+                        "source_file": latest_result_filename,
+                        "total_draws_in_file": len(result_data.get("results", [])),
+                    },
                 }
-            })
+            )
 
-    except (BadRequestException, DataNotFoundException) as e:
+    except (ValidationException, BadRequestException, DataNotFoundException) as e:
         logger.warning(f"Verification error: {str(e)}")
-        return build_error_response(e, 400 if isinstance(e, BadRequestException) else 404)
+        status = 404 if isinstance(e, DataNotFoundException) else 400
+        return build_error_response(e, status)
     except Exception as e:
         logger.error(f"Error verifying result integrity: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Failed to verify result integrity",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Failed to verify result integrity", details={})
         return build_error_response(error, 500)
 
 
@@ -1525,42 +1619,37 @@ def verify_result_integrity():
 def list_accuracy_files():
     """
     List all accuracy comparison files.
-    
+
     Query Parameters:
         game_type: Optional game type filter
-    
+
     Returns:
         JSON with list of accuracy files
     """
     try:
         game_type = request.args.get("game_type")
-        
+
         analyzer = AccuracyAnalyzer()
         files = analyzer.load_all_accuracy_files(game_type)
-        
+
         # Return simplified file list
         file_list = []
         for file_data in files:
-            file_list.append({
-                "filename": file_data.get("filename"),
-                "game_type": file_data.get("game_type"),
-                "draw_date": file_data.get("draw_date"),
-                "actual_numbers": file_data.get("actual_numbers"),
-                "timestamp": file_data.get("timestamp"),
-            })
-        
-        return jsonify({
-            "success": True,
-            "total": len(file_list),
-            "data": file_list
-        })
-        
+            file_list.append(
+                {
+                    "filename": file_data.get("filename"),
+                    "game_type": file_data.get("game_type"),
+                    "draw_date": file_data.get("draw_date"),
+                    "actual_numbers": file_data.get("actual_numbers"),
+                    "timestamp": file_data.get("timestamp"),
+                }
+            )
+
+        return jsonify({"success": True, "total": len(file_list), "data": file_list})
+
     except Exception as e:
         logger.error(f"Error listing accuracy files: {str(e)}", exc_info=True)
-        error = InternalServerException(
-            "Failed to list accuracy files",
-            details={"error": str(e)}
-        )
+        error = InternalServerException("Failed to list accuracy files", details={})
         return build_error_response(error, 500)
 
 
@@ -1569,7 +1658,7 @@ def accuracy_dashboard():
     """Render accuracy analysis dashboard."""
     try:
         analyzer = AccuracyAnalyzer()
-        
+
         # Check if there's any accuracy data
         try:
             summary = analyzer.get_accuracy_summary()
@@ -1577,13 +1666,11 @@ def accuracy_dashboard():
         except DataNotFoundException:
             has_data = False
             summary = None
-        
+
         return render_template(
-            "accuracy_dashboard.html",
-            has_data=has_data,
-            summary=summary
+            "accuracy_dashboard.html", has_data=has_data, summary=summary
         )
-        
+
     except Exception as e:
         logger.error(f"Error rendering accuracy dashboard: {str(e)}", exc_info=True)
         return render_template("500.html"), 500
@@ -1620,5 +1707,7 @@ if __name__ == "__main__":
         logger.warning(f"Error cleaning up progress files on startup: {str(e)}")
 
     # Run the app
-    logger.info(f"Starting Flask app on {config.HOST}:{config.PORT} (debug={config.DEBUG})")
+    logger.info(
+        f"Starting Flask app on {config.HOST}:{config.PORT} (debug={config.DEBUG})"
+    )
     app.run(host=config.HOST, port=config.PORT, debug=config.DEBUG)

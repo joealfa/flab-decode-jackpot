@@ -36,6 +36,9 @@ This will create a virtual environment and install:
 - Pandas 2.3.3
 - NumPy 2.3.4
 - webdriver-manager 4.0.2
+- APScheduler 3.11.0
+- python-dotenv 1.1.1
+- ollama 0.6.1+
 
 ### 3. Verify Installation
 ```bash
@@ -60,8 +63,8 @@ uv run flask run
 ```
 
 The application will be available at:
-- Local: http://localhost:5000
-- Network: http://0.0.0.0:5000
+- Local: http://localhost:5000 (default, bind to 127.0.0.1)
+- Network: Set `HOST=0.0.0.0` in `.env` to allow external access
 
 ### Production Server (Future)
 
@@ -78,23 +81,28 @@ uv run gunicorn -w 4 -b 0.0.0.0:5000 app:app
 ```
 flab-decode-jackpot/
 ├── app.py                    # Main Flask application
-├── main.py                   # Entry point (currently minimal)
 ├── pyproject.toml            # Dependencies and project config
 ├── README.md                 # Project overview
 ├── CLAUDE.md                 # AI assistant guidance
 │
 ├── app/                      # Application package
 │   ├── __init__.py
+│   ├── config.py             # Centralized configuration (dataclass)
+│   ├── exceptions.py         # Custom exception hierarchy
 │   ├── modules/              # Business logic
 │   │   ├── __init__.py
 │   │   ├── scraper.py        # PCSO website scraper
 │   │   ├── analyzer.py       # Statistical analysis
-│   │   └── progress_tracker.py  # Progress management
+│   │   ├── ai_analyzer.py    # AI-powered analysis (Ollama)
+│   │   ├── accuracy_analyzer.py  # Prediction accuracy tracking
+│   │   └── progress_tracker.py   # Progress management
 │   │
 │   ├── templates/            # HTML templates
 │   │   ├── base.html
 │   │   ├── index.html
 │   │   ├── dashboard.html
+│   │   ├── accuracy_dashboard.html
+│   │   ├── test_chart.html
 │   │   ├── 404.html
 │   │   └── 500.html
 │   │
@@ -112,6 +120,7 @@ flab-decode-jackpot/
 │
 └── docs/                     # Documentation
     ├── AI_INSTRUCTIONS.md    # AI assistant instructions
+    ├── AI_SETUP.md           # Ollama/AI setup guide
     ├── ARCHITECTURE.md       # System architecture
     ├── API_REFERENCE.md      # API documentation
     ├── CODE_IMPROVEMENTS.md  # Improvement recommendations
@@ -279,16 +288,28 @@ return render_template(
 
 ### Enable Debug Mode
 
-```python
-# In app.py, change:
-app.run(debug=True)  # Already set by default
+Set in your `.env` file:
+```env
+DEBUG=True
+LOG_LEVEL=DEBUG
 ```
 
-### Enable Debug Logging
+### Setting Up AI Features (Optional)
 
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
+See [AI Setup Guide](AI_SETUP.md) for detailed instructions.
+
+```bash
+# Quick start
+ollama serve          # Start Ollama service
+ollama pull llama3.1:8b  # Download the model
+```
+
+Configure in `.env`:
+```env
+OLLAMA_ENABLED=True
+OLLAMA_MODEL=llama3.1:8b
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_TIMEOUT=120
 ```
 
 ### Flask Debug Toolbar (Optional)
@@ -382,9 +403,9 @@ curl http://localhost:5000/health
 
 ### API Testing with Postman
 
-1. Import collection from `docs/postman_collection.json` (to be created)
-2. Set base URL variable: `http://localhost:5000`
-3. Run requests
+1. Use a tool like Postman or cURL to test API endpoints
+2. Set base URL: `http://localhost:5000`
+3. See `docs/API_REFERENCE.md` for complete endpoint documentation
 
 ## Common Issues and Solutions
 
@@ -557,10 +578,11 @@ Closes #123
 ### Key Documentation Files
 
 1. **AI_INSTRUCTIONS.md** - Instructions for AI assistants
-2. **ARCHITECTURE.md** - System architecture and design
-3. **API_REFERENCE.md** - Complete API documentation
-4. **CODE_IMPROVEMENTS.md** - Planned improvements
-5. **DEVELOPER_GUIDE.md** - This file
+2. **AI_SETUP.md** - Ollama/AI feature setup guide
+3. **ARCHITECTURE.md** - System architecture and design
+4. **API_REFERENCE.md** - Complete API documentation
+5. **CODE_IMPROVEMENTS.md** - Planned improvements
+6. **DEVELOPER_GUIDE.md** - This file
 
 ### Updating Documentation
 
@@ -615,15 +637,16 @@ element.innerHTML = html;
 
 ### Production Checklist
 
-- [ ] Set `DEBUG=False`
-- [ ] Use strong `SECRET_KEY`
-- [ ] Enable HTTPS
-- [ ] Set up proper logging
+- [ ] Set `DEBUG=False` (default)
+- [ ] Set `SECRET_KEY` in `.env` (auto-generated if not set)
+- [ ] Set `HOST=127.0.0.1` or behind reverse proxy (default)
+- [ ] Enable HTTPS via reverse proxy
 - [ ] Configure CORS if needed
 - [ ] Add rate limiting
-- [ ] Set up monitoring
-- [ ] Configure backups
+- [ ] Set up monitoring (`/health` endpoint)
+- [ ] Configure backups for `app/data/` directory
 - [ ] Add authentication
+- [ ] Set up Ollama for AI features (optional)
 - [ ] Update documentation
 
 ### Deployment Options
@@ -635,7 +658,7 @@ element.innerHTML = html;
 5. **Render**
 6. **Self-hosted (VPS)**
 
-See `docs/DEPLOYMENT.md` (to be created) for detailed instructions.
+Refer to the hosting platform's documentation for deployment-specific instructions.
 
 ## Getting Help
 
