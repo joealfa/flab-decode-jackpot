@@ -81,3 +81,15 @@ The quality workflow definition runs regression tests and static checks on
 Linux and Windows once it is tracked in the repository.
 See [AGENTS.md](./AGENTS.md) for the code layout and contributor guidance, and
 [docs/API_REFERENCE.md](./docs/API_REFERENCE.md) for the current route list.
+
+## Disclaimer
+
+The lotto results and related data collected and displayed by this project are
+based on publicly available PCSO publications and are provided for historical
+reference and analysis only.
+
+This project is not affiliated with, associated with, authorized by, or
+officially endorsed by the Philippine Charity Sweepstakes Office (PCSO).
+
+For official and verified lotto results, please visit the
+[official PCSO website](https://www.pcso.gov.ph).
