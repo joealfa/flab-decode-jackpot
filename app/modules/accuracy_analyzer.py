@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 from app.config import config
 from app.exceptions import DataNotFoundException, InternalServerException
+from app.validators import GAME_MAX_NUMBERS
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +182,9 @@ class AccuracyAnalyzer:
                     "pattern_predictions": self._analyze_prediction_type(
                         accuracy_files, "pattern_predictions_comparison"
                     ),
+                    "ultimate_predictions": self._analyze_prediction_type(
+                        accuracy_files, "ultimate_predictions_comparison"
+                    ),
                 },
                 "best_performances": self._find_best_performances(accuracy_files),
                 "match_distribution": self._calculate_match_distribution(
@@ -191,6 +195,24 @@ class AccuracyAnalyzer:
                 ),
                 "game_breakdown": self._calculate_game_breakdown(accuracy_files),
                 "provenance": self._build_provenance_summary(accuracy_files),
+                "evaluation_context": {
+                    "scope": "descriptive_saved_pick_comparisons",
+                    "interpretation": (
+                        "These aggregates may include retrospective or unverified snapshots. "
+                        "Observed algorithm rankings are not evidence of improved winning odds. "
+                        "Use the CLI walk-forward evaluation for controlled random-baseline comparisons."
+                    ),
+                    "snapshot_timing_counts": {
+                        status: sum(
+                            self._snapshot_timing(item) == status
+                            for item in accuracy_files
+                        )
+                        for status in (
+                            "earlier_day_snapshot",
+                            "retrospective_or_unverified",
+                        )
+                    },
+                },
             }
 
             # Calculate overall best algorithm
@@ -294,6 +316,7 @@ class AccuracyAnalyzer:
             "best_top_prediction": {"matches": 0, "details": None},
             "best_winning_prediction": {"matches": 0, "details": None},
             "best_pattern_prediction": {"matches": 0, "details": None},
+            "best_ultimate_prediction": {"matches": 0, "details": None},
         }
 
         for file_data in accuracy_files:
@@ -306,6 +329,7 @@ class AccuracyAnalyzer:
                 ("top", "top_predictions_comparison"),
                 ("winning", "winning_predictions_comparison"),
                 ("pattern", "pattern_predictions_comparison"),
+                ("ultimate", "ultimate_predictions_comparison"),
             ]:
                 comparisons = file_data.get(key, [])
 
@@ -352,6 +376,7 @@ class AccuracyAnalyzer:
             "best_top_prediction",
             "best_winning_prediction",
             "best_pattern_prediction",
+            "best_ultimate_prediction",
         ]:
             if best[algo_key]["matches"] < threshold:
                 best[algo_key] = {"matches": 0, "details": None}
@@ -384,6 +409,7 @@ class AccuracyAnalyzer:
                 "top_predictions_comparison",
                 "winning_predictions_comparison",
                 "pattern_predictions_comparison",
+                "ultimate_predictions_comparison",
             ]:
                 comparisons = file_data.get(key, [])
                 for comparison in comparisons:
@@ -432,12 +458,14 @@ class AccuracyAnalyzer:
                 "best_prediction_type": None,
                 "matched_numbers": [],
                 "analysis_snapshot": file_data.get("analysis_snapshot"),
+                "snapshot_timing": self._snapshot_timing(file_data),
             }
 
             for pred_type, key in [
                 ("Top Predictions", "top_predictions_comparison"),
                 ("Winning Predictions", "winning_predictions_comparison"),
                 ("Pattern Predictions", "pattern_predictions_comparison"),
+                ("Ultimate Predictions", "ultimate_predictions_comparison"),
             ]:
                 comparisons = file_data.get(key, [])
                 for comparison in comparisons:
@@ -493,6 +521,7 @@ class AccuracyAnalyzer:
                 "top_predictions_comparison",
                 "winning_predictions_comparison",
                 "pattern_predictions_comparison",
+                "ultimate_predictions_comparison",
             ]:
                 comparisons = file_data.get(key, [])
                 for comparison in comparisons:
@@ -521,6 +550,9 @@ class AccuracyAnalyzer:
                 "total_predictions": stats["total_predictions"],
                 "avg_matches": round(avg_matches, 2),
                 "best_match": best_match_display,
+                "expected_matches_per_ticket": (
+                    36 / GAME_MAX_NUMBERS[game] if game in GAME_MAX_NUMBERS else None
+                ),
             }
 
         return result
@@ -538,6 +570,8 @@ class AccuracyAnalyzer:
         algorithms = []
 
         for algo_name, metrics in prediction_types.items():
+            if not metrics.get("total_predictions"):
+                continue
             algorithms.append(
                 {
                     "name": algo_name.replace("_", " ").title(),
@@ -551,7 +585,28 @@ class AccuracyAnalyzer:
             key=lambda x: (x["avg_matches"], x["jackpot_hits"]), reverse=True
         )
 
+        if algorithms:
+            algorithms[0]["interpretation"] = (
+                "Highest observed mean in these submissions; not a statistically established superior algorithm."
+            )
         return algorithms[0] if algorithms else {}
+
+    @staticmethod
+    def _snapshot_timing(file_data: Dict) -> str:
+        snapshot = file_data.get("analysis_snapshot") or {}
+        try:
+            draw = datetime.strptime(file_data["draw_date"], "%Y-%m-%d").date()
+            generated = datetime.strptime(
+                snapshot["generated_at"], "%Y-%m-%d %H:%M:%S"
+            ).date()
+            coverage = datetime.strptime(snapshot["coverage_end"], "%Y-%m-%d").date()
+        except KeyError, TypeError, ValueError:
+            return "retrospective_or_unverified"
+        return (
+            "earlier_day_snapshot"
+            if generated < draw and coverage < draw
+            else "retrospective_or_unverified"
+        )
 
     def _build_provenance_summary(self, accuracy_files: List[Dict]) -> Dict:
         """Build a lightweight provenance / explanation layer.
@@ -574,6 +629,7 @@ class AccuracyAnalyzer:
                 "snapshot": None,
                 "algorithms": {},
                 "overall_highest_match": 0,
+                "snapshot_timing": self._snapshot_timing(file_data),
             }
 
             snapshot = file_data.get("analysis_snapshot")
@@ -590,6 +646,7 @@ class AccuracyAnalyzer:
                 ("top", "top_predictions_comparison"),
                 ("winning", "winning_predictions_comparison"),
                 ("pattern", "pattern_predictions_comparison"),
+                ("ultimate", "ultimate_predictions_comparison"),
             ]:
                 comparisons = file_data.get(key, []) or []
                 best_rank = None
@@ -662,6 +719,7 @@ class AccuracyAnalyzer:
                 "total_submissions": full_analysis["total_submissions"],
                 "game_type": full_analysis["game_type"],
                 "best_algorithm": full_analysis["best_algorithm"],
+                "evaluation_context": full_analysis["evaluation_context"],
                 "overall_stats": {
                     "avg_matches": full_analysis["match_distribution"].get(
                         "average_matches", 0

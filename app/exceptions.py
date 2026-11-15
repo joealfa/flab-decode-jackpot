@@ -3,7 +3,6 @@ Custom Exceptions for Fortune Lab
 Provides a hierarchy of exceptions for better error handling and debugging.
 """
 
-
 from typing import Optional
 
 

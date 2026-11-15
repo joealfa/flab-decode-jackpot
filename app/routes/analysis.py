@@ -10,8 +10,11 @@ from flask import Blueprint, jsonify, render_template, request
 from app.exceptions import (  # noqa: E402
     BadRequestException,
     DataNotFoundException,
+    DataValidationException,
+    InsufficientDataException,
     InternalServerException,
     ServiceUnavailableException,
+    ValidationException,
 )
 from app.modules.ai_analyzer import AIAnalyzer
 from app.services.ai_history import (
@@ -77,7 +80,13 @@ def analyze(filename: str) -> HTTPResponse:
             **analysis_report,
         )
 
-    except BadRequestException as e:
+    except (
+        BadRequestException,
+        ValidationException,
+        DataValidationException,
+        InsufficientDataException,
+    ) as e:
+        logger.warning("Invalid analysis dataset: %s", e)
         return build_error_response(e, 400)
     except Exception as e:
         logger.error(f"Error analyzing data: {str(e)}", exc_info=True)
@@ -129,7 +138,12 @@ def api_analyze() -> HTTPResponse:
     except DataNotFoundException as e:
         logger.warning(f"Data not found: {str(e)}")
         return build_error_response(e, 404)
-    except BadRequestException as e:
+    except (
+        BadRequestException,
+        ValidationException,
+        DataValidationException,
+        InsufficientDataException,
+    ) as e:
         logger.warning(f"Bad request: {str(e)}")
         return build_error_response(e, 400)
     except Exception as e:
@@ -413,6 +427,7 @@ def view_report(report_filename: str) -> HTTPResponse:
             filename=source_file,
             report_filename=report_filename,
             analyzed_at=report["analyzed_at"],
+            analysis_version=report.get("analysis_version"),
             is_historical=True,
         )
 

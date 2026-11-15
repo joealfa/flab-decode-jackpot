@@ -10,6 +10,9 @@ The codebase supports Python 3.14+, uses `uv`, Flask, Selenium, Pandas, NumPy,
 and JSON files. Use `pyproject.toml` and `uv.lock` as dependency sources of
 truth.
 
+The default runtime is Python 3.15.2. CI covers Python 3.14 and 3.15 on Linux
+and Windows; keep Ruff and Pyright compatibility targets at the 3.14 minimum.
+
 ## Architecture
 
 - `app.py` loads settings and runs the standalone Flask server.
@@ -17,6 +20,9 @@ truth.
   routes, security hooks, rate limits, and the progress-cleanup scheduler.
 - `app/routes/` contains HTTP handlers; `app/services/` contains shared
   analysis, result, and background-job operations.
+- `app/services/evaluation.py` runs seeded, retrospective walk-forward checks
+  against equal-ticket random baselines; `scripts/evaluate_analysis.py` saves
+  separate evaluation reports without blocking Flask requests.
 - `app/modules/` contains the PCSO scraper, statistical and accuracy
   analyzers, AI integration, and progress tracking.
 - `app/storage.py` validates contained JSON filenames and provides atomic,
@@ -54,6 +60,7 @@ uv run python app.py
 uv run python -m pytest
 uv run ruff check app.py app tests scripts
 uv run pyright
+uv run python scripts\evaluate_analysis.py --help
 ```
 
 The type-check command covers the application, scripts, and tests through the

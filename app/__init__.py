@@ -88,9 +88,7 @@ def create_app(settings=None, *, start_scheduler: bool = False) -> Flask:
             Callable[..., ResponseReturnValue],
             application.view_functions[endpoint],
         )
-        application.view_functions[endpoint] = limiter.limit(limit)(
-            isolate_view(view)
-        )
+        application.view_functions[endpoint] = limiter.limit(limit)(isolate_view(view))
     for rule in list(application.url_map.iter_rules()):
         if "." in rule.endpoint and rule.endpoint != "static":
             application.add_url_rule(

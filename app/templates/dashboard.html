@@ -9,7 +9,7 @@
                     <i class="fas fa-chart-line"></i>
                     {{ data.game_type }} Analysis
                 </h1>
-                <p class="subtitle">{{ overall_stats.total_draws }} draws from {{ data.start_date }} to {{ data.end_date }}</p>
+                <p class="subtitle">{{ overall_stats.total_draws }} draws from {{ overall_stats.date_range.start }} to {{ overall_stats.date_range.end }}</p>
             </div>
             <div class="header-actions">
                 {% if report_filename %}
@@ -24,13 +24,56 @@
             </div>
         </div>
         <!-- Ultimate Predictions (NEW) -->
+        <div class="randomness-disclaimer">
+            <strong>Historical analysis only:</strong> Scores are heuristic points out of 100,
+            not winning probabilities. Lists rank sampled combinations, not every possible combination.
+            Lottery draws are random; these picks do not improve winning odds.
+            {% if analysis_version is not defined or not analysis_version %}
+                <p>This is a legacy saved report. Re-run analysis to apply current data-quality and calculation fixes.</p>
+            {% endif %}
+        </div>
+        {% if overall_stats.frequency_context %}
+            <div class="card">
+                <div class="card-header"><h2>Data Quality and Statistical Context</h2></div>
+                <div class="card-body">
+                    <p>{{ overall_stats.total_draws }} unique draws analyzed;
+                        {{ overall_stats.data_quality.duplicate_records_removed }} identical duplicates excluded;
+                        {{ overall_stats.data_quality.weekday_labels_corrected }} weekday labels corrected.
+                        {{ overall_stats.data_quality.game_labels_normalized }} game labels normalized;
+                        {{ overall_stats.data_quality.unknown_winner_counts }} winner counts unknown.
+                        Source files were not changed. Observed coverage does not establish completeness.</p>
+                    <p>Under a fair draw, each number appears in
+                        {{ (overall_stats.frequency_context.expected_appearance_rate * 100)|round(2) }}% of draws:
+                        about {{ overall_stats.frequency_context.expected_frequency|round(2) }} appearances in this sample.
+                        Each particular combination has jackpot odds of 1 in
+                        {{ "{:,}".format(overall_stats.fair_draw_baseline.jackpot_combinations) }}.</p>
+                    <details>
+                        <summary>Number appearance rates and uncertainty</summary>
+                        <p>{{ overall_stats.frequency_context.interval_note }}</p>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th>Number</th><th>Count</th><th>Appearance rate</th><th>Pointwise 95% interval</th></tr></thead>
+                                <tbody>
+                                    {% for number, item in overall_stats.frequency_context.number_statistics.items() %}
+                                        <tr><td>{{ number }}</td><td>{{ item.count }}</td>
+                                            <td>{{ (item.appearance_rate * 100)|round(2) }}%</td>
+                                            <td>{{ (item.wilson_95_interval[0] * 100)|round(2) }}% -
+                                                {{ (item.wilson_95_interval[1] * 100)|round(2) }}%</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                </div>
+            </div>
+        {% endif %}
         {% if ultimate_predictions %}
             <div class="card predictions-card ultimate-section accordion-card">
                 <div class="card-header gradient-header-ultimate accordion-header"
                      onclick="toggleAccordion(this)">
                     <div>
                         <h2>
-                            <i class="fas fa-star"></i> Ultimate Predictions - Comprehensive Analysis
+                            <i class="fas fa-star"></i> Combined Historical-Pattern Picks
                         </h2>
                         <p>Combining ALL analysis methods: frequency, temporal patterns, recent trends, and winning patterns</p>
                     </div>
@@ -52,7 +95,7 @@
                                     <div class="prediction-stats">
                                         <div class="stat">
                                             <span class="stat-label">Ultimate Score</span>
-                                            <span class="stat-value ultimate-score">{{ prediction.ultimate_confidence_score }}%</span>
+                                            <span class="stat-value ultimate-score">{{ prediction.ultimate_confidence_score }}/100</span>
                                         </div>
                                         <div class="stat">
                                             <span class="stat-label">Pattern</span>
@@ -66,10 +109,10 @@
                                     <div class="scoring-breakdown">
                                         <div class="breakdown-title">Score Breakdown:</div>
                                         <div class="breakdown-items">
-                                            <span class="breakdown-item">Freq: {{ prediction.scoring_components.frequency_score }}%</span>
-                                            <span class="breakdown-item">Pattern: {{ prediction.scoring_components.pattern_match }}%</span>
-                                            <span class="breakdown-item">Temporal: {{ prediction.scoring_components.temporal_consistency }}%</span>
-                                            <span class="breakdown-item">Balance: {{ prediction.scoring_components.balance_score }}%</span>
+                                            <span class="breakdown-item">History: {{ prediction.scoring_components.frequency_score }} points</span>
+                                            <span class="breakdown-item">Pattern: {{ prediction.scoring_components.pattern_match }} points</span>
+                                            <span class="breakdown-item">Temporal: {{ prediction.scoring_components.temporal_consistency }} points</span>
+                                            <span class="breakdown-item">Balance: {{ prediction.scoring_components.balance_score }} points</span>
                                         </div>
                                     </div>
                                 </div>
@@ -85,9 +128,9 @@
                  onclick="toggleAccordion(this)">
                 <div>
                     <h2>
-                        <i class="fas fa-lightbulb"></i> Top 5 Predicted Combinations
+                        <i class="fas fa-lightbulb"></i> Frequency-Based Historical Picks
                     </h2>
-                    <p>Based on comprehensive probability analysis</p>
+                    <p>Sampled and ranked using historical frequencies; not probability estimates</p>
                 </div>
                 <i class="fas fa-chevron-down accordion-icon"></i>
             </div>
@@ -102,8 +145,8 @@
                                 </div>
                                 <div class="prediction-stats">
                                     <div class="stat">
-                                        <span class="stat-label">Confidence</span>
-                                        <span class="stat-value">{{ prediction.confidence_score }}%</span>
+                                        <span class="stat-label">History Score</span>
+                                        <span class="stat-value">{{ prediction.confidence_score }}/100</span>
                                     </div>
                                     <div class="stat">
                                         <span class="stat-label">Pattern</span>
@@ -126,7 +169,7 @@
                  onclick="toggleAccordion(this)">
                 <div>
                     <h2>
-                        <i class="fas fa-trophy"></i> Winner-Optimized Predictions
+                        <i class="fas fa-trophy"></i> Winner-Subset Historical Picks
                     </h2>
                     <p>Based on analysis of draws that had jackpot winners</p>
                 </div>
@@ -143,8 +186,8 @@
                                 </div>
                                 <div class="prediction-stats">
                                     <div class="stat">
-                                        <span class="stat-label">Win Probability</span>
-                                        <span class="stat-value winner-score">{{ prediction.win_probability_score }}%</span>
+                                        <span class="stat-label">History Score</span>
+                                        <span class="stat-value winner-score">{{ prediction.win_probability_score }}/100</span>
                                     </div>
                                     <div class="stat">
                                         <span class="stat-label">Pattern</span>
@@ -295,13 +338,16 @@
                      onclick="toggleAccordion(this)">
                     <div>
                         <h2>
-                            <i class="fas fa-chart-network"></i> Pattern-Based Predictions
+                            <i class="fas fa-chart-network"></i> Pattern-Based Historical Picks
                         </h2>
                         <p>Based on consecutive draw pattern analysis</p>
                     </div>
                     <i class="fas fa-chevron-down accordion-icon"></i>
                 </div>
                 <div class="card-body accordion-content">
+                    {% if pattern_predictions[0].generation_note is defined %}
+                        <p>{{ pattern_predictions[0].generation_note }}</p>
+                    {% endif %}
                     <div class="predictions-grid mt-20">
                         {% for prediction in pattern_predictions %}
                             <div class="prediction-item pattern-pred rank-{{ loop.index }}">
@@ -313,7 +359,7 @@
                                     <div class="prediction-stats">
                                         <div class="stat">
                                             <span class="stat-label">Pattern Score</span>
-                                            <span class="stat-value pattern-score">{{ prediction.pattern_score }}%</span>
+                                            <span class="stat-value pattern-score">{{ prediction.pattern_score }}/100</span>
                                         </div>
                                         <div class="stat">
                                             <span class="stat-label">Carryover</span>
@@ -461,14 +507,19 @@
                             </p>
                             {% if temporal_patterns.year_over_year_trends.consistent_performers %}
                                 <div class="performers-section">
-                                    <h4>Most Consistent Performers Across Years</h4>
+                                    <h4>Most Consistent Recorded Appearance Rates</h4>
                                     <div class="performers-grid">
                                         {% for perf in temporal_patterns.year_over_year_trends.consistent_performers[:12] %}
                                             <div class="performer-card">
                                                 <span class="perf-number">{{ perf.number }}</span>
                                                 <div class="perf-stats">
-                                                    <span class="perf-label">Avg Frequency</span>
-                                                    <span class="perf-value">{{ perf.average_frequency }}</span>
+                                                    {% if perf.average_appearance_rate is defined %}
+                                                        <span class="perf-label">Avg Appearance Rate</span>
+                                                        <span class="perf-value">{{ (perf.average_appearance_rate * 100)|round(2) }}%</span>
+                                                    {% else %}
+                                                        <span class="perf-label">Legacy Avg Count</span>
+                                                        <span class="perf-value">{{ perf.average_frequency }}</span>
+                                                    {% endif %}
                                                 </div>
                                                 <div class="perf-stats">
                                                     <span class="perf-label">Consistency</span>
@@ -481,7 +532,7 @@
                             {% endif %}
                             {% if temporal_patterns.year_over_year_trends.distinct_high_performers %}
                                 <div class="distinct-performers-section">
-                                    <h4>Distinct High Performers (Exceptional years)</h4>
+                                    <h4>Higher Recorded Rates in Particular Years</h4>
                                     <div class="distinct-grid">
                                         {% for perf in temporal_patterns.year_over_year_trends.distinct_high_performers[:8] %}
                                             <div class="distinct-card">
@@ -490,7 +541,11 @@
                                                     <span class="distinct-year">{{ perf.year }}</span>
                                                 </div>
                                                 <div class="distinct-info">
-                                                    <span class="improve-badge">+{{ perf.improvement_over_average|round(0) }}% above average</span>
+                                                    {% if perf.rate_difference_percentage_points is defined %}
+                                                        <span class="improve-badge">+{{ perf.rate_difference_percentage_points }} percentage points vs other years</span>
+                                                    {% else %}
+                                                        <span class="improve-badge">Legacy raw-count comparison</span>
+                                                    {% endif %}
                                                     <span class="freq-text">{{ perf.frequency }} times</span>
                                                 </div>
                                             </div>
@@ -512,7 +567,9 @@
                                         <h4>{{ month }}</h4>
                                         <span class="month-draws">{{ data.total_draws }} draws</span>
                                         <div class="month-hot-numbers">
-                                            {% for num in data.hot_numbers %}<span class="hot-num-badge">{{ num }}</span>{% endfor %}
+                                            {% for num in data.hot_numbers %}
+                                                <span class="hot-num-badge" {% if data.appearance_rates is defined %}title="{{ (data.appearance_rates.get(num, data.appearance_rates.get(num|string)) * 100)|round(2) }}% of {{ data.total_draws }} recorded draws"{% endif %}>{{ num }}</span>
+                                            {% endfor %}
                                         </div>
                                     </div>
                                 {% endfor %}
@@ -611,7 +668,7 @@
                     {% if overall_stats.winner_analysis.next_win_probability and overall_stats.winner_analysis.next_win_probability.average_days_between_wins %}
                         <div class="win-probability-section">
                             <h3>
-                                <i class="fas fa-clock"></i> Next Win Probability
+                                <i class="fas fa-clock"></i> Historical Gaps Between Draws with Winners
                             </h3>
                             <div class="probability-grid">
                                 <div class="prob-card">
@@ -619,7 +676,7 @@
                                     <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.last_win_date }}</span>
                                 </div>
                                 <div class="prob-card">
-                                    <span class="prob-label">Days Since</span>
+                                    <span class="prob-label">{{ "Days Since Last Win at Dataset End" if overall_stats.winner_analysis.next_win_probability.as_of_date is defined else "Legacy Days Since Last Win" }}</span>
                                     <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.days_since_last_win }} days</span>
                                 </div>
                                 <div class="prob-card">
@@ -627,8 +684,8 @@
                                     <span class="prob-value">{{ overall_stats.winner_analysis.next_win_probability.average_days_between_wins }} days</span>
                                 </div>
                                 <div class="prob-card highlight">
-                                    <span class="prob-label">Probability Status</span>
-                                    <span class="prob-value status">{{ overall_stats.winner_analysis.next_win_probability.probability_status }}</span>
+                                    <span class="prob-label">Interpretation</span>
+                                    <span class="prob-value status">Historical intervals, not a forecast</span>
                                 </div>
                             </div>
                         </div>
@@ -741,19 +798,19 @@
                         <div class="heatmap-grid">
                             {% if chart_data.heatmap.by_month %}
                                 <div class="heatmap-container">
-                                    <h4>{{ chart_data.heatmap.by_month.title }}</h4>
+                                    <h4>{{ chart_data.heatmap.by_month.rate_title or chart_data.heatmap.by_month.title }}</h4>
                                     <canvas id="heatmapMonth" data-chart-id="heatmapMonth"></canvas>
                                 </div>
                             {% endif %}
                             {% if chart_data.heatmap.by_year %}
                                 <div class="heatmap-container">
-                                    <h4>{{ chart_data.heatmap.by_year.title }}</h4>
+                                    <h4>{{ chart_data.heatmap.by_year.rate_title or chart_data.heatmap.by_year.title }}</h4>
                                     <canvas id="heatmapYear" data-chart-id="heatmapYear"></canvas>
                                 </div>
                             {% endif %}
                             {% if chart_data.heatmap.by_day %}
                                 <div class="heatmap-container">
-                                    <h4>{{ chart_data.heatmap.by_day.title }}</h4>
+                                    <h4>{{ chart_data.heatmap.by_day.rate_title or chart_data.heatmap.by_day.title }}</h4>
                                     <canvas id="heatmapDay" data-chart-id="heatmapDay"></canvas>
                                 </div>
                             {% endif %}
@@ -845,7 +902,7 @@
                                                     <div class="pred-numbers">
                                                         {% for num in pred.numbers %}<span class="number-ball small">{{ num }}</span>{% endfor %}
                                                     </div>
-                                                    <span class="pred-confidence">{{ pred.confidence_score }}%</span>
+                                                    <span class="pred-confidence">{{ pred.confidence_score }}/100 history score</span>
                                                 </div>
                                             {% endfor %}
                                         </div>
@@ -942,7 +999,7 @@ window.toggleAccordion = function(headerElement) {
 
 window.createHeatmap = function(canvasId, heatmapData) {
     const ctx = document.getElementById(canvasId).getContext('2d');
-    const data = heatmapData.data;
+    const data = heatmapData.appearance_rates_percent || heatmapData.data;
     const xLabels = heatmapData.x_labels;
     const yLabels = heatmapData.y_labels;
 
@@ -957,6 +1014,7 @@ window.createHeatmap = function(canvasId, heatmapData) {
     const dataPoints = [];
     data.forEach((row, y) => {
         row.forEach((value, x) => {
+            if (value === null) return;
             dataPoints.push({
                 x: x,
                 y: y,
@@ -1001,7 +1059,10 @@ window.createHeatmap = function(canvasId, heatmapData) {
                             return `Number ${yLabels[point.y]}, ${xLabels[point.x]}`;
                         },
                         label: function(context) {
-                            return `Frequency: ${context.raw.v}`;
+                            if (heatmapData.appearance_rates_percent) {
+                                return `Appearance rate: ${context.raw.v.toFixed(2)}% of ${heatmapData.sample_sizes[context.raw.x]} recorded draws`;
+                            }
+                            return `Legacy frequency: ${context.raw.v}`;
                         }
                     }
                 }
@@ -1421,7 +1482,7 @@ function displayComparisonResults(results) {
                             </div>
                             <div class="match-info">
                                 <span class="matches-badge">${pred.matches}/6 matches</span>
-                                <span class="confidence-text">${pred.confidence_score}% confidence</span>
+                                <span class="confidence-text">${pred.confidence_score}/100 history score</span>
                             </div>
                         </div>
                     `).join('')}
@@ -1441,7 +1502,7 @@ function displayComparisonResults(results) {
                             </div>
                             <div class="match-info">
                                 <span class="matches-badge">${pred.matches}/6 matches</span>
-                                <span class="confidence-text">${pred.win_probability_score}% win score</span>
+                                <span class="confidence-text">${pred.win_probability_score}/100 winner-subset history score</span>
                             </div>
                         </div>
                     `).join('')}
@@ -1462,7 +1523,7 @@ function displayComparisonResults(results) {
                             </div>
                             <div class="match-info">
                                 <span class="matches-badge">${pred.matches}/6 matches</span>
-                                <span class="confidence-text">${pred.pattern_score}% pattern score</span>
+                                <span class="confidence-text">${pred.pattern_score}/100 pattern score</span>
                             </div>
                         </div>
                     `).join('')}

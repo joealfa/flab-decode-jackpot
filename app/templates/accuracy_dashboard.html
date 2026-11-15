@@ -7,7 +7,14 @@
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h1 class="mb-2">🎯 Accuracy Dashboard</h1>
-                        <p class="text-muted">Track prediction performance and algorithm accuracy</p>
+                        <p class="text-muted">Compare saved historical-pattern picks with actual draws</p>
+                    </div>
+                    <div class="randomness-disclaimer">
+                        <strong>Descriptive comparisons only:</strong> Saved snapshots may be retrospective
+                        or unverified. The highest observed average does not establish a better algorithm
+                        or improved winning odds. Use the command-line walk-forward evaluator for
+                        controlled, equal-ticket comparisons against random picks.
+                        <p id="evaluationTiming"></p>
                     </div>
                     <div>
                         <a href="/" class="btn btn-outline-primary">
@@ -68,7 +75,7 @@
                     <div class="card border-success">
                         <div class="card-header bg-success text-white">
                             <h5 class="mb-0">
-                                <i class="bi bi-trophy"></i> Best Performing Algorithm
+                                <i class="bi bi-trophy"></i> Highest Observed Average
                             </h5>
                         </div>
                         <div class="card-body" id="bestAlgorithmCard">
@@ -118,6 +125,7 @@
                                             <th>Submissions</th>
                                             <th>Total Predictions</th>
                                             <th>Avg Matches</th>
+                                            <th>Fair-draw Expected Matches</th>
                                             <th>Best Prediction</th>
                                         </tr>
                                     </thead>
@@ -212,6 +220,12 @@
                             <!-- Will be populated by JavaScript -->
                         </div>
                     </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header"><h5 class="mb-0">Combined Picks Best Match</h5></div>
+                            <div class="card-body" id="bestUltimatePredictionCard"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         {% endif %}
@@ -244,6 +258,7 @@
             try {
                 result = await response.json();
             } catch(parseErr) {
+                console.error('Invalid accuracy analysis response:', parseErr);
                 showInlineEmptyState('Invalid response received from server.');
                 return;
             }
@@ -261,13 +276,20 @@
             }
         } catch (error) {
             console.error('Error loading accuracy analysis:', error);
-            showInlineEmptyState('Network error: ' + error.message);
+            showInlineEmptyState('Unable to load accuracy analysis. Please try again.');
         } finally {
             hideLoading();
         }
     }
 
     function renderDashboard(analysis) {
+        document.querySelectorAll('.accuracy-empty-state').forEach(message => message.remove());
+        for (const id of ['matchDistributionChart', 'algorithmPerformanceChart']) {
+            document.getElementById(id).classList.remove('d-none');
+        }
+        const timing = analysis.evaluation_context.snapshot_timing_counts;
+        document.getElementById('evaluationTiming').textContent =
+            `${timing.earlier_day_snapshot} earlier-day snapshots; ${timing.retrospective_or_unverified} retrospective or unverified snapshots. Dates alone do not prove picks were committed before outcomes.`;
         renderSummaryCards(analysis);
         renderBestAlgorithm(analysis.best_algorithm);
         renderMatchDistributionChart(analysis.match_distribution);
@@ -329,7 +351,7 @@
             <div class="row">
                 <div class="col-md-6">
                     <h3>${algo.name}</h3>
-                    <p class="text-muted">Leading prediction algorithm</p>
+                    <p class="text-muted">Highest observed mean; statistical superiority is not established</p>
                 </div>
                 <div class="col-md-6">
                     <div class="d-flex justify-content-around">
@@ -444,13 +466,15 @@
         }
 
         const data = {
-            labels: ['Top Predictions', 'Winning Predictions', 'Pattern Predictions'],
+            labels: ['Frequency Picks', 'Winner-Subset Picks', 'Pattern Picks', 'Combined Picks'],
             datasets: [{
                 label: 'Avg Matches',
                 data: [
                     predTypes.top_predictions.avg_matches_per_prediction,
                     predTypes.winning_predictions.avg_matches_per_prediction,
-                    predTypes.pattern_predictions.avg_matches_per_prediction
+                    predTypes.pattern_predictions.avg_matches_per_prediction,
+                    predTypes.ultimate_predictions.total_predictions
+                        ? predTypes.ultimate_predictions.avg_matches_per_prediction : null
                 ],
                 backgroundColor: 'rgba(13, 110, 253, 0.7)',
                 borderColor: 'rgba(13, 110, 253, 1)',
@@ -496,6 +520,7 @@
                 <td>${escapeHtml(stats.submissions)}</td>
                 <td>${escapeHtml(stats.total_predictions)}</td>
                 <td>${escapeHtml(stats.avg_matches)}</td>
+                <td>${stats.expected_matches_per_ticket === null ? 'Unavailable' : stats.expected_matches_per_ticket.toFixed(3)}</td>
                 <td>${bestMatchDisplay}</td>
             `;
         }
@@ -514,7 +539,7 @@
             const analysisSnapshot = submission.analysis_snapshot || null;
             if (analysisSnapshot && analysisSnapshot.generated_at) {
                 const coverageInfo = analysisSnapshot.coverage_end ? ` (data through ${analysisSnapshot.coverage_end})` : '';
-                row.setAttribute('title', `Predictions generated ${analysisSnapshot.generated_at}${coverageInfo}`);
+                row.setAttribute('title', `Picks generated ${analysisSnapshot.generated_at}${coverageInfo}; timing: ${submission.snapshot_timing}`);
             }
             const bestMatchDisplay = submission.best_match > 0
                 ? `<span class="badge bg-${submission.best_match >= 5 ? 'success' : submission.best_match >= 3 ? 'warning' : 'secondary'}">${submission.best_match}</span>`
@@ -641,6 +666,7 @@
         renderPerformanceCard('bestTopPredictionCard', bestPerfs.best_top_prediction);
         renderPerformanceCard('bestWinningPredictionCard', bestPerfs.best_winning_prediction);
         renderPerformanceCard('bestPatternPredictionCard', bestPerfs.best_pattern_prediction);
+        renderPerformanceCard('bestUltimatePredictionCard', bestPerfs.best_ultimate_prediction);
     }
 
     function renderPerformanceCard(cardId, perfData) {
@@ -650,7 +676,8 @@
             // Custom messaging for threshold-suppressed or missing data
             const cardTitle = cardId.includes('bestPerformance') ? 'Overall Best Prediction' :
                              cardId.includes('Top') ? 'Top Predictions' :
-                             cardId.includes('Winning') ? 'Winning Predictions' : 'Pattern Predictions';
+                             cardId.includes('Winning') ? 'Winning Predictions' :
+                             cardId.includes('Ultimate') ? 'Combined Picks' : 'Pattern Predictions';
             const thresholdMessage = perfData && perfData.matches === 0 
                 ? `<p class="text-muted">No qualifying prediction meets the minimum threshold of 3 matches.</p>`
                 : `<p class="text-muted">No data available for ${cardTitle}.</p>`;
@@ -706,24 +733,41 @@
     }
 
     function showInlineEmptyState(message) {
-        // Replace major dashboard sections with a friendly empty state
+        currentAnalysis = null;
+        if (matchDistributionChart) {
+            matchDistributionChart.destroy();
+            matchDistributionChart = null;
+        }
+        if (algorithmPerformanceChart) {
+            algorithmPerformanceChart.destroy();
+            algorithmPerformanceChart = null;
+        }
+        document.getElementById('evaluationTiming').textContent = '';
+
         const containerIds = [
             'summaryCards', 'bestAlgorithmCard', 'matchDistributionChart', 'algorithmPerformanceChart',
             'gameBreakdownTable', 'recentSubmissionsTable', 'bestPerformanceCard', 'bestTopPredictionCard',
-            'bestWinningPredictionCard', 'bestPatternPredictionCard'
+            'bestWinningPredictionCard', 'bestPatternPredictionCard', 'bestUltimatePredictionCard'
         ];
 
         containerIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                if (id === 'matchDistributionChart' || id === 'algorithmPerformanceChart') {
-                    // For canvases, wrap parent card body
-                    const parent = el.parentElement;
-                    if (parent) parent.innerHTML = `<p class="text-muted mb-0">${message}</p>`;
-                } else if (el.tagName === 'TBODY') {
-                    el.innerHTML = `<tr><td colspan="6" class="text-center text-muted">${message}</td></tr>`;
+                const note = document.createElement(el.tagName === 'TABLE' ? 'td' : 'p');
+                note.className = 'text-muted accuracy-empty-state';
+                note.textContent = message;
+                if (el.tagName === 'CANVAS') {
+                    el.classList.add('d-none');
+                    el.parentElement.querySelector('.accuracy-empty-state')?.remove();
+                    el.parentElement.appendChild(note);
+                } else if (el.tagName === 'TABLE') {
+                    note.colSpan = id === 'recentSubmissionsTable' ? 7 : 6;
+                    note.classList.add('text-center');
+                    const row = document.createElement('tr');
+                    row.appendChild(note);
+                    el.querySelector('tbody').replaceChildren(row);
                 } else {
-                    el.innerHTML = `<p class="text-muted">${message}</p>`;
+                    el.replaceChildren(note);
                 }
             }
         });

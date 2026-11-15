@@ -34,6 +34,10 @@
                     <a href="{{ url_for("index") }}" class="nav-link">
                         <i class="fas fa-home"></i> Home
                     </a>
+                    <button type="button" class="nav-link lucky-pick-trigger"
+                            id="luckyPickOpen" aria-haspopup="dialog" aria-controls="luckyPickModal">
+                        <i class="fas fa-dice" aria-hidden="true"></i> Lucky Pick
+                    </button>
                     <a href="{{ url_for("accuracy_dashboard") }}" class="nav-link">
                         <i class="fas fa-bullseye"></i> Accuracy
                     </a>
@@ -85,6 +89,45 @@
                 <button class="alert-modal-btn" onclick="closeAlertModal()">OK</button>
             </div>
         </div>
+        <dialog id="luckyPickModal" class="modal-content lucky-pick-modal"
+                aria-labelledby="luckyPickTitle" aria-describedby="luckyPickDisclaimer">
+            <div class="modal-header">
+                <h2 id="luckyPickTitle"><i class="fas fa-dice" aria-hidden="true"></i> Lucky Pick</h2>
+                <button type="button" class="modal-close" id="luckyPickClose" aria-label="Close Lucky Pick">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="luckyPickDisclaimer" class="lucky-pick-note">
+                    Random combinations for entertainment only. These picks do not predict
+                    results or improve your odds of winning. Nothing is saved.
+                </p>
+                <form id="luckyPickForm">
+                    <div class="form-group">
+                        <label for="luckyPickGame">Game</label>
+                        <select id="luckyPickGame" class="form-control" required autofocus>
+                            <option value="">Select a game...</option>
+                            <option value="42">Lotto 6/42</option>
+                            <option value="45">Mega Lotto 6/45</option>
+                            <option value="49">Super Lotto 6/49</option>
+                            <option value="55">Grand Lotto 6/55</option>
+                            <option value="58">Ultra Lotto 6/58</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="luckyPickCount">How many combinations?</label>
+                        <input type="number" id="luckyPickCount" class="form-control"
+                               min="1" max="20" step="1" value="1" required>
+                        <small class="form-text text-muted">Generate 1 to 20 combinations at a time.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-dice" aria-hidden="true"></i> Generate Picks
+                    </button>
+                </form>
+                <p id="luckyPickError" class="lucky-pick-error" role="alert"></p>
+                <p id="luckyPickSummary" class="lucky-pick-note" role="status"></p>
+                <ol id="luckyPickResults" class="lucky-pick-results" aria-label="Generated combinations"></ol>
+            </div>
+        </dialog>
+        <script src="{{ url_for('static', filename='js/lucky-pick.js') }}"></script>
         <!-- Chart.js - Using stable version 3.9.1 for better compatibility -->
         <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0/dist/chartjs-plugin-annotation.min.js"></script>

@@ -171,8 +171,13 @@ def test_api_analysis_uses_shared_report(client, result_file, monkeypatch):
     monkeypatch.setattr(
         "app.routes.analysis.build_analysis_report",
         lambda *args, **kwargs: (
-            {"overall_stats": {"count": np.int64(1)}, "day_analysis": {},
-             "top_predictions": [], "winning_predictions": [], "chart_data": {}}
+            {
+                "overall_stats": {"count": np.int64(1)},
+                "day_analysis": {},
+                "top_predictions": [],
+                "winning_predictions": [],
+                "chart_data": {},
+            }
             if args or kwargs
             else pytest.fail("Analysis arguments were not forwarded")
         ),
@@ -366,9 +371,7 @@ def test_ollama_unavailable_message_reaches_client(
     client, result_file, settings, monkeypatch
 ):
     """Users see why AI analysis cannot start instead of a generic 500."""
-    monkeypatch.setattr(
-        "app.routes.analysis.AIAnalyzer", _fake_analyzer(running=False)
-    )
+    monkeypatch.setattr("app.routes.analysis.AIAnalyzer", _fake_analyzer(running=False))
     report = _write_report(settings, result_file)
     response = client.post("/api/ai-analyze", json={"filename": report})
     assert response.status_code == 503
@@ -390,7 +393,10 @@ def test_finished_progress_removed_without_scheduler(
 
     progress_dir = Path(settings.PROGRESS_PATH)
     now = time.time()
-    for name, finished in (("old", now - settings.PROGRESS_CLEANUP_AGE - 5), ("new", now)):
+    for name, finished in (
+        ("old", now - settings.PROGRESS_CLEANUP_AGE - 5),
+        ("new", now),
+    ):
         write_json(
             progress_dir / f"{name}.json",
             {"status": "completed", "updated_at": finished, "completed_at": finished},

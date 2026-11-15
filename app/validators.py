@@ -3,6 +3,7 @@ Input Validation Layer for Fortune Lab
 Centralized validation functions for all API endpoints.
 """
 
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -30,6 +31,24 @@ GAME_MAX_NUMBERS = {
 }
 
 NUMBERS_PER_DRAW = 6
+
+
+def normalize_winner_count(value: Any) -> int | None:
+    """Parse a nonnegative winner count, preserving explicitly unknown values."""
+    if value is None:
+        return None
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+        return value
+    if isinstance(value, str):
+        text = value.strip().lower()
+        if text in {"", "n/a", "unknown"}:
+            return None
+        if text in {"no winner", "no winners"}:
+            return 0
+        match = re.fullmatch(r"(\d+)(?:\s+winners?)?", text)
+        if match:
+            return int(match.group(1))
+    raise BadRequestException("Winner count must be a nonnegative integer or N/A")
 
 
 def require_json_body(data: Any) -> Dict:

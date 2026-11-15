@@ -55,9 +55,7 @@ def create_pending_ai_analysis(
     if not source_file.endswith(".json"):
         source_file = analysis_report.removeprefix("analysis_")
     now = datetime.now()
-    filename = (
-        f"{AI_PREFIX}{_source_base(source_file)}_{now.strftime('%Y%m%d_%H%M%S_%f')}.json"
-    )
+    filename = f"{AI_PREFIX}{_source_base(source_file)}_{now.strftime('%Y%m%d_%H%M%S_%f')}.json"
     record = {
         "filename": filename,
         "status": STATUS_QUEUED,
@@ -187,7 +185,9 @@ def list_ai_analyses(ai_dir: str, source_file: str) -> list[dict[str, Any]]:
                 "preview": text[:PREVIEW_LENGTH],
             }
         )
-    records.sort(key=lambda item: (item["created_at"] or "", item["filename"]), reverse=True)
+    records.sort(
+        key=lambda item: (item["created_at"] or "", item["filename"]), reverse=True
+    )
     return records
 
 

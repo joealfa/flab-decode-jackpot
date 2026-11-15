@@ -3,12 +3,25 @@ Lottery Data Analysis Module
 Summarizes historical draws and ranks heuristic number combinations.
 """
 
+import logging
 from collections import Counter, defaultdict
 from datetime import datetime
+from math import comb
 from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
+
+from app.exceptions import DataValidationException, InsufficientDataException
+from app.validators import (
+    GAME_MAX_NUMBERS,
+    NUMBERS_PER_DRAW,
+    normalize_winner_count,
+    validate_game_type,
+    validate_lottery_numbers,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class LotteryAnalyzer:
@@ -24,24 +37,144 @@ class LotteryAnalyzer:
         "Sunday",
     ]
 
-    def __init__(self, data: Dict):
+    ANALYSIS_VERSION = "2"
+
+    def __init__(self, data: Dict, *, rng: np.random.Generator | None = None):
         """
         Initialize analyzer with lottery data.
 
         Args:
             data: Dictionary containing lottery results
+            rng: Optional local generator for reproducible sampling.
         """
-        self.data = data
-        self.game_type = data["game_type"]
-        self.results = sorted(
-            data["results"],
-            key=lambda x: datetime.strptime(x["date"], "%m/%d/%Y"),
-            reverse=True,
-        )
+        if not isinstance(data, dict) or not isinstance(data.get("results"), list):
+            raise DataValidationException("Dataset must contain a results list")
+        self.game_type = validate_game_type(data.get("game_type", ""))
+        self.max_number = GAME_MAX_NUMBERS[self.game_type]
+        self.numbers_to_pick = NUMBERS_PER_DRAW
+        self.rng = rng if rng is not None else np.random.default_rng()
+        self.input_quality = {
+            "source_records": len(data["results"]),
+            "duplicate_records_removed": 0,
+            "weekday_labels_corrected": 0,
+            "game_labels_normalized": 0,
+            "unknown_winner_counts": 0,
+        }
+        self.results = self._prepare_results(data["results"])
+        if not self.results:
+            raise InsufficientDataException("At least one valid draw is required")
+        self.data = {
+            **data,
+            "results": self.results,
+            "total_draws": len(self.results),
+            "start_date": datetime.strptime(
+                self.results[-1]["date"], "%m/%d/%Y"
+            ).strftime("%Y-%m-%d"),
+            "end_date": datetime.strptime(self.results[0]["date"], "%m/%d/%Y").strftime(
+                "%Y-%m-%d"
+            ),
+        }
+        self.number_frequency = self._frequency(self.results)
+        self.winning_draws = [
+            r for r in self.results if r["winners"] not in {"0", "N/A"}
+        ]
+        self._temporal_patterns: Dict | None = None
         self.df = self._create_dataframe()
 
-        self.max_number = int(self.game_type.split("/")[-1])
-        self.numbers_to_pick = int(self.game_type.split("/")[0].split()[-1])
+    def _prepare_results(self, records: List[Dict]) -> List[Dict]:
+        draws = {}
+        for index, result in enumerate(records):
+            if not isinstance(result, dict) or not isinstance(result.get("date"), str):
+                raise DataValidationException(
+                    f"Invalid draw record at position {index + 1}"
+                )
+            raw_date = result["date"]
+            try:
+                date = datetime.strptime(raw_date, "%m/%d/%Y")
+            except ValueError:
+                try:
+                    date = datetime.strptime(raw_date, "%Y-%m-%d")
+                except ValueError as exc:
+                    raise DataValidationException(
+                        f"Invalid draw date: {raw_date}"
+                    ) from exc
+            source_game = result.get("game", self.game_type)
+            if (
+                not isinstance(source_game, str)
+                or "".join(source_game.split()).casefold()
+                != "".join(self.game_type.split()).casefold()
+            ):
+                raise DataValidationException(
+                    f"Draw on {raw_date} belongs to another game"
+                )
+            if source_game != self.game_type:
+                self.input_quality["game_labels_normalized"] += 1
+            numbers = validate_lottery_numbers(result.get("numbers"), self.game_type)
+            winner_count = normalize_winner_count(result.get("winners"))
+            weekday = date.strftime("%A")
+            if result.get("day_of_week") != weekday:
+                self.input_quality["weekday_labels_corrected"] += 1
+            draw = {
+                **result,
+                "date": date.strftime("%m/%d/%Y"),
+                "day_of_week": weekday,
+                "numbers": numbers,
+                "game": self.game_type,
+                "winners": str(winner_count) if winner_count is not None else "N/A",
+            }
+            existing = draws.get(date)
+            if existing is not None:
+                if any(
+                    existing.get(key) != draw.get(key)
+                    for key in ("numbers", "winners", "jackpot")
+                ):
+                    raise DataValidationException(
+                        f"Conflicting duplicate draw on {draw['date']}"
+                    )
+                self.input_quality["duplicate_records_removed"] += 1
+                continue
+            draws[date] = draw
+            self.input_quality["unknown_winner_counts"] += winner_count is None
+        if any(
+            self.input_quality[key]
+            for key in (
+                "duplicate_records_removed",
+                "weekday_labels_corrected",
+                "game_labels_normalized",
+            )
+        ):
+            logger.warning(
+                "Normalized %s analysis dataset: %s", self.game_type, self.input_quality
+            )
+        return [draws[date] for date in sorted(draws, reverse=True)]
+
+    def _frequency(self, draws: List[Dict]) -> Counter:
+        frequency = Counter({number: 0 for number in range(1, self.max_number + 1)})
+        frequency.update(number for draw in draws for number in draw["numbers"])
+        return frequency
+
+    def _sample_combination(self, scores: Dict, noise: float) -> Tuple:
+        numbers = np.array(sorted(scores), dtype=int)
+        weights = np.array([scores[int(n)] for n in numbers], dtype=float)
+        weights += self.rng.random(len(numbers)) * noise
+        if not np.isfinite(weights).all() or (weights < 0).any() or weights.sum() <= 0:
+            raise DataValidationException(
+                "Combination sampling weights must be finite and nonnegative"
+            )
+        chosen = self.rng.choice(
+            numbers, size=self.numbers_to_pick, replace=False, p=weights / weights.sum()
+        )
+        return tuple(sorted(int(number) for number in chosen))
+
+    def _validate_prediction_count(self, top_n: int) -> None:
+        if isinstance(top_n, bool) or not isinstance(top_n, int) or top_n < 1:
+            raise DataValidationException(
+                "Combination count must be a positive integer"
+            )
+        if top_n > comb(self.max_number, self.numbers_to_pick):
+            raise DataValidationException(
+                "Combination count exceeds the available unique combinations"
+            )
 
     def _create_dataframe(self) -> pd.DataFrame:
         """Create pandas DataFrame from results."""
@@ -49,7 +182,7 @@ class LotteryAnalyzer:
             return pd.DataFrame()
 
         df = pd.DataFrame(self.results)
-        df["date"] = pd.to_datetime(df["date"])
+        df["date"] = pd.to_datetime(df["date"], format="%m/%d/%Y")
         return df
 
     def get_overall_statistics(self) -> Dict:
@@ -63,8 +196,7 @@ class LotteryAnalyzer:
             return {}
 
         # Flatten all numbers
-        all_numbers = [num for result in self.results for num in result["numbers"]]
-        number_freq = Counter(all_numbers)
+        number_freq = self.number_frequency
 
         # Calculate statistics
         stats = {
@@ -88,6 +220,13 @@ class LotteryAnalyzer:
             "consecutive_analysis": self._analyze_consecutive_numbers(),
             "sum_analysis": self._analyze_sum_ranges(),
             "winner_analysis": self.get_winner_analysis(),
+            "frequency_context": self._frequency_context(self.results),
+            "fair_draw_baseline": {
+                "jackpot_combinations": comb(self.max_number, self.numbers_to_pick),
+                "expected_carryover": self.numbers_to_pick**2 / self.max_number,
+                "interpretation": "Every particular valid combination has the same jackpot probability under a fair independent draw.",
+            },
+            "data_quality": self.input_quality,
         }
 
         return stats
@@ -116,8 +255,7 @@ class LotteryAnalyzer:
             }
 
         # Flatten numbers for this day
-        day_numbers = [num for result in day_results for num in result["numbers"]]
-        number_freq = Counter(day_numbers)
+        number_freq = self._frequency(day_results)
 
         stats = {
             "day": day,
@@ -127,6 +265,7 @@ class LotteryAnalyzer:
             )[:10],
             "number_frequency": dict(number_freq),
             "hot_numbers": self._get_hot_numbers(number_freq, top_n=6),
+            "frequency_context": self._frequency_context(day_results),
             "predicted_combinations": self._generate_predictions_for_day(
                 day_results, top_n=5
             ),
@@ -145,11 +284,44 @@ class LotteryAnalyzer:
 
     def _get_hot_numbers(self, freq: Counter, top_n: int = 10) -> List[int]:
         """Get the most frequently drawn numbers."""
-        return [num for num, _ in freq.most_common(top_n)]
+        return [num for num, count in freq.most_common() if count > 0][:top_n]
 
     def _get_cold_numbers(self, freq: Counter, top_n: int = 10) -> List[int]:
         """Get the least frequently drawn numbers."""
-        return [num for num, _ in freq.most_common()[: -top_n - 1 : -1]]
+        return sorted(range(1, self.max_number + 1), key=lambda n: (freq.get(n, 0), n))[
+            :top_n
+        ]
+
+    def _frequency_context(self, draws: List[Dict]) -> Dict:
+        frequency = self._frequency(draws)
+        count = len(draws)
+        expected_rate = self.numbers_to_pick / self.max_number
+        z = 1.959963984540054
+        intervals = {}
+        for number, appearances in frequency.items():
+            rate = appearances / count
+            denominator = 1 + z * z / count
+            center = (rate + z * z / (2 * count)) / denominator
+            half_width = (
+                z
+                * np.sqrt(rate * (1 - rate) / count + z * z / (4 * count * count))
+                / denominator
+            )
+            intervals[number] = {
+                "count": appearances,
+                "appearance_rate": round(rate, 6),
+                "wilson_95_interval": [
+                    round(max(0.0, center - half_width), 6),
+                    round(min(1.0, center + half_width), 6),
+                ],
+            }
+        return {
+            "sample_size": count,
+            "expected_appearance_rate": expected_rate,
+            "expected_frequency": count * expected_rate,
+            "number_statistics": intervals,
+            "interval_note": "Pointwise 95% Wilson intervals, not simultaneous significance tests. Rankings are descriptive; examining many numbers can reveal chance fluctuations.",
+        }
 
     def _analyze_even_odd(self) -> Dict:
         """Analyze even/odd number distribution."""
@@ -166,6 +338,17 @@ class LotteryAnalyzer:
             "most_common_pattern": max(even_odd_patterns.items(), key=lambda x: x[1])[
                 0
             ],
+            "expected_pattern_probabilities": {
+                f"{even}E-{self.numbers_to_pick - even}O": (
+                    comb(self.max_number // 2, even)
+                    * comb(
+                        self.max_number - self.max_number // 2,
+                        self.numbers_to_pick - even,
+                    )
+                    / comb(self.max_number, self.numbers_to_pick)
+                )
+                for even in range(self.numbers_to_pick + 1)
+            },
         }
 
     def _analyze_high_low(self) -> Dict:
@@ -209,6 +392,12 @@ class LotteryAnalyzer:
                 sum(1 for c in consecutive_stats if c > 0) / len(consecutive_stats)
             )
             * 100,
+            "expected_percentage_with_consecutive": (
+                1
+                - comb(self.max_number - self.numbers_to_pick + 1, self.numbers_to_pick)
+                / comb(self.max_number, self.numbers_to_pick)
+            )
+            * 100,
         }
 
     def _analyze_sum_ranges(self) -> Dict:
@@ -221,6 +410,13 @@ class LotteryAnalyzer:
             "max_sum": max(sums),
             "median_sum": np.median(sums),
             "std_dev": np.std(sums),
+            "expected_average_sum": self.numbers_to_pick * (self.max_number + 1) / 2,
+            "expected_std_dev": np.sqrt(
+                self.numbers_to_pick
+                * (self.max_number + 1)
+                * (self.max_number - self.numbers_to_pick)
+                / 12
+            ),
         }
 
     def generate_top_predictions(self, top_n: int = 5) -> List[Dict]:
@@ -233,16 +429,14 @@ class LotteryAnalyzer:
         Returns:
             List of predicted combinations with scores
         """
-        all_numbers = [num for result in self.results for num in result["numbers"]]
-        number_freq = Counter(all_numbers)
+        self._validate_prediction_count(top_n)
+        number_freq = self.number_frequency
 
         # Calculate weighted scores for each number
         max_freq = max(number_freq.values())
-        number_scores = {num: freq / max_freq for num, freq in number_freq.items()}
-
-        for num in range(1, self.max_number + 1):
-            if num not in number_scores:
-                number_scores[num] = 0.1  # Small weight for missing numbers
+        number_scores = {
+            num: freq / max_freq if freq else 0.1 for num, freq in number_freq.items()
+        }
 
         # Generate combinations using weighted random selection
         predictions = []
@@ -254,41 +448,20 @@ class LotteryAnalyzer:
         while len(predictions) < top_n and attempts < max_attempts:
             attempts += 1
 
-            # Generate a combination favoring hot numbers with some randomness
-            numbers = list(number_scores.keys())
-            weights = list(number_scores.values())
+            combo = self._sample_combination(number_scores, noise=0.3)
 
-            # Add randomness to avoid always picking the same numbers
-            adjusted_weights = [w + np.random.random() * 0.3 for w in weights]
+            if combo not in seen_combinations:
+                seen_combinations.add(combo)
 
-            chosen = set()
-            for _ in range(self.numbers_to_pick):
-                if not numbers:
-                    break
+                score = self._calculate_combination_score(combo, number_scores)
 
-                probs = np.array(adjusted_weights) / sum(adjusted_weights)
-                idx = np.random.choice(len(numbers), p=probs)
-                chosen.add(numbers[idx])
-
-                numbers.pop(idx)
-                adjusted_weights.pop(idx)
-
-            if len(chosen) == self.numbers_to_pick:
-                combo = tuple(sorted(chosen))
-
-                if combo not in seen_combinations:
-                    seen_combinations.add(combo)
-
-                    # Calculate confidence score
-                    score = self._calculate_combination_score(combo, number_scores)
-
-                    predictions.append(
-                        {
-                            "numbers": list(combo),
-                            "confidence_score": round(score, 2),
-                            "analysis": self._analyze_combination(combo),
-                        }
-                    )
+                predictions.append(
+                    {
+                        "numbers": list(combo),
+                        "confidence_score": round(score, 2),
+                        "analysis": self._analyze_combination(combo),
+                    }
+                )
 
         predictions.sort(key=lambda x: x["confidence_score"], reverse=True)
 
@@ -298,19 +471,16 @@ class LotteryAnalyzer:
         self, day_results: List[Dict], top_n: int = 5
     ) -> List[Dict]:
         """Generate predictions specific to a day of the week."""
+        self._validate_prediction_count(top_n)
         if not day_results:
             return []
 
-        day_numbers = [num for result in day_results for num in result["numbers"]]
-        number_freq = Counter(day_numbers)
+        number_freq = self._frequency(day_results)
 
         max_freq = max(number_freq.values()) if number_freq else 1
-        number_scores = {num: freq / max_freq for num, freq in number_freq.items()}
-
-        # Fill in missing numbers
-        for num in range(1, self.max_number + 1):
-            if num not in number_scores:
-                number_scores[num] = 0.1
+        number_scores = {
+            num: freq / max_freq if freq else 0.1 for num, freq in number_freq.items()
+        }
 
         predictions = []
         seen_combinations = set()
@@ -320,38 +490,21 @@ class LotteryAnalyzer:
         while len(predictions) < top_n and attempts < max_attempts:
             attempts += 1
 
-            numbers = list(number_scores.keys())
-            weights = list(number_scores.values())
-            adjusted_weights = [w + np.random.random() * 0.3 for w in weights]
+            combo = self._sample_combination(number_scores, noise=0.3)
 
-            chosen = set()
-            for _ in range(self.numbers_to_pick):
-                if not numbers:
-                    break
+            if combo not in seen_combinations:
+                seen_combinations.add(combo)
+                score = self._calculate_combination_score(combo, number_scores)
 
-                probs = np.array(adjusted_weights) / sum(adjusted_weights)
-                idx = np.random.choice(len(numbers), p=probs)
-                chosen.add(numbers[idx])
-
-                numbers.pop(idx)
-                adjusted_weights.pop(idx)
-
-            if len(chosen) == self.numbers_to_pick:
-                combo = tuple(sorted(chosen))
-
-                if combo not in seen_combinations:
-                    seen_combinations.add(combo)
-                    score = self._calculate_combination_score(combo, number_scores)
-
-                    predictions.append(
-                        {"numbers": list(combo), "confidence_score": round(score, 2)}
-                    )
+                predictions.append(
+                    {"numbers": list(combo), "confidence_score": round(score, 2)}
+                )
 
         predictions.sort(key=lambda x: x["confidence_score"], reverse=True)
         return predictions[:top_n]
 
     def _calculate_combination_score(self, combo: Tuple, number_scores: Dict) -> float:
-        """Calculate a confidence score for a combination."""
+        """Calculate historical-pattern points, not a winning probability."""
         # Base score from number frequencies
         base_score = sum(number_scores.get(num, 0) for num in combo) / len(combo)
 
@@ -392,7 +545,7 @@ class LotteryAnalyzer:
 
     def _get_recent_pattern_preference(self, pattern_type: str) -> str:
         """Get the most common pattern from recent draws."""
-        recent_draws = self.results[-20:] if len(self.results) > 20 else self.results
+        recent_draws = self.results[:20]
 
         if pattern_type == "even_odd":
             patterns = []
@@ -421,12 +574,7 @@ class LotteryAnalyzer:
             Dictionary containing winner-specific statistics
         """
         # Filter results that have winners (not "0" or "N/A")
-        winning_draws = [
-            r
-            for r in self.results
-            if r.get("winners")
-            and r["winners"] not in ["0", "N/A", "0 winner", "No winner"]
-        ]
+        winning_draws = self.winning_draws
 
         if not winning_draws:
             return {
@@ -468,13 +616,24 @@ class LotteryAnalyzer:
                         .strip()
                     )
                     amount = float(clean_jackpot)
+                    if not np.isfinite(amount) or amount < 0:
+                        raise ValueError(
+                            "Jackpot amount must be finite and nonnegative"
+                        )
                     jackpot_amounts.append(amount)
                 except ValueError, AttributeError:
-                    pass
+                    logger.warning(
+                        "Ignoring unparseable jackpot amount on %s: %r",
+                        r["date"],
+                        jackpot,
+                    )
 
         analysis = {
             "total_winning_draws": len(winning_draws),
             "win_rate": round((len(winning_draws) / len(self.results)) * 100, 2),
+            "known_winner_draws": len(self.results)
+            - self.input_quality["unknown_winner_counts"],
+            "interpretation": "Share of recorded draws with known jackpot winners, not a ticket's winning probability. Unknown winner counts remain in the total-draw denominator.",
             # Most frequent winning numbers
             "most_frequent_winning_numbers": sorted(
                 winning_number_freq.items(), key=lambda x: x[1], reverse=True
@@ -575,14 +734,9 @@ class LotteryAnalyzer:
             median_gap = np.median(gaps)
             std_gap = np.std(gaps)
 
-            # Predict next win window
             last_win = winning_dates[-1]
-            days_since_last_win = (datetime.now() - last_win).days
-
-            # Calculate probability zones
-            expected_next_win = int(avg_gap)
-            early_window = max(1, int(avg_gap - std_gap))
-            late_window = int(avg_gap + std_gap)
+            observation_end = datetime.strptime(self.results[0]["date"], "%m/%d/%Y")
+            days_since_last_win = (observation_end - last_win).days
 
             return {
                 "average_days_between_wins": round(avg_gap, 1),
@@ -590,28 +744,13 @@ class LotteryAnalyzer:
                 "std_dev_days": round(std_gap, 1),
                 "last_win_date": last_win.strftime("%Y-%m-%d"),
                 "days_since_last_win": days_since_last_win,
-                "expected_next_win_in_days": expected_next_win,
-                "early_win_window": f"{early_window} days",
-                "late_win_window": f"{late_window} days",
-                "probability_status": self._get_win_probability_status(
-                    days_since_last_win, float(avg_gap), float(std_gap)
-                ),
+                "as_of_date": observation_end.strftime("%Y-%m-%d"),
+                "interpretation": "Historical calendar-day gaps between draws with jackpot winners. These gaps do not estimate when another win will occur.",
             }
 
-        return {"message": "Insufficient data for prediction"}
-
-    def _get_win_probability_status(
-        self, days_since: int, avg_gap: float, std_dev: float
-    ) -> str:
-        """Determine current probability status for a win."""
-        if days_since < avg_gap - std_dev:
-            return "Low - Too soon since last win"
-        elif days_since < avg_gap:
-            return "Medium - Approaching average window"
-        elif days_since < avg_gap + std_dev:
-            return "High - Within expected window"
-        else:
-            return "Very High - Overdue for a win"
+        return {
+            "message": "At least two draws with winners are required for interval summaries"
+        }
 
     def generate_winning_predictions(self, top_n: int = 5) -> List[Dict]:
         """
@@ -621,17 +760,20 @@ class LotteryAnalyzer:
             top_n: Number of predictions to generate
 
         Returns:
-            List of predicted combinations optimized for wins
+            List of heuristic combinations based on draws with winners
         """
-        winning_draws = [
-            r
-            for r in self.results
-            if r.get("winners")
-            and r["winners"] not in ["0", "N/A", "0 winner", "No winner"]
-        ]
+        self._validate_prediction_count(top_n)
+        winning_draws = self.winning_draws
 
         if not winning_draws:
-            return self.generate_top_predictions(top_n)
+            return [
+                {
+                    **prediction,
+                    "win_probability_score": prediction["confidence_score"],
+                    "prediction_type": "Overall history (no draws with winners)",
+                }
+                for prediction in self.generate_top_predictions(top_n)
+            ]
 
         # Analyze winning numbers with higher weight
         winning_numbers = [num for result in winning_draws for num in result["numbers"]]
@@ -645,8 +787,7 @@ class LotteryAnalyzer:
         }
 
         # Add other numbers with lower scores
-        all_numbers = [num for result in self.results for num in result["numbers"]]
-        all_freq = Counter(all_numbers)
+        all_freq = self.number_frequency
         for num in range(1, self.max_number + 1):
             if num not in number_scores:
                 number_scores[num] = (
@@ -661,39 +802,22 @@ class LotteryAnalyzer:
         while len(predictions) < top_n and attempts < max_attempts:
             attempts += 1
 
-            numbers = list(number_scores.keys())
-            weights = list(number_scores.values())
-            adjusted_weights = [w + np.random.random() * 0.2 for w in weights]
+            combo = self._sample_combination(number_scores, noise=0.2)
 
-            chosen = set()
-            for _ in range(self.numbers_to_pick):
-                if not numbers:
-                    break
+            if combo not in seen_combinations:
+                seen_combinations.add(combo)
+                score = self._calculate_winning_score(
+                    combo, number_scores, winning_draws
+                )
 
-                probs = np.array(adjusted_weights) / sum(adjusted_weights)
-                idx = np.random.choice(len(numbers), p=probs)
-                chosen.add(numbers[idx])
-
-                numbers.pop(idx)
-                adjusted_weights.pop(idx)
-
-            if len(chosen) == self.numbers_to_pick:
-                combo = tuple(sorted(chosen))
-
-                if combo not in seen_combinations:
-                    seen_combinations.add(combo)
-                    score = self._calculate_winning_score(
-                        combo, number_scores, winning_draws
-                    )
-
-                    predictions.append(
-                        {
-                            "numbers": list(combo),
-                            "win_probability_score": round(score, 2),
-                            "analysis": self._analyze_combination(combo),
-                            "prediction_type": "Winner-Optimized",
-                        }
-                    )
+                predictions.append(
+                    {
+                        "numbers": list(combo),
+                        "win_probability_score": round(score, 2),
+                        "analysis": self._analyze_combination(combo),
+                        "prediction_type": "Winner-subset history",
+                    }
+                )
 
         predictions.sort(key=lambda x: x["win_probability_score"], reverse=True)
         return predictions[:top_n]
@@ -723,7 +847,7 @@ class LotteryAnalyzer:
 
     def analyze_consecutive_draw_patterns(self) -> Dict:
         """
-        Analyze patterns between consecutive draws to predict next draw.
+        Describe carryovers and chronological transitions between recorded draws.
 
         Returns:
             Dictionary with pattern analysis and predictions
@@ -740,10 +864,10 @@ class LotteryAnalyzer:
         }
 
         # Analyze consecutive draws
-        for i in range(len(self.results) - 1):
-            current_draw = self.results[i]
-            next_draw = self.results[i + 1]
-
+        chronological_draws = list(reversed(self.results))
+        for current_draw, next_draw in zip(
+            chronological_draws, chronological_draws[1:]
+        ):
             current_nums = set(current_draw["numbers"])
             next_nums = set(next_draw["numbers"])
 
@@ -811,6 +935,7 @@ class LotteryAnalyzer:
         Returns:
             List of pattern-based predictions
         """
+        self._validate_prediction_count(top_n)
         pattern_analysis = self.analyze_consecutive_draw_patterns()
 
         if "message" in pattern_analysis:
@@ -819,26 +944,36 @@ class LotteryAnalyzer:
         latest_draw = self.results[0]
         latest_numbers = set(latest_draw["numbers"])
 
-        all_numbers = [num for result in self.results for num in result["numbers"]]
-        number_freq = Counter(all_numbers)
+        number_freq = self.number_frequency
 
         # Expected carryover count
         expected_carryover = int(round(pattern_analysis["average_carryover"]))
+        possible_combinations = comb(self.numbers_to_pick, expected_carryover) * comb(
+            self.max_number - self.numbers_to_pick,
+            self.numbers_to_pick - expected_carryover,
+        )
+        target_count = min(top_n, possible_combinations)
+        if target_count < top_n:
+            logger.warning(
+                "Only %s unique combinations satisfy the exact %s-number carryover constraint",
+                target_count,
+                expected_carryover,
+            )
 
         predictions = []
         seen_combinations = set()
         attempts = 0
         max_attempts = top_n * 200
 
-        while len(predictions) < top_n and attempts < max_attempts:
+        while len(predictions) < target_count and attempts < max_attempts:
             attempts += 1
 
             # Select numbers to carry over from latest draw
             if expected_carryover > 0 and expected_carryover <= len(latest_numbers):
                 # Randomly select numbers to carry over
                 carryover_nums = set(
-                    np.random.choice(
-                        list(latest_numbers),
+                    self.rng.choice(
+                        sorted(latest_numbers),
                         size=min(expected_carryover, len(latest_numbers)),
                         replace=False,
                     )
@@ -850,20 +985,20 @@ class LotteryAnalyzer:
             remaining_slots = self.numbers_to_pick - len(carryover_nums)
 
             available_numbers = [
-                n for n in range(1, self.max_number + 1) if n not in carryover_nums
+                n for n in range(1, self.max_number + 1) if n not in latest_numbers
             ]
             available_freq = {n: number_freq.get(n, 0) for n in available_numbers}
 
             # Weighted selection for new numbers
             if available_numbers and remaining_slots > 0:
                 weights = [
-                    available_freq[n] + np.random.random() * 50
+                    available_freq[n] + self.rng.random() * 50
                     for n in available_numbers
                 ]
                 probs = np.array(weights) / sum(weights)
 
                 new_nums = set(
-                    np.random.choice(
+                    self.rng.choice(
                         available_numbers,
                         size=min(remaining_slots, len(available_numbers)),
                         replace=False,
@@ -896,10 +1031,18 @@ class LotteryAnalyzer:
                             "new_count": int(len(combo - latest_numbers)),
                             "analysis": self._analyze_combination(combo_tuple),
                             "prediction_type": "Pattern-Based",
+                            "generation_note": (
+                                f"Exact carryover constraint: {expected_carryover}; "
+                                f"requested {top_n}, available {possible_combinations} unique combinations."
+                            ),
                         }
                     )
 
         predictions.sort(key=lambda x: x["pattern_score"], reverse=True)
+        if len(predictions) < target_count:
+            raise DataValidationException(
+                "Unable to generate the requested unique pattern combinations"
+            )
 
         return predictions[:top_n]
 
@@ -916,8 +1059,7 @@ class LotteryAnalyzer:
         carryover_score = max(0, 1 - (carryover_diff / self.numbers_to_pick))
 
         # Frequency score
-        all_numbers = [num for result in self.results for num in result["numbers"]]
-        number_freq = Counter(all_numbers)
+        number_freq = self.number_frequency
         max_freq = max(number_freq.values())
         freq_score = sum(number_freq.get(num, 0) for num in combo) / (
             len(combo) * max_freq
@@ -941,8 +1083,8 @@ class LotteryAnalyzer:
         Returns:
             Dictionary containing temporal pattern analysis
         """
-        if self.df.empty:
-            return {}
+        if self._temporal_patterns is not None:
+            return self._temporal_patterns
 
         temporal_analysis = {
             "by_year": {},
@@ -952,6 +1094,7 @@ class LotteryAnalyzer:
             "year_over_year_trends": {},
             "monthly_trends": {},
             "weekly_patterns": {},
+            "interpretation": "Rates are appearances per recorded draw. Calendar-month and ISO-week groups combine years. Observed coverage may be partial; rankings are descriptive, not significance tests or predictions.",
         }
 
         df = self.df.copy()
@@ -967,14 +1110,23 @@ class LotteryAnalyzer:
             year_numbers = [
                 num for _, row in year_data.iterrows() for num in row["numbers"]
             ]
-            year_freq = Counter(year_numbers)
+            year_freq = Counter({n: 0 for n in range(1, self.max_number + 1)})
+            year_freq.update(year_numbers)
 
             temporal_analysis["by_year"][int(year)] = {
                 "total_draws": len(year_data),
                 "most_frequent": sorted(
                     year_freq.items(), key=lambda x: x[1], reverse=True
                 )[:10],
-                "hot_numbers": [num for num, _ in year_freq.most_common(10)],
+                "hot_numbers": self._get_hot_numbers(year_freq, 10),
+                "appearance_rates": {
+                    n: frequency / len(year_data) for n, frequency in year_freq.items()
+                },
+                "expected_frequency": len(year_data)
+                * self.numbers_to_pick
+                / self.max_number,
+                "coverage_start": year_data["date"].min().strftime("%Y-%m-%d"),
+                "coverage_end": year_data["date"].max().strftime("%Y-%m-%d"),
                 "average_per_number": np.mean(list(year_freq.values()))
                 if year_freq
                 else 0,
@@ -999,13 +1151,22 @@ class LotteryAnalyzer:
                     month_freq.items(), key=lambda x: x[1], reverse=True
                 )[:10],
                 "hot_numbers": [num for num, _ in month_freq.most_common(6)],
+                "appearance_rates": {
+                    n: month_freq.get(n, 0) / len(month_data)
+                    for n in range(1, self.max_number + 1)
+                },
+                "expected_frequency": len(month_data)
+                * self.numbers_to_pick
+                / self.max_number,
             }
 
         # Week-based analysis (week of year)
         week_groups = df.groupby("week")
         for week_num, week_data in week_groups:
             if not isinstance(week_num, (int, np.integer)):
-                raise TypeError(f"Expected an integer ISO week number, got {week_num!r}")
+                raise TypeError(
+                    f"Expected an integer ISO week number, got {week_num!r}"
+                )
 
             week_numbers = [
                 num for _, row in week_data.iterrows() for num in row["numbers"]
@@ -1018,6 +1179,10 @@ class LotteryAnalyzer:
                     week_freq.items(), key=lambda x: x[1], reverse=True
                 )[:5],
                 "hot_numbers": [num for num, _ in week_freq.most_common(6)],
+                "appearance_rates": {
+                    n: week_freq.get(n, 0) / len(week_data)
+                    for n in range(1, self.max_number + 1)
+                },
             }
 
         # Day of week analysis (enhanced)
@@ -1037,6 +1202,10 @@ class LotteryAnalyzer:
                     day_freq.items(), key=lambda x: x[1], reverse=True
                 )[:10],
                 "hot_numbers": [num for num, _ in day_freq.most_common(6)],
+                "appearance_rates": {
+                    n: day_freq.get(n, 0) / len(day_data)
+                    for n in range(1, self.max_number + 1)
+                },
             }
 
         # Year-over-year trends (identify consistent numbers)
@@ -1054,24 +1223,26 @@ class LotteryAnalyzer:
 
                 # Store frequency for each number per year
                 for num in range(1, self.max_number + 1):
-                    number_consistency[num].append(year_freq.get(num, 0))
+                    number_consistency[num].append(
+                        year_freq.get(num, 0) / len(year_data)
+                    )
 
             # Identify consistently high-performing numbers
             consistent_numbers = []
             for num, freqs in number_consistency.items():
                 if len(freqs) >= 2:
-                    # Number is consistent if it appears in top 50% in most years
                     avg_freq = np.mean(freqs)
                     std_freq = np.std(freqs)
-                    if (
-                        avg_freq > 0 and std_freq / (avg_freq + 0.001) < 0.5
-                    ):  # Low variability
+                    if avg_freq > 0 and std_freq / avg_freq < 0.5:
                         consistent_numbers.append(
                             {
                                 "number": num,
-                                "average_frequency": round(float(avg_freq), 2),
+                                "average_frequency": round(
+                                    self.number_frequency[num] / len(years), 2
+                                ),
+                                "average_appearance_rate": round(float(avg_freq), 6),
                                 "consistency_score": round(
-                                    float(1 - (std_freq / (avg_freq + 0.001))), 3
+                                    float(1 - (std_freq / avg_freq)), 3
                                 ),
                                 "years_appeared": len([f for f in freqs if f > 0]),
                             }
@@ -1094,6 +1265,7 @@ class LotteryAnalyzer:
         # Weekly patterns
         temporal_analysis["weekly_patterns"] = self._analyze_weekly_patterns(df)
 
+        self._temporal_patterns = temporal_analysis
         return temporal_analysis
 
     def _identify_distinct_performers(
@@ -1110,30 +1282,31 @@ class LotteryAnalyzer:
             year_freq = Counter(year_numbers)
 
             top_5 = year_freq.most_common(5)
+            other_years_data = df[df["year"] != year]
+            other_numbers = [
+                n for _, row in other_years_data.iterrows() for n in row["numbers"]
+            ]
+            other_freq = Counter(other_numbers)
 
             for num, freq in top_5:
-                # Check if this number was notably better this year compared to other years
-                other_years_data = df[df["year"] != year]
-                other_numbers = [
-                    n for _, row in other_years_data.iterrows() for n in row["numbers"]
-                ]
-                other_freq = Counter(other_numbers)
-
-                avg_other_years = other_freq.get(num, 0) / max(len(years) - 1, 1)
-
-                if freq > avg_other_years * 1.5:  # 50% better than average
+                rate = freq / len(year_data)
+                other_rate = other_freq.get(num, 0) / len(other_years_data)
+                if rate > other_rate * 1.5:
                     distinct_performers.append(
                         {
                             "number": num,
                             "year": int(year),
                             "frequency": freq,
+                            "total_draws": len(year_data),
+                            "appearance_rate": round(rate, 6),
+                            "other_years_appearance_rate": round(other_rate, 6),
                             "improvement_over_average": round(
-                                float(
-                                    (freq - avg_other_years)
-                                    / max(avg_other_years, 1)
-                                    * 100
-                                ),
-                                1,
+                                (rate / other_rate - 1) * 100, 1
+                            )
+                            if other_rate
+                            else None,
+                            "rate_difference_percentage_points": round(
+                                (rate - other_rate) * 100, 2
                             ),
                         }
                     )
@@ -1157,7 +1330,13 @@ class LotteryAnalyzer:
                     freq_dict.items(), key=lambda x: x[1], reverse=True
                 )[:5]
                 monthly_favorites[month] = [
-                    {"number": num, "frequency": freq} for num, freq in top_numbers
+                    {
+                        "number": num,
+                        "frequency": freq,
+                        "appearance_rate": freq
+                        / int((df["month_name"] == month).sum()),
+                    }
+                    for num, freq in top_numbers
                 ]
 
         return {
@@ -1188,10 +1367,22 @@ class LotteryAnalyzer:
             "first_half_month": {
                 "total_draws": len(first_half),
                 "top_numbers": [num for num, _ in first_freq.most_common(10)],
+                "appearance_rates": {
+                    n: first_freq.get(n, 0) / len(first_half)
+                    for n in range(1, self.max_number + 1)
+                }
+                if len(first_half)
+                else {},
             },
             "second_half_month": {
                 "total_draws": len(second_half),
                 "top_numbers": [num for num, _ in second_freq.most_common(10)],
+                "appearance_rates": {
+                    n: second_freq.get(n, 0) / len(second_half)
+                    for n in range(1, self.max_number + 1)
+                }
+                if len(second_half)
+                else {},
             },
         }
 
@@ -1246,7 +1437,7 @@ class LotteryAnalyzer:
                 {
                     "number": num,
                     "consecutive_occurrences": count,
-                    "observation": f"Number {num} appeared in {count} consecutive draws",
+                    "observation": f"Number {num} repeated across {count} adjacent draw pairs (not a streak length)",
                 }
                 for num, count in sorted(
                     consecutive_appearances.items(), key=lambda x: x[1], reverse=True
@@ -1275,7 +1466,7 @@ class LotteryAnalyzer:
                         "number": perf["number"],
                         "year": perf["year"],
                         "improvement": perf["improvement_over_average"],
-                        "observation": f"Number {perf['number']} had exceptional performance in {perf['year']} ({perf['improvement_over_average']:.0f}% above average)",
+                        "observation": f"Number {perf['number']} had an appearance rate {perf['rate_difference_percentage_points']:.2f} percentage points above other recorded years in {perf['year']}",
                     }
                     for perf in yoy_trends["distinct_high_performers"]
                 ]
@@ -1308,8 +1499,8 @@ class LotteryAnalyzer:
         Returns:
             List of comprehensive predictions with detailed analysis
         """
-        all_numbers = [num for result in self.results for num in result["numbers"]]
-        number_freq = Counter(all_numbers)
+        self._validate_prediction_count(top_n)
+        number_freq = self.number_frequency
         temporal_patterns = self.analyze_temporal_patterns()
         historical_obs = self.get_historical_observations()
 
@@ -1339,12 +1530,7 @@ class LotteryAnalyzer:
             number_scores[num] += (freq / max_recent) * 0.20
 
         # 4. Winning draw performance (15% weight)
-        winning_draws = [
-            r
-            for r in self.results
-            if r.get("winners")
-            and r["winners"] not in ["0", "N/A", "0 winner", "No winner"]
-        ]
+        winning_draws = self.winning_draws
 
         if winning_draws:
             winning_numbers = [
@@ -1356,11 +1542,14 @@ class LotteryAnalyzer:
             for num, freq in winning_freq.items():
                 number_scores[num] += (freq / max_winning) * 0.15
 
-        # 5. Repeating pattern bonus (10% weight)
-        highly_frequent = historical_obs.get("highly_frequent_numbers", [])
-        for item in highly_frequent[:10]:
+        # Adjacent-repeat counts are descriptive, not evidence of future repeats.
+        repeating_numbers = historical_obs.get("common_repeating_patterns", [])
+        max_repeats = max(
+            (item["consecutive_occurrences"] for item in repeating_numbers), default=1
+        )
+        for item in repeating_numbers:
             num = item["number"]
-            number_scores[num] += 0.10
+            number_scores[num] += (item["consecutive_occurrences"] / max_repeats) * 0.10
 
         # Normalize scores
         max_score = max(number_scores.values()) if number_scores else 1
@@ -1369,100 +1558,45 @@ class LotteryAnalyzer:
 
         # Ensure all numbers have a score (for randomness)
         for num in range(1, self.max_number + 1):
-            if num not in number_scores:
-                number_scores[num] = 0.05  # Small base probability
+            if not number_scores[num]:
+                number_scores[num] = 0.05
 
         predictions = []
         seen_combinations = set()
         attempts = 0
         max_attempts = top_n * 500
 
-        recent_even_odd = self._get_recent_pattern_preference("even_odd")
-        recent_high_low = self._get_recent_pattern_preference("high_low")
-
         while len(predictions) < top_n and attempts < max_attempts:
             attempts += 1
 
-            # Weighted random selection with controlled randomness
-            numbers = list(number_scores.keys())
-            weights = list(number_scores.values())
+            combo = self._sample_combination(number_scores, noise=0.4)
 
-            # Add controlled randomness (acknowledging lottery randomness)
-            randomness_factor = np.random.random(len(weights)) * 0.4
-            adjusted_weights = [w + r for w, r in zip(weights, randomness_factor)]
+            if combo not in seen_combinations:
+                seen_combinations.add(combo)
 
-            chosen = set()
-            temp_numbers = numbers.copy()
-            temp_weights = adjusted_weights.copy()
+                components = self._ultimate_scoring_components(
+                    combo, number_scores, temporal_patterns
+                )
+                confidence = min(sum(components.values()), 100)
 
-            for _ in range(self.numbers_to_pick):
-                if not temp_numbers:
-                    break
+                analysis = self._analyze_combination(combo)
+                analysis["randomness_acknowledgment"] = (
+                    "These historical-pattern scores are not winning probabilities. "
+                    "Lottery draws are random; these combinations do not improve winning odds."
+                )
 
-                # Probabilistic selection
-                probs = np.array(temp_weights) / sum(temp_weights)
-                idx = np.random.choice(len(temp_numbers), p=probs)
-                chosen.add(temp_numbers[idx])
-
-                temp_numbers.pop(idx)
-                temp_weights.pop(idx)
-
-            if len(chosen) == self.numbers_to_pick:
-                combo = tuple(sorted(chosen))
-
-                if combo not in seen_combinations:
-                    seen_combinations.add(combo)
-
-                    # Calculate comprehensive score
-                    confidence = self._calculate_ultimate_score(
-                        combo, number_scores, temporal_patterns
-                    )
-
-                    analysis = self._analyze_combination(combo)
-                    analysis["randomness_acknowledgment"] = (
-                        "While based on historical patterns, lottery draws are random. "
-                        "Past performance does not guarantee future results."
-                    )
-
-                    predictions.append(
-                        {
-                            "numbers": list(combo),
-                            "ultimate_confidence_score": round(float(confidence), 2),
-                            "analysis": analysis,
-                            "prediction_type": "Ultimate Analysis",
-                            "scoring_components": {
-                                "frequency_score": round(
-                                    float(
-                                        sum(number_scores.get(n, 0) for n in combo)
-                                        / len(combo)
-                                        * 30
-                                    ),
-                                    2,
-                                ),
-                                "pattern_match": round(
-                                    float(
-                                        self._pattern_match_score(
-                                            combo, recent_even_odd, recent_high_low
-                                        )
-                                        * 25
-                                    ),
-                                    2,
-                                ),
-                                "temporal_consistency": round(
-                                    float(
-                                        self._temporal_consistency_score(
-                                            combo, temporal_patterns
-                                        )
-                                        * 25
-                                    ),
-                                    2,
-                                ),
-                                "balance_score": round(
-                                    float(self._balance_score(combo) * 20), 2
-                                ),
-                            },
-                        }
-                    )
+                predictions.append(
+                    {
+                        "numbers": list(combo),
+                        "ultimate_confidence_score": round(float(confidence), 2),
+                        "analysis": analysis,
+                        "prediction_type": "Combined historical analysis",
+                        "scoring_components": {
+                            name: round(float(points), 2)
+                            for name, points in components.items()
+                        },
+                    }
+                )
 
         predictions.sort(key=lambda x: x["ultimate_confidence_score"], reverse=True)
 
@@ -1474,32 +1608,35 @@ class LotteryAnalyzer:
         number_scores: Dict,
         temporal_patterns: Dict,
     ) -> float:
-        """Calculate comprehensive score for ultimate predictions."""
-        # Frequency component
-        freq_score = sum(number_scores.get(num, 0) for num in combo) / len(combo)
-
-        # Pattern matching
-        recent_even_odd = self._get_recent_pattern_preference("even_odd")
-        recent_high_low = self._get_recent_pattern_preference("high_low")
-        pattern_score = self._pattern_match_score(
-            combo, recent_even_odd, recent_high_low
+        """Sum historical-pattern components, not calibrated probabilities."""
+        return min(
+            sum(
+                self._ultimate_scoring_components(
+                    combo, number_scores, temporal_patterns
+                ).values()
+            ),
+            100,
         )
 
-        # Temporal consistency
-        temporal_score = self._temporal_consistency_score(combo, temporal_patterns)
-
-        # Balance score
-        balance = self._balance_score(combo)
-
-        # Combined score
-        total = (
-            (freq_score * 0.30)
-            + (pattern_score * 0.25)
-            + (temporal_score * 0.25)
-            + (balance * 0.20)
-        )
-
-        return min(total * 100, 100)
+    def _ultimate_scoring_components(
+        self, combo: Tuple, number_scores: Dict, temporal_patterns: Dict
+    ) -> Dict[str, float]:
+        return {
+            "frequency_score": sum(number_scores.get(num, 0) for num in combo)
+            / len(combo)
+            * 30,
+            "pattern_match": self._pattern_match_score(
+                combo,
+                self._get_recent_pattern_preference("even_odd"),
+                self._get_recent_pattern_preference("high_low"),
+            )
+            * 25,
+            "temporal_consistency": self._temporal_consistency_score(
+                combo, temporal_patterns
+            )
+            * 25,
+            "balance_score": self._balance_score(combo) * 20,
+        }
 
     def _pattern_match_score(
         self, combo: Tuple, recent_even_odd: str, recent_high_low: str
@@ -1526,7 +1663,7 @@ class LotteryAnalyzer:
         self, combo: Tuple, temporal_patterns: Dict
     ) -> float:
         """Score based on temporal consistency."""
-        if "year_over_year_trends" not in temporal_patterns:
+        if not temporal_patterns.get("year_over_year_trends"):
             return 0.5
 
         consistent_performers = temporal_patterns["year_over_year_trends"].get(
@@ -1547,7 +1684,7 @@ class LotteryAnalyzer:
         spread = (max(combo) - min(combo)) / self.max_number
 
         # Sum within expected range
-        expected_sum = (self.max_number / 2) * len(combo)
+        expected_sum = ((self.max_number + 1) / 2) * len(combo)
         actual_sum = sum(combo)
         sum_diff = abs(actual_sum - expected_sum) / expected_sum
         sum_score = max(0, 1 - sum_diff)
@@ -1660,9 +1797,26 @@ class LotteryAnalyzer:
             for num in range(1, self.max_number + 1):
                 day_number_freq[num - 1][idx] = day_freq.get(num, 0)
 
+        month_counts = [int((df["month"] == month).sum()) for month in months]
+        year_counts = [int((df["year"] == year).sum()) for year in years]
+        day_counts = Counter(result["day_of_week"] for result in self.results)
+        weekday_counts = [day_counts.get(day, 0) for day in self.DAYS_OF_WEEK]
+
+        def rates(matrix: np.ndarray, sample_sizes: list[int]) -> list:
+            return [
+                [
+                    float(value) / count * 100 if count else None
+                    for value, count in zip(row, sample_sizes)
+                ]
+                for row in matrix
+            ]
+
         return {
             "by_month": {
                 "data": month_number_freq.tolist(),
+                "appearance_rates_percent": rates(month_number_freq, month_counts),
+                "sample_sizes": month_counts,
+                "rate_title": "Number Appearance Rate by Month (%)",
                 "x_labels": [
                     "Jan",
                     "Feb",
@@ -1682,12 +1836,18 @@ class LotteryAnalyzer:
             },
             "by_year": {
                 "data": year_number_freq.tolist(),
+                "appearance_rates_percent": rates(year_number_freq, year_counts),
+                "sample_sizes": year_counts,
+                "rate_title": "Number Appearance Rate by Year (%)",
                 "x_labels": [str(int(y)) for y in years],
                 "y_labels": [str(i) for i in range(1, self.max_number + 1)],
                 "title": "Number Frequency by Year",
             },
             "by_day": {
                 "data": day_number_freq.tolist(),
+                "appearance_rates_percent": rates(day_number_freq, weekday_counts),
+                "sample_sizes": weekday_counts,
+                "rate_title": "Number Appearance Rate by Day of Week (%)",
                 "x_labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
                 "y_labels": [str(i) for i in range(1, self.max_number + 1)],
                 "title": "Number Frequency by Day of Week",
@@ -1719,7 +1879,10 @@ class LotteryAnalyzer:
                 if num in top_numbers:
                     monthly_trends[period][num] += 1
 
-        periods = sorted(monthly_trends.keys())
+        periods = sorted(str(period) for period in df["year_month"].unique())
+        period_counts = {
+            period: int((df["year_month"] == period).sum()) for period in periods
+        }
 
         trend_lines = {}
         for num in top_numbers:
@@ -1749,10 +1912,10 @@ class LotteryAnalyzer:
         consistency_trend = []
         window_size = 10  # 10-draw window
 
-        for i in range(len(self.results) - window_size):
-            window = self.results[i : i + window_size]
-            window_numbers = [num for result in window for num in result["numbers"]]
-            window_freq = Counter(window_numbers)
+        chronological_draws = list(reversed(self.results))
+        for i in range(len(chronological_draws) - window_size + 1):
+            window = chronological_draws[i : i + window_size]
+            window_freq = self._frequency(window)
 
             # Coefficient of variation
             freqs = list(window_freq.values())
@@ -1768,10 +1931,24 @@ class LotteryAnalyzer:
             "top_numbers_over_time": {
                 "labels": periods,
                 "datasets": [
+                    {
+                        "label": f"Number {num}",
+                        "data": [
+                            monthly_trends[period].get(num, 0)
+                            / period_counts[period]
+                            * 100
+                            for period in periods
+                        ],
+                    }
+                    for num in top_numbers
+                ],
+                "count_datasets": [
                     {"label": f"Number {num}", "data": trend_lines[str(num)]}
                     for num in top_numbers
                 ],
-                "title": "Top 10 Numbers Frequency Over Time",
+                "sample_sizes": [period_counts[period] for period in periods],
+                "title": "Top 10 Recorded Numbers: Appearance Rate Over Time (%)",
+                "interpretation": "Top numbers selected from this complete historical sample, not an out-of-sample forecast.",
             },
             "average_sum_trend": {
                 "labels": periods,
@@ -1784,7 +1961,9 @@ class LotteryAnalyzer:
                 "title": "Even Number Ratio Over Time",
             },
             "consistency_trend": {
-                "labels": list(range(len(consistency_trend))),
+                "labels": [
+                    draw["date"] for draw in chronological_draws[window_size - 1 :]
+                ],
                 "data": consistency_trend,
                 "title": "Number Distribution Consistency (Rolling Window)",
             },

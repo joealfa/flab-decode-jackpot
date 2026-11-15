@@ -18,6 +18,7 @@ from app.services.results import submit_draw
 from app.storage import read_json, validate_filename, write_json
 from app.validators import (  # noqa: E402
     game_type_to_slug,
+    normalize_winner_count,
     parse_date,
     require_fields,
     require_json_body,
@@ -46,7 +47,8 @@ def submit_actual_result() -> HTTPResponse:
         actual_numbers = validate_lottery_numbers(data["numbers"], game_type)
 
         jackpot = data.get("jackpot", "N/A")
-        winners = data.get("winners", "N/A")
+        winner_count = normalize_winner_count(data.get("winners"))
+        winners = str(winner_count) if winner_count is not None else "N/A"
         target_filename = data.get("target_filename")
         draw_date_str = data["draw_date"]
 
@@ -129,6 +131,11 @@ def submit_actual_result() -> HTTPResponse:
                     "top_predictions_comparison": [],
                     "winning_predictions_comparison": [],
                     "pattern_predictions_comparison": [],
+                    "ultimate_predictions_comparison": [],
+                    "comparison_interpretation": (
+                        "Descriptive saved-pick comparison, not a controlled walk-forward evaluation. "
+                        "Snapshot dates alone cannot prove predictions were made before the outcome."
+                    ),
                     "analysis_snapshot": {
                         "filename": snapshot["filename"],
                         "generated_at": analysis_generated_at.strftime(
@@ -140,6 +147,14 @@ def submit_actual_result() -> HTTPResponse:
                         if coverage_end
                         else analysis_data.get("date_range", {}).get("end"),
                         "selection_reason": selection_reason,
+                        "timing_status": (
+                            "earlier_day_snapshot"
+                            if analysis_generated_at
+                            and coverage_end
+                            and analysis_generated_at.date() < draw_date.date()
+                            and coverage_end < draw_date.date()
+                            else "retrospective_or_unverified"
+                        ),
                     },
                 }
 
@@ -197,6 +212,25 @@ def submit_actual_result() -> HTTPResponse:
                             "matches": matches,
                             "matched_numbers": matched_numbers,
                             "pattern_score": pred.get("pattern_score", 0),
+                        }
+                    )
+
+                for idx, pred in enumerate(
+                    analysis_data.get("ultimate_predictions", []), 1
+                ):
+                    predicted_numbers = sorted(pred["numbers"])
+                    matched_numbers = sorted(
+                        set(actual_numbers) & set(predicted_numbers)
+                    )
+                    accuracy_results["ultimate_predictions_comparison"].append(
+                        {
+                            "rank": idx,
+                            "predicted_numbers": predicted_numbers,
+                            "matches": len(matched_numbers),
+                            "matched_numbers": matched_numbers,
+                            "ultimate_confidence_score": pred.get(
+                                "ultimate_confidence_score", 0
+                            ),
                         }
                     )
 

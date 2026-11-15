@@ -28,11 +28,21 @@ def build_analysis_report(
     """
     analyzer = LotteryAnalyzer(data)
     report = {
+        "analysis_version": analyzer.ANALYSIS_VERSION,
+        "score_interpretation": "Historical-pattern scores on a 0-100 scale, not winning probabilities. Lists rank sampled candidates, not all possible combinations.",
+        "data_quality": analyzer.input_quality,
+        "requested_date_range": {
+            "start": data.get("start_date"),
+            "end": data.get("end_date"),
+        },
         "analyzed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "source_file": filename,
         "game_type": data["game_type"],
-        "date_range": {"start": data["start_date"], "end": data["end_date"]},
-        "total_draws": len(data["results"]),
+        "date_range": {
+            "start": analyzer.data["start_date"],
+            "end": analyzer.data["end_date"],
+        },
+        "total_draws": len(analyzer.results),
         "overall_stats": analyzer.get_overall_statistics(),
         "day_analysis": analyzer.get_all_days_analysis(),
         "top_predictions": analyzer.generate_top_predictions(top_n=prediction_count),
@@ -63,9 +73,9 @@ def select_analysis_snapshot(
 ) -> Optional[Dict[str, Any]]:
     """Select the most relevant analysis snapshot for a given draw date.
 
-    Prefers analyses generated on or before the draw date and whose coverage
-    does not extend beyond the draw itself. Falls back gracefully to the closest
-    available snapshot when a perfect pre-draw match is unavailable.
+    Prefers snapshots generated on an earlier day with strictly earlier coverage.
+    Same-day and later fallbacks remain available for descriptive comparisons,
+    but are not evidence of prospective performance.
 
     Args:
         game_slug: Normalized game identifier (e.g., "Grand_Lotto_6-55").
@@ -83,6 +93,7 @@ def select_analysis_snapshot(
     draw_cutoff = datetime.combine(draw_day, datetime.max.time())
 
     best_pre_with_coverage: Optional[Dict[str, Any]] = None
+    best_strict_prior: Optional[Dict[str, Any]] = None
     best_pre: Optional[Dict[str, Any]] = None
     best_future: Optional[Dict[str, Any]] = None
     fallback_latest: Optional[Dict[str, Any]] = None
@@ -149,6 +160,13 @@ def select_analysis_snapshot(
         if analyzed_at is None:
             continue
 
+        if analyzed_at.date() < draw_day and coverage_end and coverage_end < draw_day:
+            if (
+                best_strict_prior is None
+                or analyzed_at > best_strict_prior["analyzed_at"]
+            ):
+                best_strict_prior = candidate
+
         if analyzed_at <= draw_cutoff:
             # Candidate generated before (or on) the draw date
             if coverage_end and coverage_end <= draw_day:
@@ -164,6 +182,9 @@ def select_analysis_snapshot(
             if best_future is None or analyzed_at < best_future["analyzed_at"]:
                 best_future = candidate
 
+    if best_strict_prior:
+        best_strict_prior["selection_reason"] = "earlier_day_with_prior_coverage"
+        return best_strict_prior
     if best_pre_with_coverage:
         best_pre_with_coverage["selection_reason"] = "pre_draw_with_coverage"
         return best_pre_with_coverage

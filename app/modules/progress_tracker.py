@@ -302,7 +302,6 @@ class ProgressTracker:
                 with open(filepath, "r") as f:
                     data = json.load(f)
 
-
                 status = data.get("status", "")
 
                 # Use completion/failure timestamp if available, otherwise updated_at

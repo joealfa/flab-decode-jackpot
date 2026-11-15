@@ -122,12 +122,14 @@ class AIAnalyzer:
                             "- Draws occur 2-3 times per week depending on the game\n"
                             "- All draws are random and independent events\n\n"
                             "YOUR ANALYTICAL APPROACH:\n"
-                            "1. Identify statistically significant patterns in the data\n"
+                            "1. Describe observed patterns without claiming significance unless a valid adjusted test is supplied\n"
                             "2. Consider frequency analysis (hot/cold numbers)\n"
                             "3. Examine distribution patterns (even/odd, high/low, consecutive)\n"
                             "4. Analyze temporal trends (day of week patterns, recent vs historical)\n"
                             "5. Evaluate multiple prediction algorithms\n"
-                            "6. Always acknowledge that past results do NOT guarantee future outcomes\n\n"
+                            "6. Historical-pattern scores are heuristic points, never calibrated winning probabilities\n"
+                            "7. Do not describe hot/cold numbers, overdue wins, balanced patterns, or temporal rankings as improving winning odds\n"
+                            "8. Account for sample sizes, incomplete coverage, and multiple comparisons; winner intervals are descriptive only\n\n"
                             "RESPONSE STYLE:\n"
                             "- Be analytical but accessible to non-technical users\n"
                             "- Use clear explanations without excessive jargon\n"
@@ -146,9 +148,7 @@ class AIAnalyzer:
                 stream=True,
             )
 
-            ai_response = "".join(
-                chunk["message"]["content"] or "" for chunk in stream
-            )
+            ai_response = "".join(chunk["message"]["content"] or "" for chunk in stream)
             logger.info(
                 f"AI analysis completed. Response length: {len(ai_response)} characters"
             )
@@ -257,6 +257,7 @@ class AIAnalyzer:
 - Cold numbers (top 10): {cold_numbers[:10] if isinstance(cold_numbers, list) else "N/A"}
 - Average frequency per number: {avg_frequency:.1f}
 - Expected avg frequency: {((total_draws * numbers_to_pick / max_num) if total_draws > 0 else 0):.1f}
+- Statistical context: {overall_stats.get("frequency_context", {}).get("interval_note", "Legacy report: uncertainty context is unavailable")}
 - Actual range: {least_frequent[-1][1] if least_frequent else "N/A"} to {most_frequent[0][1] if most_frequent else "N/A"}
 
 ---
@@ -328,7 +329,7 @@ class AIAnalyzer:
 
 ### 8️⃣ ALGORITHMIC PREDICTIONS (4 Different Methods)
 
-**Algorithm 1: Frequency-Based (Weighted by recent performance)**
+**Algorithm 1: Overall Historical Frequency**
 {self._format_prediction_list_detailed(top_preds)}
 
 **Algorithm 2: Winning Pattern Analysis (Based on actual winner characteristics)**
@@ -353,7 +354,7 @@ High-level overview of the most important findings from this {total_draws:,} dra
 
 **a) Frequency Analysis Interpretation:**
 - What do the hot/cold number patterns tell us?
-- Are there any statistically significant deviations from expected frequency?
+- Compare observations with expected frequency; do not infer significance from rankings or pointwise intervals across many numbers.
 
 **b) Pattern & Distribution Analysis:**
 - Analysis of even/odd and high/low balance
@@ -362,16 +363,16 @@ High-level overview of the most important findings from this {total_draws:,} dra
 
 **c) Winner Pattern Analysis:**
 - What patterns emerge from draws that had jackpot winners?
-- Are certain days or months more favorable?
+- Describe winner counts relative to recorded draw counts without calling days or months more favorable for winning.
 
 **d) Temporal Trends:**
 - Year-over-year consistency patterns
 - Which numbers are consistent performers across many years?
 - Any recent shifts in patterns?
 
-### 3. AI-RECOMMENDED TOP 5 NUMBER COMBINATIONS
+### 3. FIVE ILLUSTRATIVE HISTORICAL-PATTERN COMBINATIONS
 
-Based on ALL the statistical data provided above (frequency, patterns, winner analysis, temporal trends, historical observations, and the 4 algorithmic predictions), generate your own 5 best combinations. For each:
+Generate five illustrative combinations for entertainment, explaining their historical characteristics without claiming superior odds. For each:
 
 🎲 **Combination N:** [numbers]
    - **Reasoning:** Why this combination based on the data
@@ -383,10 +384,10 @@ Based on ALL the statistical data provided above (frequency, patterns, winner an
 - Have balanced even/odd and high/low distribution
 - Fall within the typical sum range ({sum_analysis.get("average_sum", 0):.0f} ± {sum_analysis.get("std_dev", 0):.0f})
 - Be clearly distinct from each other
-- Have solid statistical reasoning
+- State that these descriptive constraints do not improve winning odds
 
-### 4. CONFIDENCE ASSESSMENT
-Rate each combination 1-5 stars (⭐) based on statistical strength.
+### 4. LIMITATIONS
+Explain sample-size and data-coverage limitations. Do not assign probability percentages or confidence stars to combinations.
 
 ### 5. IMPORTANT DISCLAIMER ⚠️
 Remind users about the random nature of lottery draws and responsible gaming.
@@ -487,13 +488,14 @@ Remind users about the random nature of lottery draws and responsible gaming.
                 f"Min ₱{jackpot.get('min', 0):,.0f} | Max ₱{jackpot.get('max', 0):,.0f}"
             )
 
-        # Next win probability
+        # Legacy key retained for stored reports; the values describe intervals.
         nwp = winner.get("next_win_probability", {})
         if nwp:
             lines.append(
                 f"**Win Frequency:** Avg {nwp.get('average_days_between_wins', 0):.0f} days between wins | "
                 f"Last win: {nwp.get('last_win_date', 'N/A')} | "
-                f"Days since: {nwp.get('days_since_last_win', 'N/A')}"
+                f"Days since at dataset end: {nwp.get('days_since_last_win', 'N/A')}. "
+                "Historical gaps do not forecast another win."
             )
 
         return "\n".join(lines)
@@ -557,9 +559,15 @@ Remind users about the random nature of lottery draws and responsible gaming.
         lines = []
         for p in performers[:10]:
             if isinstance(p, dict):
+                rate = p.get("average_appearance_rate")
+                rate_text = (
+                    f"mean appearance rate {rate * 100:.2f}%"
+                    if rate is not None
+                    else f"legacy mean count {p.get('average_frequency', 0):.1f}"
+                )
                 lines.append(
                     f"- Number {p.get('number', '?')}: "
-                    f"avg freq {p.get('average_frequency', 0):.1f}, "
+                    f"{rate_text}, "
                     f"consistency {p.get('consistency_score', 0):.3f}, "
                     f"appeared in {p.get('years_appeared', 0)} years"
                 )
@@ -577,7 +585,8 @@ Remind users about the random nature of lottery draws and responsible gaming.
                 lines.append(
                     f"- Number {p.get('number', '?')} in {p.get('year', '?')}: "
                     f"freq {p.get('frequency', 0)}, "
-                    f"{p.get('improvement_over_average', 0):.1f}% above average"
+                    f"appearance-rate difference vs other years: "
+                    f"{p.get('rate_difference_percentage_points', 'unavailable in legacy report')} percentage points"
                 )
 
         return "\n".join(lines) if lines else "No data"

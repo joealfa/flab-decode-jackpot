@@ -37,6 +37,26 @@ the configured progress directory and is cleaned up by scheduled maintenance.
 | GET | `/api/ai-analysis/<ai_filename>` | Return one AI analysis; poll its `status` (`queued`, `running`, `completed`, `failed`) and `error` |
 | DELETE | `/api/ai-analysis/<ai_filename>` | Delete one saved AI analysis |
 
+New reports use `analysis_version: "2"`. Historical field names such as
+`confidence_score`, `win_probability_score`, and `ultimate_confidence_score`
+remain for compatibility, but their values are heuristic **points out of 100**,
+not probabilities. Lists rank sampled candidates. New reports omit overdue-win
+statuses and forecast windows from the legacy `next_win_probability` object;
+that object now contains historical winner-gap summaries only.
+
+Overall and day statistics include `frequency_context`: sample size, expected
+frequency under a fair draw, appearance rates, and pointwise 95% Wilson
+intervals. Overall statistics also include data-quality counts and exact
+fair-draw baselines. Identical duplicates are removed in memory; invalid draws,
+empty datasets, and conflicting duplicates return a safe `400` response.
+Saved source files and older reports are not changed.
+
+Temporal sections expose per-draw rates and observed coverage. Heatmaps retain
+raw `data` counts and add `appearance_rates_percent` (null for periods without
+draws) and `sample_sizes`. Frequency trend `datasets` use percentages; raw
+counts remain in `count_datasets`. These are descriptive rankings, not adjusted
+significance tests.
+
 ## Results and reports
 
 | Method | Path | Purpose |
@@ -50,6 +70,9 @@ the configured progress directory and is cleaned up by scheduled maintenance.
 Result submissions require JSON fields `game_type`, `draw_date` (`YYYY-MM-DD`),
 and `numbers`. Optional fields are `jackpot`, `winners`, and `target_filename`.
 The filename must refer to a result file for the selected game.
+Winner counts accept nonnegative integers, numeric strings (optionally followed
+by "winner"/"winners"), and explicit unknown values such as `N/A`. Comparisons now
+include `ultimate_predictions_comparison` and snapshot timing metadata.
 
 ## Accuracy
 
@@ -60,6 +83,16 @@ The filename must refer to a result file for the selected game.
 | GET | `/api/accuracy-provenance?game_type=<game>&draw_date=<date>` | Snapshot provenance; both filters are optional |
 | GET | `/api/verify-result?game_type=<game>&draw_date=<date>` | Check whether a draw exists in the latest result dataset |
 | GET | `/api/accuracy-files?game_type=<game>` | List saved accuracy comparisons; game filter is optional |
+
+Detailed and summary metrics include `evaluation_context`, marking these as
+descriptive comparisons and counting earlier-day versus retrospective/unverified
+snapshots. Earlier-day metadata alone does not prove predictions were committed
+before outcomes. All four main heuristic types are included. Game breakdowns
+include the fair-draw expected matches per ticket (`36/N`).
+
+The controlled historical evaluator is a CLI, not an HTTP endpoint:
+`uv run python scripts\evaluate_analysis.py --help`. It saves separate
+`evaluation_*.json` reports using the application's atomic JSON storage.
 
 ## Progress management
 

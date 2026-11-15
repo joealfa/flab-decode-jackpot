@@ -3546,6 +3546,75 @@ body {
     outline-offset: 2px;
 }
 
+.lucky-pick-trigger {
+    background: none;
+    border: none;
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.lucky-pick-modal {
+    margin: auto;
+    border: none;
+}
+
+.lucky-pick-modal::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.lucky-pick-note {
+    color: var(--gray);
+    margin-bottom: 16px;
+}
+
+.lucky-pick-error {
+    color: var(--danger-color);
+    margin-top: 16px;
+}
+
+.lucky-pick-results {
+    padding-left: 28px;
+}
+
+.lucky-pick-results li {
+    padding-left: 8px;
+    margin-bottom: 12px;
+}
+
+.lucky-pick-results .prediction-numbers {
+    margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .navbar-menu {
+        display: flex;
+    }
+
+    .navbar-menu > a {
+        display: none;
+    }
+
+    .lucky-pick-trigger {
+        gap: 4px;
+        font-size: 14px;
+    }
+
+    .lucky-pick-modal .modal-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .lucky-pick-results .prediction-numbers {
+        gap: 5px;
+    }
+
+    .lucky-pick-results .number-ball {
+        width: 30px;
+        height: 30px;
+        font-size: 12px;
+    }
+}
+
 /* Utility classes */
 .d-none {
     display: none;
