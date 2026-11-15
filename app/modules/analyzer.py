@@ -1,17 +1,18 @@
 """
 Lottery Data Analysis Module
-Analyzes lottery draw results and calculates probability-based predictions.
+Summarizes historical draws and ranks heuristic number combinations.
 """
 
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Tuple
 from collections import Counter, defaultdict
 from datetime import datetime
+from typing import Dict, List, Tuple
+
+import numpy as np
+import pandas as pd
 
 
 class LotteryAnalyzer:
-    """Analyzes lottery data and generates probability-based predictions."""
+    """Analyze historical lottery data and generate heuristic combinations."""
 
     DAYS_OF_WEEK = [
         "Monday",
@@ -32,7 +33,6 @@ class LotteryAnalyzer:
         """
         self.data = data
         self.game_type = data["game_type"]
-        # Sort results by date (newest first)
         self.results = sorted(
             data["results"],
             key=lambda x: datetime.strptime(x["date"], "%m/%d/%Y"),
@@ -40,7 +40,6 @@ class LotteryAnalyzer:
         )
         self.df = self._create_dataframe()
 
-        # Extract max number from game type (e.g., "Lotto 6/42" -> 42)
         self.max_number = int(self.game_type.split("/")[-1])
         self.numbers_to_pick = int(self.game_type.split("/")[0].split()[-1])
 
@@ -234,7 +233,6 @@ class LotteryAnalyzer:
         Returns:
             List of predicted combinations with scores
         """
-        # Get frequency of all numbers
         all_numbers = [num for result in self.results for num in result["numbers"]]
         number_freq = Counter(all_numbers)
 
@@ -242,7 +240,6 @@ class LotteryAnalyzer:
         max_freq = max(number_freq.values())
         number_scores = {num: freq / max_freq for num, freq in number_freq.items()}
 
-        # Add numbers that haven't appeared (cold numbers might be due)
         for num in range(1, self.max_number + 1):
             if num not in number_scores:
                 number_scores[num] = 0.1  # Small weight for missing numbers
@@ -269,12 +266,10 @@ class LotteryAnalyzer:
                 if not numbers:
                     break
 
-                # Select number based on weights
                 probs = np.array(adjusted_weights) / sum(adjusted_weights)
                 idx = np.random.choice(len(numbers), p=probs)
                 chosen.add(numbers[idx])
 
-                # Remove selected number
                 numbers.pop(idx)
                 adjusted_weights.pop(idx)
 
@@ -295,7 +290,6 @@ class LotteryAnalyzer:
                         }
                     )
 
-        # Sort by confidence score
         predictions.sort(key=lambda x: x["confidence_score"], reverse=True)
 
         return predictions[:top_n]
@@ -307,7 +301,6 @@ class LotteryAnalyzer:
         if not day_results:
             return []
 
-        # Get frequency for this day
         day_numbers = [num for result in day_results for num in result["numbers"]]
         number_freq = Counter(day_numbers)
 
@@ -319,7 +312,6 @@ class LotteryAnalyzer:
             if num not in number_scores:
                 number_scores[num] = 0.1
 
-        # Generate combinations
         predictions = []
         seen_combinations = set()
         attempts = 0
@@ -515,7 +507,6 @@ class LotteryAnalyzer:
             }
             if jackpot_amounts
             else None,
-            # Probability predictions
             "next_win_probability": self._predict_next_win_probability(winning_draws),
         }
 
@@ -554,7 +545,7 @@ class LotteryAnalyzer:
         Predict probability patterns for next potential win.
 
         Returns:
-            Dictionary with probability predictions
+            Historical win-interval estimates
         """
         if not winning_draws:
             return {}
@@ -603,7 +594,7 @@ class LotteryAnalyzer:
                 "early_win_window": f"{early_window} days",
                 "late_win_window": f"{late_window} days",
                 "probability_status": self._get_win_probability_status(
-                    days_since_last_win, avg_gap, std_gap
+                    days_since_last_win, float(avg_gap), float(std_gap)
                 ),
             }
 
@@ -632,7 +623,6 @@ class LotteryAnalyzer:
         Returns:
             List of predicted combinations optimized for wins
         """
-        # Get winning draws
         winning_draws = [
             r
             for r in self.results
@@ -641,7 +631,6 @@ class LotteryAnalyzer:
         ]
 
         if not winning_draws:
-            # Fall back to regular predictions
             return self.generate_top_predictions(top_n)
 
         # Analyze winning numbers with higher weight
@@ -664,7 +653,6 @@ class LotteryAnalyzer:
                     all_freq.get(num, 0) / max(all_freq.values())
                 ) * 0.5
 
-        # Generate combinations
         predictions = []
         seen_combinations = set()
         attempts = 0
@@ -802,7 +790,6 @@ class LotteryAnalyzer:
             },
         }
 
-        # Get most recent draw for prediction context
         latest_draw = self.results[0]  # Assuming most recent is first
         analysis["latest_draw"] = {
             "date": latest_draw["date"],
@@ -829,11 +816,9 @@ class LotteryAnalyzer:
         if "message" in pattern_analysis:
             return []
 
-        # Get the latest draw
         latest_draw = self.results[0]
         latest_numbers = set(latest_draw["numbers"])
 
-        # Get frequency data
         all_numbers = [num for result in self.results for num in result["numbers"]]
         number_freq = Counter(all_numbers)
 
@@ -864,7 +849,6 @@ class LotteryAnalyzer:
             # Fill remaining slots with new numbers based on frequency
             remaining_slots = self.numbers_to_pick - len(carryover_nums)
 
-            # Get available numbers (excluding carryover)
             available_numbers = [
                 n for n in range(1, self.max_number + 1) if n not in carryover_nums
             ]
@@ -915,7 +899,6 @@ class LotteryAnalyzer:
                         }
                     )
 
-        # Sort by score
         predictions.sort(key=lambda x: x["pattern_score"], reverse=True)
 
         return predictions[:top_n]
@@ -971,7 +954,6 @@ class LotteryAnalyzer:
             "weekly_patterns": {},
         }
 
-        # Add year, month, week columns
         df = self.df.copy()
         df["year"] = df["date"].dt.year
         df["month"] = df["date"].dt.month
@@ -1022,6 +1004,9 @@ class LotteryAnalyzer:
         # Week-based analysis (week of year)
         week_groups = df.groupby("week")
         for week_num, week_data in week_groups:
+            if not isinstance(week_num, (int, np.integer)):
+                raise TypeError(f"Expected an integer ISO week number, got {week_num!r}")
+
             week_numbers = [
                 num for _, row in week_data.iterrows() for num in row["numbers"]
             ]
@@ -1092,7 +1077,6 @@ class LotteryAnalyzer:
                             }
                         )
 
-            # Sort by consistency score
             consistent_numbers.sort(key=lambda x: x["consistency_score"], reverse=True)
 
             temporal_analysis["year_over_year_trends"] = {
@@ -1125,7 +1109,6 @@ class LotteryAnalyzer:
             ]
             year_freq = Counter(year_numbers)
 
-            # Get top performers for this year
             top_5 = year_freq.most_common(5)
 
             for num, freq in top_5:
@@ -1162,7 +1145,7 @@ class LotteryAnalyzer:
         monthly_number_freq = defaultdict(lambda: defaultdict(int))
 
         for _, row in df.iterrows():
-            month = row["date"].strftime("%B")
+            month = str(row["month_name"])
             for num in row["numbers"]:
                 monthly_number_freq[month][num] += 1
 
@@ -1325,13 +1308,11 @@ class LotteryAnalyzer:
         Returns:
             List of comprehensive predictions with detailed analysis
         """
-        # Get all analysis components
         all_numbers = [num for result in self.results for num in result["numbers"]]
         number_freq = Counter(all_numbers)
         temporal_patterns = self.analyze_temporal_patterns()
         historical_obs = self.get_historical_observations()
 
-        # Build comprehensive scoring system
         number_scores = defaultdict(float)
 
         # 1. Frequency score (30% weight)
@@ -1391,13 +1372,11 @@ class LotteryAnalyzer:
             if num not in number_scores:
                 number_scores[num] = 0.05  # Small base probability
 
-        # Generate predictions
         predictions = []
         seen_combinations = set()
         attempts = 0
         max_attempts = top_n * 500
 
-        # Get recent pattern preferences
         recent_even_odd = self._get_recent_pattern_preference("even_odd")
         recent_high_low = self._get_recent_pattern_preference("high_low")
 
@@ -1425,7 +1404,6 @@ class LotteryAnalyzer:
                 idx = np.random.choice(len(temp_numbers), p=probs)
                 chosen.add(temp_numbers[idx])
 
-                # Remove selected number
                 temp_numbers.pop(idx)
                 temp_weights.pop(idx)
 
@@ -1437,10 +1415,9 @@ class LotteryAnalyzer:
 
                     # Calculate comprehensive score
                     confidence = self._calculate_ultimate_score(
-                        combo, number_scores, temporal_patterns, historical_obs
+                        combo, number_scores, temporal_patterns
                     )
 
-                    # Detailed analysis
                     analysis = self._analyze_combination(combo)
                     analysis["randomness_acknowledgment"] = (
                         "While based on historical patterns, lottery draws are random. "
@@ -1487,7 +1464,6 @@ class LotteryAnalyzer:
                         }
                     )
 
-        # Sort by ultimate confidence score
         predictions.sort(key=lambda x: x["ultimate_confidence_score"], reverse=True)
 
         return predictions[:top_n]
@@ -1497,7 +1473,6 @@ class LotteryAnalyzer:
         combo: Tuple,
         number_scores: Dict,
         temporal_patterns: Dict,
-        historical_obs: Dict,
     ) -> float:
         """Calculate comprehensive score for ultimate predictions."""
         # Frequency component
@@ -1637,7 +1612,7 @@ class LotteryAnalyzer:
 
     def _generate_heatmap_data(self) -> Dict:
         """Generate heatmap data for number frequency visualization."""
-        # Create a grid showing number frequency by time period
+
         if self.df.empty:
             return {}
 

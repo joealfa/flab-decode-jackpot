@@ -4,32 +4,26 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="description"
-              content="Fortune Lab: Full analysis of Philippine PCSO lotto draw results with AI-powered insights and probability-based predictions.">
+              content="Explore historical Philippine PCSO lottery results, statistical summaries, and draw comparisons. Lottery draws are random.">
         <meta name="keywords"
               content="PCSO, lotto, lottery, analysis, Philippines, predictions, statistics">
         <title>
             {% block title %}Fortune Lab - Decoding the Jackpot{% endblock %}
         </title>
-        <!-- Favicon -->
         <link rel="icon"
               type="image/svg+xml"
               href="{{ url_for('static', filename='favicon.svg') }}">
-        <!-- Font Awesome -->
         <link rel="stylesheet"
               href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <!-- Bootstrap Icons -->
         <link rel="stylesheet"
               href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-        <!-- Google Fonts -->
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
               rel="stylesheet">
-        <!-- Custom CSS -->
         <link rel="stylesheet"
               href="{{ url_for('static', filename='css/style.css') }}">
         {% block extra_css %}{% endblock %}
     </head>
     <body>
-        <!-- Navigation -->
         <nav class="navbar">
             <div class="container">
                 <div class="navbar-brand">
@@ -52,18 +46,15 @@
                 </div>
             </div>
         </nav>
-        <!-- Main Content -->
         <main>
             {% block content %}{% endblock %}
         </main>
-        <!-- Footer -->
         <footer class="footer">
             <div class="container">
                 <p>© 2025 Fortune Lab. Decoding the Jackpot.</p>
                 <p class="disclaimer">For entertainment purposes only. Past results do not guarantee future outcomes.</p>
             </div>
         </footer>
-        <!-- Alert Modal -->
         <div id="alertModal"
              class="alert-modal-backdrop d-none"
              onclick="closeAlertModal(event)">
@@ -81,9 +72,7 @@
         <!-- Chart.js - Using stable version 3.9.1 for better compatibility -->
         <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.0/dist/chartjs-plugin-annotation.min.js"></script>
-        <!-- Chart Optimizer - Lazy loading for better performance -->
         <script src="{{ url_for('static', filename='js/chart-optimizer.js') }}"></script>
-        <!-- Custom JS -->
         <script src="{{ url_for('static', filename='js/main.js') }}"></script>
         {% block extra_js %}
         {% endblock %}

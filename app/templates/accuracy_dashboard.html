@@ -229,7 +229,6 @@
     let matchDistributionChart = null;
     let algorithmPerformanceChart = null;
 
-    // Load accuracy analysis
     async function loadAccuracyAnalysis() {
         const gameType = document.getElementById('gameTypeFilter')?.value || '';
         
@@ -268,7 +267,6 @@
         }
     }
 
-    // Render dashboard with analysis data
     function renderDashboard(analysis) {
         renderSummaryCards(analysis);
         renderBestAlgorithm(analysis.best_algorithm);
@@ -279,7 +277,6 @@
         renderBestPerformances(analysis.best_performances);
     }
 
-    // Render summary cards
     function renderSummaryCards(analysis) {
         const container = document.getElementById('summaryCards');
         const dist = analysis.match_distribution.distribution;
@@ -320,7 +317,6 @@
         `;
     }
 
-    // Render best algorithm card
     function renderBestAlgorithm(algo) {
         const container = document.getElementById('bestAlgorithmCard');
         
@@ -355,7 +351,6 @@
         `;
     }
 
-    // Render match distribution chart
     function renderMatchDistributionChart(matchDist) {
         const ctx = document.getElementById('matchDistributionChart');
         
@@ -441,7 +436,6 @@
         });
     }
 
-    // Render algorithm performance chart
     function renderAlgorithmPerformanceChart(predTypes) {
         const ctx = document.getElementById('algorithmPerformanceChart');
         
@@ -488,7 +482,6 @@
         });
     }
 
-    // Render game breakdown table
     function renderGameBreakdownTable(gameBreakdown) {
         const tbody = document.querySelector('#gameBreakdownTable tbody');
         tbody.innerHTML = '';
@@ -508,7 +501,6 @@
         }
     }
 
-    // Render recent submissions
     function renderRecentSubmissions(recentAccuracy) {
         const tbody = document.querySelector('#recentSubmissionsTable tbody');
         tbody.innerHTML = '';
@@ -528,12 +520,10 @@
                 ? `<span class="badge bg-${submission.best_match >= 5 ? 'success' : submission.best_match >= 3 ? 'warning' : 'secondary'}">${submission.best_match}</span>`
                 : `<span class="text-muted">—</span>`;
             
-            // Format actual numbers as circles
             const actualNumbersCircles = submission.actual_numbers.map(n => 
                 `<span class="lottery-number bg-primary text-white">${n}</span>`
             ).join('');
             
-            // Add verification status cell (will be populated async)
             const verificationId = `verify-${submission.game_type.replace(/\s+/g, '-')}-${submission.draw_date}`;
             row.innerHTML = `
                 <td>${escapeHtml(submission.draw_date)}</td>
@@ -545,12 +535,10 @@
                 <td id="${escapeHtml(verificationId)}"><span class="text-muted">Checking...</span></td>
             `;
             
-            // Verify result integrity async
             verifyResultIntegrity(submission.game_type, submission.draw_date, verificationId);
         });
     }
 
-    // Verify if result exists in historical data
     async function verifyResultIntegrity(gameType, drawDate, elementId) {
         try {
             const url = `/api/verify-result?game_type=${encodeURIComponent(gameType)}&draw_date=${encodeURIComponent(drawDate)}`;
@@ -591,7 +579,6 @@
         }
     }
 
-    // Show historical draw details in a modal/alert
     function showHistoryDetails(elementId) {
         const element = document.getElementById(elementId);
         if (!element) return;
@@ -634,26 +621,21 @@
             </div>
         `;
         
-        // Remove existing modal if any
         const existingModal = document.getElementById('historyModal');
         if (existingModal) {
             existingModal.remove();
         }
         
-        // Add modal to body
         document.body.insertAdjacentHTML('beforeend', modalContent);
         
-        // Show modal using Bootstrap
         const modal = new bootstrap.Modal(document.getElementById('historyModal'));
         modal.show();
         
-        // Clean up modal after it's hidden
         document.getElementById('historyModal').addEventListener('hidden.bs.modal', function() {
             this.remove();
         });
     }
 
-    // Render best performances
     function renderBestPerformances(bestPerfs) {
         renderPerformanceCard('bestPerformanceCard', bestPerfs.highest_matches);
         renderPerformanceCard('bestTopPredictionCard', bestPerfs.best_top_prediction);
@@ -686,7 +668,6 @@
             ? `<p class="text-muted small mb-0">Predictions generated ${escapeHtml(analysisSnapshot.generated_at)}${analysisSnapshot.coverage_end ? ` (data through ${escapeHtml(analysisSnapshot.coverage_end)})` : ''}</p>`
             : '';
 
-        // Format numbers as circles (numbers are integers, safe)
         const actualCircles = details.actual_numbers.map(n => `<span class="lottery-number bg-dark text-white">${parseInt(n)}</span>`).join('');
         const predictedCircles = details.predicted_numbers.map(n => `<span class="lottery-number bg-primary text-white">${parseInt(n)}</span>`).join('');
 

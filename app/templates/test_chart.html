@@ -58,13 +58,10 @@
                 <pre id="errors"></pre>
             </div>
         </div>
-        <!-- Chart.js -->
         <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
         <script>
-        // Update status
         document.getElementById('status').textContent = 'Initializing...';
 
-        // Check if Chart.js loaded
         if (typeof Chart === 'undefined') {
             document.getElementById('status').textContent = 'ERROR: Chart.js failed to load!';
             document.getElementById('version').textContent = 'NOT LOADED';
@@ -74,7 +71,6 @@
             document.getElementById('version').textContent = Chart.version || 'Unknown';
             document.getElementById('status').textContent = 'Chart.js loaded successfully!';
 
-            // Create test chart
             try {
                 const ctx = document.getElementById('testChart').getContext('2d');
                 const myChart = new Chart(ctx, {

@@ -4,10 +4,13 @@ Provides a hierarchy of exceptions for better error handling and debugging.
 """
 
 
+from typing import Optional
+
+
 class FortuneLabException(Exception):
     """Base exception for all Fortune Lab errors."""
 
-    def __init__(self, message: str, details: dict = None):
+    def __init__(self, message: str, details: Optional[dict] = None):
         """
         Initialize exception with message and optional details.
 
@@ -63,7 +66,10 @@ class DateRangeException(ScraperException):
     """Requested date range is not available on PCSO website."""
 
     def __init__(
-        self, message: str, requested_range: tuple = None, available_range: tuple = None
+        self,
+        message: str,
+        requested_range: Optional[tuple] = None,
+        available_range: Optional[tuple] = None,
     ):
         """
         Initialize with date range details.
@@ -245,7 +251,9 @@ class FileWriteException(FileSystemException):
 class APIException(FortuneLabException):
     """Base exception for API errors."""
 
-    def __init__(self, message: str, status_code: int = 500, details: dict = None):
+    def __init__(
+        self, message: str, status_code: int = 500, details: Optional[dict] = None
+    ):
         """
         Initialize API exception with status code.
 
@@ -273,33 +281,42 @@ class APIException(FortuneLabException):
 class BadRequestException(APIException):
     """Bad request (400)."""
 
-    def __init__(self, message: str, details: dict = None):
+    def __init__(self, message: str, details: Optional[dict] = None):
         super().__init__(message, 400, details)
 
 
 class NotFoundException(APIException):
     """Resource not found (404)."""
 
-    def __init__(self, message: str, details: dict = None):
+    def __init__(self, message: str, details: Optional[dict] = None):
         super().__init__(message, 404, details)
 
 
 class ConflictException(APIException):
     """Resource conflict (409)."""
 
-    def __init__(self, message: str, details: dict = None):
+    def __init__(self, message: str, details: Optional[dict] = None):
         super().__init__(message, 409, details)
 
 
 class RateLimitException(APIException):
     """Rate limit exceeded (429)."""
 
-    def __init__(self, message: str = "Rate limit exceeded", details: dict = None):
+    def __init__(
+        self, message: str = "Rate limit exceeded", details: Optional[dict] = None
+    ):
         super().__init__(message, 429, details)
 
 
 class InternalServerException(APIException):
     """Internal server error (500)."""
 
-    def __init__(self, message: str, details: dict = None):
+    def __init__(self, message: str, details: Optional[dict] = None):
         super().__init__(message, 500, details)
+
+
+class ServiceUnavailableException(APIException):
+    """A required local service is unavailable (503); the message is client-safe."""
+
+    def __init__(self, message: str, details: Optional[dict] = None):
+        super().__init__(message, 503, details)

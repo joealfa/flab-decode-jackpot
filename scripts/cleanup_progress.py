@@ -4,14 +4,14 @@ Manual Progress Cleanup Utility
 Run this script to clean up old/stale progress files manually.
 """
 
-import sys
 import os
+import sys
 
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.modules.progress_tracker import ProgressTracker
 from app.config import config
+from app.modules.progress_tracker import ProgressTracker
 
 
 def main():
@@ -19,9 +19,11 @@ def main():
     print("Progress Cleanup Utility")
     print("=" * 50)
 
-    tracker = ProgressTracker(progress_dir=config.PROGRESS_PATH)
+    tracker = ProgressTracker(
+        progress_dir=config.PROGRESS_PATH,
+        completed_max_age=config.PROGRESS_CLEANUP_AGE,
+    )
 
-    # Show current progress files
     progress_dir = config.PROGRESS_PATH
     if os.path.exists(progress_dir):
         files = [f for f in os.listdir(progress_dir) if f.endswith(".json")]
@@ -41,7 +43,6 @@ def main():
     print("Running cleanup...")
     print("=" * 50)
 
-    # Run comprehensive cleanup
     results = tracker.cleanup_all()
 
     print("\nCleanup Results:")
@@ -50,7 +51,6 @@ def main():
     print(f"  Old tasks cleaned: {results['old_cleaned']}")
     print(f"  Total cleaned: {results['total_cleaned']}")
 
-    # Show remaining files
     if os.path.exists(progress_dir):
         remaining_files = [f for f in os.listdir(progress_dir) if f.endswith(".json")]
         print(f"\nRemaining: {len(remaining_files)} progress file(s)")

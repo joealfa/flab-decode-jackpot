@@ -893,13 +893,11 @@
         </div>
     </div>
     <script>
-// Chart data from Flask
 if (typeof chartData === 'undefined') {
     var chartData;
 }
 chartData = {{ chart_data | tojson | safe }};
 
-// Store chart instances
 if (typeof chartInstances === 'undefined') {
     var chartInstances = {};
 }
@@ -910,22 +908,17 @@ window.toggleAccordion = function(headerElement) {
     const content = card.querySelector('.accordion-content');
     const icon = headerElement.querySelector('.accordion-icon');
 
-    // Toggle the content
     content.classList.toggle('active');
 
-    // Rotate the icon
     icon.classList.toggle('rotated');
 
-    // If opening the accordion, lazy-load charts in this section
     if (content.classList.contains('active')) {
         // Use requestAnimationFrame for smoother animation
         requestAnimationFrame(() => {
-            // Find any charts in this section and initialize them if needed
             const chartsInSection = content.querySelectorAll('canvas[data-chart-id]');
             chartsInSection.forEach(canvas => {
                 const chartId = canvas.dataset.chartId;
                 if (!window.initializedCharts.has(chartId)) {
-                    // Initialize this chart
                     if (typeof initializeSpecificChart === 'function') {
                         requestAnimationFrame(() => {
                             initializeSpecificChart(chartId);
@@ -935,7 +928,6 @@ window.toggleAccordion = function(headerElement) {
                 }
             });
 
-            // Smooth scroll if needed
             setTimeout(() => {
                 const rect = card.getBoundingClientRect();
                 const isInViewport = rect.top >= 0 && rect.bottom <= window.innerHeight;
@@ -943,19 +935,17 @@ window.toggleAccordion = function(headerElement) {
                 if (!isInViewport) {
                     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
-            }, 300);  // Reduced from 400ms
+            }, 300);
         });
     }
 };
 
-// Helper function to create heatmap
 window.createHeatmap = function(canvasId, heatmapData) {
     const ctx = document.getElementById(canvasId).getContext('2d');
     const data = heatmapData.data;
     const xLabels = heatmapData.x_labels;
     const yLabels = heatmapData.y_labels;
 
-    // Find max value for color scaling
     let maxValue = 0;
     data.forEach(row => {
         row.forEach(val => {
@@ -1047,7 +1037,6 @@ window.createHeatmap = function(canvasId, heatmapData) {
     });
 };
 
-// Helper function for chart colors
 window.getColorForIndex = function(idx, alpha = 1) {
     const colors = [
         `rgba(99, 102, 241, ${alpha})`,
@@ -1064,14 +1053,11 @@ window.getColorForIndex = function(idx, alpha = 1) {
     return colors[idx % colors.length];
 };
 
-// Function to initialize all charts
 window.initializeCharts = function() {
-    // Check if Chart.js is loaded
     if (typeof Chart === 'undefined') {
         return;
     }
 
-    // Check if chartData exists
     if (!chartData) {
         return;
     }
@@ -1083,7 +1069,6 @@ window.initializeCharts = function() {
                 try {
                     chartInstances[key].destroy();
                 } catch (e) {
-                    // Silent error handling
                 }
             }
         });
@@ -1094,7 +1079,6 @@ window.initializeCharts = function() {
     const freqCanvas = document.getElementById('frequencyChart');
 
     if (freqCanvas && chartData.number_frequency) {
-        // Check if canvas is visible
         const isVisible = freqCanvas.offsetWidth > 0 && freqCanvas.offsetHeight > 0;
 
         if (isVisible) {
@@ -1123,7 +1107,6 @@ window.initializeCharts = function() {
                 }
             });
             } catch (error) {
-                // Silent error handling
             }
         }
     }
@@ -1158,7 +1141,6 @@ window.initializeCharts = function() {
                 }
             });
         } catch (error) {
-            // Silent error handling
         }
     }
 
@@ -1187,7 +1169,6 @@ window.initializeCharts = function() {
                 }
             });
         } catch (error) {
-            // Silent error handling
         }
     }
 
@@ -1219,7 +1200,6 @@ window.initializeCharts = function() {
                 }
             });
         } catch (error) {
-            // Silent error handling
         }
     }
 
@@ -1230,7 +1210,6 @@ window.initializeCharts = function() {
             try {
                 chartInstances.heatmapMonth = createHeatmap('heatmapMonth', chartData.heatmap.by_month);
             } catch (error) {
-                // Silent error handling
             }
         }
 
@@ -1239,7 +1218,6 @@ window.initializeCharts = function() {
             try {
                 chartInstances.heatmapYear = createHeatmap('heatmapYear', chartData.heatmap.by_year);
             } catch (error) {
-                // Silent error handling
             }
         }
 
@@ -1248,7 +1226,6 @@ window.initializeCharts = function() {
             try {
                 chartInstances.heatmapDay = createHeatmap('heatmapDay', chartData.heatmap.by_day);
             } catch (error) {
-                // Silent error handling
             }
         }
     }
@@ -1384,27 +1361,22 @@ window.initializeCharts = function() {
     }
 };
 
-// Initialize lazy charts when DOM is ready - OPTIMIZED for performance
 document.addEventListener('DOMContentLoaded', function() {
     // Use requestAnimationFrame for smoother initialization
     requestAnimationFrame(() => {
-        // Initialize lazy chart loading system
         if (typeof initializeLazyCharts === 'function') {
             initializeLazyCharts();
         }
     });
 });
 
-// Day tabs functionality
 document.querySelectorAll('.day-tab').forEach(tab => {
     tab.addEventListener('click', function() {
         const day = this.dataset.day;
 
-        // Update active tab
         document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
         this.classList.add('active');
 
-        // Show corresponding content
         document.querySelectorAll('.day-content').forEach(content => {
             content.style.display = 'none';
         });
@@ -1412,7 +1384,6 @@ document.querySelectorAll('.day-tab').forEach(tab => {
     });
 });
 
-// Export current analysis
 function exportCurrentAnalysis() {
     const reportFilename = '{{ report_filename|safe }}';
     if (reportFilename && reportFilename !== '') {

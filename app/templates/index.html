@@ -50,17 +50,18 @@
                     <button type="submit" class="btn btn-primary btn-large" id="generateBtn">
                         <i class="fas fa-download"></i> Get Data
                     </button>
-                    <div id="loadingIndicator" class="loading-indicator d-none">
+                    <div id="loadingIndicator" class="loading-indicator d-none" data-scrape-inline>
                         <div class="progress-container">
                             <div class="progress-bar">
                                 <div class="progress-fill" id="progressFill"></div>
                             </div>
                             <p id="progressText">Preparing to load data...</p>
-                            <div class="progress-warning">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <strong>Please do not:</strong> close this tab, refresh the page, or navigate away.
-                                <br>
-                                <small>Interrupting the process may cause data corruption or incomplete results.</small>
+                            <div class="progress-info">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Loading runs in the background. You can keep using the app or open other pages; you'll be notified when it finishes.</span>
+                                <button type="button" class="btn btn-secondary btn-sm d-none" id="scrapeNotifyBtn" onclick="enableScrapeNotifications()">
+                                    <i class="fas fa-bell"></i> Notify me on my desktop
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -275,10 +276,8 @@
         </div>
     </div>
     <script>
-// Set today's date as default end date
 document.getElementById('endDate').valueAsDate = new Date();
 
-// Handle form submission
 document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -291,10 +290,8 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
         end_date: formData.get('endDate')
     };
 
-    // Show loading indicator with progress bar
-    document.getElementById('loadingIndicator').style.display = 'block';
-    document.getElementById('generateBtn').disabled = true;
     document.getElementById('messageBox').style.display = 'none';
+    showScrapeProgress(null);
 
     try {
         const response = await fetch('/scrape', {
@@ -308,44 +305,30 @@ document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
         const result = await response.json();
 
         if (result.success && result.task_id) {
-            // Start polling for progress
-            pollProgress(result.task_id);
+            ScrapeJobs.track({ ...data, task_id: result.task_id });
         } else {
-            scrapingInProgress = false; // Clear the flag
-            document.getElementById('loadingIndicator').style.display = 'none';
-            document.getElementById('generateBtn').disabled = false;
-
-            const messageBox = document.getElementById('messageBox');
-            messageBox.style.display = 'block';
-            messageBox.className = 'message-box error';
-            messageBox.innerHTML = `
-                <i class="fas fa-exclamation-circle"></i>
-                <p><strong>Error:</strong> ${escapeHtml(result.error)}</p>
-            `;
+            hideScrapeProgress();
+            showScrapeMessage('error', `<p><strong>Error:</strong> ${escapeHtml(result.error)}</p>`);
         }
     } catch (error) {
-        scrapingInProgress = false; // Clear the flag
-        document.getElementById('loadingIndicator').style.display = 'none';
-        document.getElementById('generateBtn').disabled = false;
-
-        const messageBox = document.getElementById('messageBox');
-        messageBox.style.display = 'block';
-        messageBox.className = 'message-box error';
-        messageBox.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i>
-            <p><strong>Error:</strong> ${escapeHtml(error.message)}</p>
-        `;
+        hideScrapeProgress();
+        showScrapeMessage('error', `<p><strong>Error:</strong> ${escapeHtml(error.message)}</p>`);
     }
 });
 
-// View analysis history for a file
 async function viewHistory(filename) {
     try {
-        const response = await fetch(`/api/analysis-history/${filename}`);
-        const result = await response.json();
+        const encoded = encodeURIComponent(filename);
+        const [reportsResponse, aiResponse] = await Promise.all([
+            fetch(`/api/analysis-history/${encoded}`),
+            fetch(`/api/ai-analysis-history/${encoded}`)
+        ]);
+        const result = await reportsResponse.json();
+        const aiResult = await aiResponse.json();
+        const reports = result.success ? result.reports : [];
+        const aiAnalyses = aiResult.success ? aiResult.analyses : [];
 
-        if (result.success && result.reports.length > 0) {
-            // Build history modal HTML
+        if (reports.length > 0 || aiAnalyses.length > 0) {
             let historyHTML = `
                 <div class="modal-overlay" id="historyModal" onclick="closeHistory(event)">
                     <div class="modal-content" onclick="event.stopPropagation()">
@@ -355,11 +338,11 @@ async function viewHistory(filename) {
                         </div>
                         <div class="modal-body">
                             <p><strong>File:</strong> ${escapeHtml(filename)}</p>
-                            <p><strong>Total Reports:</strong> ${parseInt(result.count)}</p>
+                            <h3><i class="fas fa-chart-bar"></i> Statistical Reports (${reports.length})</h3>
                             <div class="reports-list">
             `;
 
-            result.reports.forEach(report => {
+            reports.forEach(report => {
                 const safeFilename = escapeHtml(report.filename);
                 const safeId = report.filename.replace(/[^a-zA-Z0-9]/g, '-');
                 historyHTML += `
@@ -391,12 +374,32 @@ async function viewHistory(filename) {
 
             historyHTML += `
                             </div>
+                            <h3 class="mt-20"><i class="fas fa-robot"></i> AI Analysis History (<span id="aiHistoryCount">${aiAnalyses.length}</span>)</h3>
+                            <p><small>Each AI run is saved. Select two entries to compare them side by side. AI text describes historical data only and does not predict future draws.</small></p>
+                            <button id="compareAIBtn" class="btn btn-primary btn-sm" onclick="compareSelectedAI()" disabled>
+                                <i class="fas fa-columns"></i> Compare Selected
+                            </button>
+                            <div class="reports-list" id="aiHistoryList">
+            `;
+
+            if (aiAnalyses.length === 0) {
+                historyHTML += '<p class="no-results-message">No saved AI analyses yet. Use "Analyze with AI" on a report.</p>';
+            }
+
+            aiAnalyses.forEach(item => {
+                historyHTML += renderAIHistoryItem(item);
+                if (item.status === 'queued' || item.status === 'running') {
+                    AIJobs.track(item);
+                }
+            });
+
+            historyHTML += `
+                            </div>
                         </div>
                     </div>
                 </div>
             `;
 
-            // Append to body
             document.body.insertAdjacentHTML('beforeend', historyHTML);
         } else {
             showAlert('No analysis history found for this file.', 'info');
@@ -415,7 +418,6 @@ function closeHistory(event) {
     }
 }
 
-// Toggle add result form
 function toggleAddResultForm() {
     const form = document.getElementById('addResultForm');
     const isHidden = form.classList.contains('d-none') || form.style.display === 'none';
@@ -426,16 +428,13 @@ function toggleAddResultForm() {
         form.style.display = 'none';
     }
 
-    // Clear message when toggling
     document.getElementById('addResultMessage').style.display = 'none';
     
-    // Reset file selector if hiding form
     if (form.style.display === 'none') {
         document.getElementById('targetResultFile').innerHTML = '<option value="">Select game type first...</option>';
     }
 }
 
-// Load available result files for selected game type
 async function loadResultFiles() {
     const gameType = document.getElementById('resultGameType').value;
     const fileSelector = document.getElementById('targetResultFile');
@@ -445,7 +444,6 @@ async function loadResultFiles() {
         return;
     }
     
-    // Show loading state
     fileSelector.innerHTML = '<option value="">Loading files...</option>';
     fileSelector.disabled = true;
     
@@ -472,7 +470,6 @@ async function loadResultFiles() {
     }
 }
 
-// Submit actual result
 async function submitActualResult(event) {
     event.preventDefault();
 
@@ -480,7 +477,6 @@ async function submitActualResult(event) {
     const numberInputs = form.querySelectorAll('.number-input');
     const numbers = Array.from(numberInputs).map(input => parseInt(input.value));
 
-    // Validate numbers
     if (numbers.length !== 6) {
         showAlert('Please enter exactly 6 numbers.', 'warning');
         return;
@@ -505,7 +501,6 @@ async function submitActualResult(event) {
         winners: winners
     };
     
-    // Add target filename if selected
     if (targetFilename) {
         data.target_filename = targetFilename;
     }
@@ -534,10 +529,8 @@ async function submitActualResult(event) {
                 <p><small>You can now analyze this dataset to include the new result in predictions.</small></p>
             `;
 
-            // Clear form
             form.reset();
 
-            // Auto-hide after 5 seconds
             setTimeout(() => {
                 toggleAddResultForm();
             }, 5000);
@@ -559,97 +552,77 @@ async function submitActualResult(event) {
     }
 }
 
-// Track if scraping is in progress
-let scrapingInProgress = false;
+function showScrapeMessage(type, html) {
+    const messageBox = document.getElementById('messageBox');
+    messageBox.style.display = 'block';
+    messageBox.className = `message-box ${type}`;
+    const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+    messageBox.innerHTML = `<i class="fas ${icon}"></i>${html}`;
+}
 
-// Warn user before leaving during scraping
-window.addEventListener('beforeunload', function (e) {
-    if (scrapingInProgress) {
-        e.preventDefault();
-        e.returnValue = 'Data scraping is in progress. Leaving now may cause data corruption. Are you sure you want to leave?';
-        return e.returnValue;
+function showScrapeProgress(progress) {
+    document.getElementById('loadingIndicator').style.display = 'block';
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('scrapeNotifyBtn').classList.toggle('d-none', !ScrapeJobs.canRequestNotifications());
+    const percentage = progress ? Math.max(0, Math.min(100, parseInt(progress.percentage, 10) || 0)) : 0;
+    document.getElementById('progressFill').style.width = percentage + '%';
+    document.getElementById('progressText').textContent = progress?.message || 'Preparing to load data...';
+}
+
+function hideScrapeProgress() {
+    document.getElementById('loadingIndicator').style.display = 'none';
+    document.getElementById('generateBtn').disabled = false;
+}
+
+async function enableScrapeNotifications() {
+    const permission = await ScrapeJobs.requestNotifications();
+    const button = document.getElementById('scrapeNotifyBtn');
+    button.classList.add('d-none');
+    if (permission === 'denied') {
+        showAlert('Desktop notifications are blocked in your browser settings. In-app notifications will still be shown.', 'warning');
+    }
+}
+
+document.addEventListener('scrape-job-updated', event => {
+    const { progress } = event.detail;
+    if (progress && progress.status !== 'completed' && progress.status !== 'failed') {
+        showScrapeProgress(progress);
+        return;
+    }
+
+    hideScrapeProgress();
+    if (!progress) {
+        showScrapeMessage('error', '<p>The data-loading task already finished or was interrupted. Refresh to see Saved Results.</p>');
+    } else if (progress.status === 'failed') {
+        showScrapeMessage('error', `<p><strong>Error:</strong> ${escapeHtml(progress.message)}</p>`);
+    } else if (progress.result) {
+        const wasCached = progress.result.cached || false;
+        const safeFilename = escapeHtml(progress.result.filename);
+        showScrapeMessage('success', `
+            <p><strong>Success!</strong> ${wasCached ? 'Loaded' : 'Scraped'} ${escapeHtml(progress.result.total_draws)} draws${wasCached ? ' from cache' : ''}.</p>
+            <button onclick="openAnalysisModal('${safeFilename}')" class="btn btn-primary">
+                <i class="fas fa-chart-bar"></i> Analyze Now
+            </button>
+        `);
+    } else {
+        showScrapeMessage('success', `<p><strong>Success!</strong> ${escapeHtml(progress.message)}</p>`);
     }
 });
 
-// Poll for real-time progress updates
-async function pollProgress(taskId) {
-    const progressFill = document.getElementById('progressFill');
-    const progressText = document.getElementById('progressText');
+document.addEventListener('DOMContentLoaded', () => {
+    if (ScrapeJobs.list().length > 0) {
+        showScrapeProgress(null);
+    }
+    const params = new URLSearchParams(window.location.search);
+    const analyzeFilename = params.get('analyze');
+    if (analyzeFilename && /^[\w.\-]+\.json$/.test(analyzeFilename)) {
+        history.replaceState(null, '', window.location.pathname);
+        openAnalysisModal(analyzeFilename);
+    }
+});
 
-    // Set scraping in progress flag
-    scrapingInProgress = true;
-
-    const pollInterval = setInterval(async () => {
-        try {
-            const response = await fetch(`/api/progress/${taskId}`);
-            const result = await response.json();
-
-            if (result.success && result.progress) {
-                const progress = result.progress;
-
-                // Update progress bar
-                progressFill.style.width = progress.percentage + '%';
-                progressText.textContent = progress.message;
-
-                // Check if completed or failed
-                if (progress.status === 'completed') {
-                    clearInterval(pollInterval);
-                    scrapingInProgress = false; // Clear the flag
-
-                    // Show completion
-                    setTimeout(() => {
-                        document.getElementById('loadingIndicator').style.display = 'none';
-                        document.getElementById('generateBtn').disabled = false;
-
-                        // Show success message
-                        const messageBox = document.getElementById('messageBox');
-                        messageBox.style.display = 'block';
-                        messageBox.className = 'message-box success';
-
-                        if (progress.result) {
-                            const wasCached = progress.result.cached || false;
-                            const safeFilename = escapeHtml(progress.result.filename);
-                            messageBox.innerHTML = `
-                                <i class="fas fa-check-circle"></i>
-                                <p><strong>Success!</strong> ${wasCached ? 'Loaded' : 'Scraped'} ${escapeHtml(progress.result.total_draws)} draws${wasCached ? ' from cache' : ''}.</p>
-                                <button onclick="openAnalysisModal('${safeFilename}')" class="btn btn-primary">
-                                    <i class="fas fa-chart-bar"></i> Analyze Now
-                                </button>
-                            `;
-                        } else {
-                            messageBox.innerHTML = `
-                                <i class="fas fa-check-circle"></i>
-                                <p><strong>Success!</strong> ${escapeHtml(progress.message)}</p>
-                            `;
-                        }
-                    }, 500);
-
-                } else if (progress.status === 'failed') {
-                    clearInterval(pollInterval);
-                    scrapingInProgress = false; // Clear the flag
-
-                    document.getElementById('loadingIndicator').style.display = 'none';
-                    document.getElementById('generateBtn').disabled = false;
-
-                    const messageBox = document.getElementById('messageBox');
-                    messageBox.style.display = 'block';
-                    messageBox.className = 'message-box error';
-                    messageBox.innerHTML = `
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p><strong>Error:</strong> ${escapeHtml(progress.message)}</p>
-                    `;
-                }
-            }
-        } catch (error) {
-            // Polling error - will retry on next interval
-        }
-    }, 500); // Poll every 500ms
-}
-
-// Open analysis modal
 async function openAnalysisModal(filename) {
     try {
-        // Show loading state
         const loadingModal = `
             <div class="modal-overlay" id="analysisModal">
                 <div class="modal-content analysis-modal-content">
@@ -668,26 +641,21 @@ async function openAnalysisModal(filename) {
         `;
         document.body.insertAdjacentHTML('beforeend', loadingModal);
 
-        // Fetch analysis data
         const response = await fetch(`/analyze/${filename}`);
         const html = await response.text();
 
-        // Parse the HTML to extract dashboard content
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const dashboardContent = doc.querySelector('.container.dashboard');
 
-        // Remove the "Back to Home" button from dashboard header
         const backButton = dashboardContent.querySelector('.dashboard-header .btn');
         if (backButton) {
             backButton.remove();
         }
 
-        // Update modal with actual content
         const modal = document.getElementById('analysisModal');
         const modalContent = modal.querySelector('.modal-content');
 
-        // Get the title from dashboard
         const dashboardTitle = dashboardContent.querySelector('.dashboard-header h1');
         const dashboardSubtitle = dashboardContent.querySelector('.dashboard-header .subtitle');
 
@@ -704,7 +672,6 @@ async function openAnalysisModal(filename) {
             </div>
         `;
 
-        // Re-execute any scripts from the dashboard (for Chart.js)
         const scripts = doc.querySelectorAll('script');
         scripts.forEach(script => {
             if (script.textContent.includes('Chart') || script.textContent.includes('toggleAccordion')) {
@@ -714,7 +681,6 @@ async function openAnalysisModal(filename) {
             }
         });
 
-        // Copy over inline styles
         const styles = doc.querySelectorAll('style');
         styles.forEach(style => {
             const newStyle = document.createElement('style');
@@ -722,34 +688,28 @@ async function openAnalysisModal(filename) {
             modal.appendChild(newStyle);
         });
 
-        // Re-initialize day tabs functionality
         setTimeout(() => {
             const dayTabs = modal.querySelectorAll('.day-tab');
             dayTabs.forEach(tab => {
                 const day = tab.dataset.day;
                 const dayContent = modal.querySelector('#day-' + day);
 
-                // Check if this day has draws
                 const hasDraws = dayContent && dayContent.querySelector('.day-stats');
 
                 if (!hasDraws) {
-                    // Disable the tab if no draws found
                     tab.disabled = true;
                     tab.style.opacity = '0.5';
                     tab.style.cursor = 'not-allowed';
                     tab.title = `No draws found for ${day}`;
                 } else {
-                    // Add click event only for enabled tabs
                     tab.addEventListener('click', function() {
                         if (this.disabled) return;
 
                         const day = this.dataset.day;
 
-                        // Update active tab
                         modal.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
                         this.classList.add('active');
 
-                        // Show corresponding content
                         modal.querySelectorAll('.day-content').forEach(content => {
                             content.style.display = 'none';
                         });
@@ -761,7 +721,6 @@ async function openAnalysisModal(filename) {
                 }
             });
 
-            // Auto-select first enabled tab
             const firstEnabledTab = modal.querySelector('.day-tab:not([disabled])');
             if (firstEnabledTab && !modal.querySelector('.day-tab.active')) {
                 firstEnabledTab.click();
@@ -778,15 +737,12 @@ function closeAnalysisModal() {
     const modal = document.getElementById('analysisModal');
     if (modal) {
         modal.remove();
-        // Refresh the page to show updated analysis button
         location.reload();
     }
 }
 
-// Open report modal (same as analysis modal but for historical reports)
 async function openReportModal(reportFilename) {
     try {
-        // Show loading state
         const loadingModal = `
             <div class="modal-overlay" id="analysisModal">
                 <div class="modal-content analysis-modal-content">
@@ -805,26 +761,21 @@ async function openReportModal(reportFilename) {
         `;
         document.body.insertAdjacentHTML('beforeend', loadingModal);
 
-        // Fetch report data
         const response = await fetch(`/view-report/${reportFilename}`);
         const html = await response.text();
 
-        // Parse the HTML to extract dashboard content
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const dashboardContent = doc.querySelector('.container.dashboard');
 
-        // Remove the "Back to Home" button from dashboard header
         const backButton = dashboardContent.querySelector('.dashboard-header .btn');
         if (backButton) {
             backButton.remove();
         }
 
-        // Update modal with actual content
         const modal = document.getElementById('analysisModal');
         const modalContent = modal.querySelector('.modal-content');
 
-        // Get the title from dashboard
         const dashboardTitle = dashboardContent.querySelector('.dashboard-header h1');
         const dashboardSubtitle = dashboardContent.querySelector('.dashboard-header .subtitle');
 
@@ -841,7 +792,6 @@ async function openReportModal(reportFilename) {
             </div>
         `;
 
-        // Re-execute any scripts from the dashboard (for Chart.js)
         const scripts = doc.querySelectorAll('script');
         scripts.forEach(script => {
             if (script.textContent.includes('Chart') || script.textContent.includes('toggleAccordion')) {
@@ -851,7 +801,6 @@ async function openReportModal(reportFilename) {
             }
         });
 
-        // Copy over inline styles
         const styles = doc.querySelectorAll('style');
         styles.forEach(style => {
             const newStyle = document.createElement('style');
@@ -859,34 +808,28 @@ async function openReportModal(reportFilename) {
             modal.appendChild(newStyle);
         });
 
-        // Re-initialize day tabs functionality
         setTimeout(() => {
             const dayTabs = modal.querySelectorAll('.day-tab');
             dayTabs.forEach(tab => {
                 const day = tab.dataset.day;
                 const dayContent = modal.querySelector('#day-' + day);
 
-                // Check if this day has draws
                 const hasDraws = dayContent && dayContent.querySelector('.day-stats');
 
                 if (!hasDraws) {
-                    // Disable the tab if no draws found
                     tab.disabled = true;
                     tab.style.opacity = '0.5';
                     tab.style.cursor = 'not-allowed';
                     tab.title = `No draws found for ${day}`;
                 } else {
-                    // Add click event only for enabled tabs
                     tab.addEventListener('click', function() {
                         if (this.disabled) return;
 
                         const day = this.dataset.day;
 
-                        // Update active tab
                         modal.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
                         this.classList.add('active');
 
-                        // Show corresponding content
                         modal.querySelectorAll('.day-content').forEach(content => {
                             content.style.display = 'none';
                         });
@@ -898,7 +841,6 @@ async function openReportModal(reportFilename) {
                 }
             });
 
-            // Auto-select first enabled tab
             const firstEnabledTab = modal.querySelector('.day-tab:not([disabled])');
             if (firstEnabledTab && !modal.querySelector('.day-tab.active')) {
                 firstEnabledTab.click();
@@ -911,14 +853,12 @@ async function openReportModal(reportFilename) {
     }
 }
 
-// Close modal on background click
 document.addEventListener('click', function(event) {
     if (event.target.id === 'analysisModal') {
         closeAnalysisModal();
     }
 });
 
-// Filter results by search and game type
 function filterResults() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const gameTypeFilter = document.getElementById('gameTypeFilter').value;
@@ -944,7 +884,6 @@ function filterResults() {
         }
     });
 
-    // Show message if no results
     const grid = document.getElementById('resultsGrid');
     let noResultsMsg = document.getElementById('noResultsMessage');
 
@@ -963,7 +902,6 @@ function filterResults() {
     }
 }
 
-// Delete analysis report
 async function deleteReport(reportFilename) {
     if (!confirm('Are you sure you want to delete this analysis report? This action cannot be undone.')) {
         return;
@@ -977,14 +915,12 @@ async function deleteReport(reportFilename) {
         const result = await response.json();
 
         if (result.success) {
-            // Remove the report item from the modal
             const reportId = 'report-' + reportFilename.replace(/[^a-zA-Z0-9]/g, '-');
             const reportElement = document.getElementById(reportId);
             if (reportElement) {
                 reportElement.style.opacity = '0';
                 setTimeout(() => {
                     reportElement.remove();
-                    // Check if any reports left
                     const remainingReports = document.querySelectorAll('.report-item');
                     if (remainingReports.length === 0) {
                         closeHistory();
@@ -1001,28 +937,23 @@ async function deleteReport(reportFilename) {
     }
 }
 
-// Export analysis report as JSON
 function exportAnalysis(reportFilename) {
     window.location.href = `/api/export-analysis/${reportFilename}`;
 }
 
-// ========================================
-// AI Analysis Functions
-// ========================================
+function aiErrorModal(message) {
+    showAIModal('AI Analysis Error', `<div class="error-message"><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(message)}</div>`, false);
+}
 
-// Analyze with AI
 async function analyzeWithAI(filename) {
+    const historyModal = document.getElementById('historyModal');
+    if (historyModal) {
+        historyModal.remove();
+    }
+
+    showAIModal('Sending to AI...', '<div class="ai-loading"><i class="fas fa-spinner fa-spin"></i> Sending the report to the AI model...</div>', true);
+
     try {
-        // Close history modal
-        const historyModal = document.getElementById('historyModal');
-        if (historyModal) {
-            historyModal.remove();
-        }
-
-        // Show loading state
-        showAIModal('Loading...', '<div class="ai-loading"><i class="fas fa-spinner fa-spin"></i> Analyzing with AI... This may take a moment.</div>', true);
-
-        // Call AI analysis API
         const response = await fetch('/api/ai-analyze', {
             method: 'POST',
             headers: {
@@ -1030,43 +961,216 @@ async function analyzeWithAI(filename) {
             },
             body: JSON.stringify({ filename: filename })
         });
-
         const result = await response.json();
 
-        if (result.success) {
-            // Render markdown content
-            const htmlContent = renderMarkdown(result.analysis);
-            
-            // Build AI result display
-            const aiResultHTML = `
-                <div class="ai-result-header">
-                    <div class="ai-badge">
-                        <i class="fas fa-robot"></i> AI Analysis
-                    </div>
-                    <div class="ai-meta">
-                        <strong>Model:</strong> ${escapeHtml(result.model)}<br>
-                        <strong>Game:</strong> ${escapeHtml(result.game_type)}<br>
-                        <strong>Draws Analyzed:</strong> ${parseInt(result.total_draws_analyzed).toLocaleString()}
-                    </div>
-                </div>
-                <div class="ai-analysis-content">
-                    ${htmlContent}
-                </div>
-            `;
-            
-            showAIModal('AI-Powered Analysis Results', aiResultHTML, false);
-        } else {
-            showAIModal('AI Analysis Error', `<div class="error-message"><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(result.error || 'Unknown error occurred')}</div>`, false);
+        if (!response.ok || !result.success) {
+            aiErrorModal(result.error || 'Unknown error occurred');
+            return;
         }
+
+        AIJobs.track(result);
+        showAIModal(result.already_pending ? 'AI Analysis In Progress' : 'AI Analysis Started', renderAIQueued(result), false);
     } catch (error) {
         console.error('AI Analysis Error:', error);
+        aiErrorModal(error.message);
+    }
+}
+
+function renderAIQueued(job) {
+    const heading = job.already_pending ? 'This report is already being analyzed' : 'Request sent to AI';
+    const notifyOption = AIJobs.canRequestNotifications()
+        ? `<button type="button" class="btn btn-secondary btn-sm" onclick="enableAINotifications(this)">
+               <i class="fas fa-bell"></i> Also notify me on my desktop
+           </button>`
+        : '';
+    return `
+        <div class="ai-queued">
+            <i class="fas fa-paper-plane ai-queued-icon"></i>
+            <h3>${escapeHtml(heading)}</h3>
+            <p>The AI model is interpreting the <strong>${escapeHtml(job.game_type || 'selected')}</strong> report in the background.
+               This can take several minutes depending on the model and your computer.</p>
+            <p>You can close this window and keep using Fortune Lab. You'll get a notification when it's ready, and the result is
+               saved under <strong>History &rarr; AI Analysis History</strong>.</p>
+            ${notifyOption}
+        </div>
+    `;
+}
+
+async function enableAINotifications(button) {
+    const permission = await AIJobs.requestNotifications();
+    const messages = {
+        granted: 'Desktop notifications enabled.',
+        denied: 'Desktop notifications are blocked in your browser settings.'
+    };
+    button.outerHTML = `<small>${escapeHtml(messages[permission] || 'In-app notifications will still be shown.')}</small>`;
+}
+
+function renderAIHistoryItem(item) {
+    const safeFilename = escapeHtml(item.filename);
+    const safeId = item.filename.replace(/[^a-zA-Z0-9]/g, '-');
+    const status = item.status || 'completed';
+    const pending = status === 'queued' || status === 'running';
+    const meta = `Model: ${escapeHtml(item.model)} &middot; Report analyzed: ${escapeHtml(item.analysis_analyzed_at)}`;
+    let selector = '<i class="fas fa-robot"></i>';
+    let detail = `<small>${meta}</small>`;
+    let viewButton = `
+        <button onclick="viewAIAnalysis('${safeFilename}')" class="btn btn-secondary btn-sm">
+            <i class="fas fa-eye"></i> View
+        </button>`;
+
+    if (pending) {
+        selector = '<i class="fas fa-spinner fa-spin"></i>';
+        detail = `<span class="ai-status-badge pending">${status === 'queued' ? 'Waiting in queue' : 'Analyzing'}&hellip;</span> <small>${meta}</small>`;
+        viewButton = '';
+    } else if (status === 'failed') {
+        selector = '<i class="fas fa-exclamation-triangle text-danger"></i>';
+        detail = `<span class="ai-status-badge failed">Failed</span> <small>${escapeHtml(item.error || 'The AI analysis did not finish.')}</small>`;
+        viewButton = '';
+    } else {
+        selector = `<input type="checkbox" class="ai-compare-checkbox" value="${safeFilename}" onchange="updateCompareButton()" aria-label="Select for comparison"> ${selector}`;
+    }
+
+    return `
+        <div class="report-item" id="ai-${safeId}">
+            <div class="report-info">
+                ${selector}
+                <div>
+                    <strong>AI run:</strong> ${escapeHtml(item.created_at)}<br>
+                    ${detail}
+                </div>
+            </div>
+            <div class="report-actions">
+                ${viewButton}
+                <button onclick="deleteAIAnalysis('${safeFilename}')" class="btn btn-danger btn-sm">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+document.addEventListener('ai-job-updated', event => {
+    const record = event.detail;
+    const element = document.getElementById('ai-' + record.filename.replace(/[^a-zA-Z0-9]/g, '-'));
+    if (element) {
+        element.outerHTML = renderAIHistoryItem(record);
+        updateCompareButton();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    const aiFilename = params.get('ai');
+    if (aiFilename) {
+        history.replaceState(null, '', window.location.pathname);
+        viewAIAnalysis(aiFilename);
+    }
+});
+
+function renderAIResult(record) {
+    const draws = parseInt(record.total_draws_analyzed);
+    const range = record.date_range && record.date_range.start
+        ? `<br><strong>Data Range:</strong> ${escapeHtml(record.date_range.start)} to ${escapeHtml(record.date_range.end)}`
+        : '';
+    const created = record.created_at ? `<br><strong>AI Run:</strong> ${escapeHtml(record.created_at)}` : '';
+    return `
+        <div class="ai-result-header">
+            <div class="ai-badge">
+                <i class="fas fa-robot"></i> AI Analysis
+            </div>
+            <div class="ai-meta">
+                <strong>Model:</strong> ${escapeHtml(record.model)}<br>
+                <strong>Game:</strong> ${escapeHtml(record.game_type)}<br>
+                <strong>Draws Analyzed:</strong> ${Number.isNaN(draws) ? 'N/A' : draws.toLocaleString()}${range}${created}
+            </div>
+        </div>
+        <div class="ai-analysis-content">
+            ${renderMarkdown(record.analysis)}
+        </div>
+    `;
+}
+
+async function fetchAIAnalysis(aiFilename) {
+    const response = await fetch(`/api/ai-analysis/${encodeURIComponent(aiFilename)}`);
+    const result = await response.json();
+    if (!result.success) {
+        throw new Error(result.error || 'Failed to load AI analysis');
+    }
+    return result.analysis;
+}
+
+async function viewAIAnalysis(aiFilename) {
+    try {
+        showAIModal('Loading...', '<div class="ai-loading"><i class="fas fa-spinner fa-spin"></i> Loading saved AI analysis...</div>', true);
+        const record = await fetchAIAnalysis(aiFilename);
+        if (record.status === 'queued' || record.status === 'running') {
+            showAIModal('AI Analysis In Progress', '<div class="ai-queued"><i class="fas fa-spinner fa-spin ai-queued-icon"></i><p>This analysis is still running. You will be notified when it is ready.</p></div>', false);
+            AIJobs.track(record);
+            return;
+        }
+        if (record.status === 'failed') {
+            aiErrorModal(record.error || 'The AI analysis did not finish.');
+            return;
+        }
+        showAIModal('Saved AI Analysis', renderAIResult(record), false);
+    } catch (error) {
         showAIModal('AI Analysis Error', `<div class="error-message"><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(error.message)}</div>`, false);
     }
 }
 
-// Show AI modal
+async function deleteAIAnalysis(aiFilename) {
+    if (!confirm('Delete this saved AI analysis? This action cannot be undone.')) {
+        return;
+    }
+    try {
+        const response = await fetch(`/api/ai-analysis/${encodeURIComponent(aiFilename)}`, { method: 'DELETE' });
+        const result = await response.json();
+        if (!result.success) {
+            showAlert('Error deleting AI analysis: ' + result.error, 'error');
+            return;
+        }
+        const element = document.getElementById('ai-' + aiFilename.replace(/[^a-zA-Z0-9]/g, '-'));
+        if (element) {
+            element.remove();
+        }
+        AIJobs.untrack(aiFilename);
+        const counter = document.getElementById('aiHistoryCount');
+        if (counter) {
+            counter.textContent = document.querySelectorAll('#aiHistoryList .report-item').length;
+        }
+        updateCompareButton();
+        showAlert('AI analysis deleted successfully!', 'success');
+    } catch (error) {
+        showAlert('Error deleting AI analysis: ' + error.message, 'error');
+    }
+}
+
+function updateCompareButton() {
+    const button = document.getElementById('compareAIBtn');
+    if (button) {
+        button.disabled = document.querySelectorAll('.ai-compare-checkbox:checked').length !== 2;
+    }
+}
+
+async function compareSelectedAI() {
+    const selected = Array.from(document.querySelectorAll('.ai-compare-checkbox:checked')).map(box => box.value);
+    if (selected.length !== 2) {
+        showAlert('Select exactly two AI analyses to compare.', 'warning');
+        return;
+    }
+    try {
+        showAIModal('Loading...', '<div class="ai-loading"><i class="fas fa-spinner fa-spin"></i> Loading AI analyses...</div>', true);
+        const records = await Promise.all(selected.map(fetchAIAnalysis));
+        records.sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+        const columns = records.map(record => `<div class="ai-compare-column">${renderAIResult(record)}</div>`).join('');
+        showAIModal('Compare AI Analyses (older → newer)', `<div class="ai-compare-grid">${columns}</div>`, false);
+        document.querySelector('#aiModal .ai-modal-content').classList.add('ai-compare-modal');
+    } catch (error) {
+        showAIModal('AI Analysis Error', `<div class="error-message"><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(error.message)}</div>`, false);
+    }
+}
+
 function showAIModal(title, content, isLoading = false) {
-    // Remove existing AI modal if any
     const existingModal = document.getElementById('aiModal');
     if (existingModal) {
         existingModal.remove();
@@ -1092,7 +1196,6 @@ function showAIModal(title, content, isLoading = false) {
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
-// Close AI modal
 function closeAIModal(event) {
     if (!event || event.target.id === 'aiModal' || event.type === 'click') {
         const modal = document.getElementById('aiModal');
@@ -1109,39 +1212,30 @@ function renderMarkdown(text) {
     
     let html = escapeHtml(text);
     
-    // Headers
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
     html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
     
-    // Bold
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
     
-    // Italic
     html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
     html = html.replace(/_(.+?)_/g, '<em>$1</em>');
     
-    // Code blocks
     html = html.replace(/```[\s\S]*?```/g, function(match) {
         return '<pre><code>' + match.replace(/```/g, '') + '</code></pre>';
     });
     
-    // Inline code
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
     
-    // Lists - unordered
     html = html.replace(/^\s*[-*+]\s+(.+)$/gim, '<li>$1</li>');
     html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
     
-    // Lists - ordered
     html = html.replace(/^\s*\d+\.\s+(.+)$/gim, '<li>$1</li>');
     
-    // Line breaks
     html = html.replace(/\n\n/g, '</p><p>');
     html = html.replace(/\n/g, '<br>');
     
-    // Wrap in paragraphs if not already wrapped
     if (!html.startsWith('<')) {
         html = '<p>' + html + '</p>';
     }

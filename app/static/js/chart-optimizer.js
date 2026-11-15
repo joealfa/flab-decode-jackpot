@@ -3,31 +3,26 @@
  * Only initialize charts when they become visible in the viewport
  */
 
-// Track which charts have been initialized
 window.initializedCharts = new Set();
 
-// Lazy chart initializer using IntersectionObserver
 window.lazyChartObserver = null;
 
 /**
  * Initialize charts only when they enter the viewport
  */
 window.initializeLazyCharts = function() {
-    // Create observer if not exists
     if (!window.lazyChartObserver) {
         window.lazyChartObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting && entry.target.dataset.chartId) {
                     const chartId = entry.target.dataset.chartId;
                     
-                    // Initialize this specific chart if not already done
                     if (!window.initializedCharts.has(chartId)) {
                         requestAnimationFrame(() => {
                             initializeSpecificChart(chartId);
                             window.initializedCharts.add(chartId);
                         });
                         
-                        // Stop observing this chart
                         window.lazyChartObserver.unobserve(entry.target);
                     }
                 }
@@ -38,7 +33,6 @@ window.initializeLazyCharts = function() {
         });
     }
 
-    // Observe all chart canvases
     document.querySelectorAll('canvas[data-chart-id]').forEach(canvas => {
         window.lazyChartObserver.observe(canvas);
     });

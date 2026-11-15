@@ -13,7 +13,6 @@ from app.exceptions import (
     InvalidNumbersException,
 )
 
-# Supported lottery games and their max numbers
 VALID_GAME_TYPES = [
     "Lotto 6/42",
     "Mega Lotto 6/45",
@@ -22,7 +21,6 @@ VALID_GAME_TYPES = [
     "Ultra Lotto 6/58",
 ]
 
-# Map game type to max number for number range validation
 GAME_MAX_NUMBERS = {
     "Lotto 6/42": 42,
     "Mega Lotto 6/45": 45,
@@ -159,18 +157,14 @@ def validate_lottery_numbers(
             f"Must provide exactly {NUMBERS_PER_DRAW} numbers, got {len(numbers)}",
         )
 
-    # Validate each number is an integer
     validated = []
     for i, n in enumerate(numbers):
-        try:
-            num = int(n)
-        except ValueError, TypeError:
+        if isinstance(n, bool) or not isinstance(n, int):
             raise InvalidNumbersException(
                 numbers, f"Number at position {i + 1} is not a valid integer: {n}"
             )
-        validated.append(num)
+        validated.append(n)
 
-    # Validate range if game type is provided
     if game_type and game_type in GAME_MAX_NUMBERS:
         max_num = GAME_MAX_NUMBERS[game_type]
         out_of_range = [n for n in validated if n < 1 or n > max_num]
@@ -181,7 +175,6 @@ def validate_lottery_numbers(
                 f"Out of range: {out_of_range}",
             )
 
-    # Check for duplicates
     if len(set(validated)) != len(validated):
         duplicates = [n for n in validated if validated.count(n) > 1]
         raise InvalidNumbersException(

@@ -4,25 +4,59 @@ Progress tracking for long-running operations.
 
 import json
 import os
-import time
 import tempfile
+import time
+from functools import wraps
 from typing import Dict, Optional
+
+from app.storage import json_lock, validate_filename, write_json
+
+
+def locked_task(method):
+    """Serialize each task operation across threads and processes."""
+
+    @wraps(method)
+    def wrapped(self, task_id, *args, **kwargs):
+        """Run a contained task operation while holding its lock."""
+        filepath = validate_filename(f"{task_id}.json", self.progress_dir)
+        with json_lock(os.path.join(self.progress_dir, ".tasks")), json_lock(filepath):
+            return method(self, task_id, *args, **kwargs)
+
+    return wrapped
+
+
+def locked_cleanup(method):
+    """Prevent cleanup from removing a task while it is being updated."""
+
+    @wraps(method)
+    def wrapped(self, *args, **kwargs):
+        """Run cleanup under the same directory lock as task mutations."""
+        with json_lock(os.path.join(self.progress_dir, ".tasks")):
+            return method(self, *args, **kwargs)
+
+    return wrapped
 
 
 class ProgressTracker:
     """Tracks progress of scraping operations."""
 
-    def __init__(self, progress_dir: str = "app/data/progress"):
+    def __init__(
+        self, progress_dir: str = "app/data/progress", completed_max_age: int = 180
+    ):
         """
         Initialize progress tracker.
 
         Args:
             progress_dir: Directory to store progress files
+            completed_max_age: Seconds to keep finished tasks so clients can read
+                their final status before cleanup removes them
         """
         # Convert to absolute path to avoid path mismatch issues on Windows
         self.progress_dir = os.path.abspath(progress_dir)
+        self.completed_max_age = completed_max_age
         os.makedirs(self.progress_dir, exist_ok=True)
 
+    @locked_task
     def create_task(self, task_id: str) -> None:
         """Create a new progress tracking task."""
         progress_file = os.path.join(self.progress_dir, f"{task_id}.json")
@@ -37,9 +71,9 @@ class ProgressTracker:
             "updated_at": time.time(),
         }
 
-        with open(progress_file, "w") as f:
-            json.dump(data, f)
+        write_json(progress_file, data)
 
+    @locked_task
     def update_progress(
         self, task_id: str, current: int, total: int, message: Optional[str] = None
     ) -> None:
@@ -99,6 +133,7 @@ class ProgressTracker:
                 f"Failed to update progress for task {task_id}: {str(e)}"
             ) from e
 
+    @locked_task
     def get_progress(self, task_id: str) -> Optional[Dict]:
         """Get progress for a task."""
         progress_file = os.path.join(self.progress_dir, f"{task_id}.json")
@@ -131,7 +166,10 @@ class ProgressTracker:
 
         return None
 
-    def complete_task(self, task_id: str, message: str = "Completed") -> None:
+    @locked_task
+    def complete_task(
+        self, task_id: str, message: str = "Completed", result: Optional[Dict] = None
+    ) -> None:
         """Mark a task as completed."""
         progress_file = os.path.join(self.progress_dir, f"{task_id}.json")
 
@@ -146,6 +184,8 @@ class ProgressTracker:
         data["percentage"] = 100
         data["updated_at"] = time.time()
         data["completed_at"] = time.time()  # Add completion timestamp
+        if result is not None:
+            data["result"] = result
 
         # Write to temp file first, then atomic rename to avoid race conditions
         temp_fd, temp_path = tempfile.mkstemp(
@@ -179,6 +219,7 @@ class ProgressTracker:
                 pass
             raise Exception(f"Failed to complete task {task_id}: {str(e)}") from e
 
+    @locked_task
     def fail_task(self, task_id: str, error_message: str) -> None:
         """Mark a task as failed."""
         progress_file = os.path.join(self.progress_dir, f"{task_id}.json")
@@ -226,6 +267,7 @@ class ProgressTracker:
                 pass
             raise Exception(f"Failed to mark task {task_id} as failed: {str(e)}") from e
 
+    @locked_task
     def cleanup_task(self, task_id: str) -> None:
         """Remove progress file for a task."""
         progress_file = os.path.join(self.progress_dir, f"{task_id}.json")
@@ -233,6 +275,7 @@ class ProgressTracker:
         if os.path.exists(progress_file):
             os.remove(progress_file)
 
+    @locked_cleanup
     def cleanup_completed_tasks(self, max_age_seconds: int = 300) -> int:
         """
         Clean up completed or failed tasks older than specified age.
@@ -259,7 +302,7 @@ class ProgressTracker:
                 with open(filepath, "r") as f:
                     data = json.load(f)
 
-                # Check if task is completed or failed
+
                 status = data.get("status", "")
 
                 # Use completion/failure timestamp if available, otherwise updated_at
@@ -285,6 +328,7 @@ class ProgressTracker:
 
         return cleaned_count
 
+    @locked_cleanup
     def cleanup_stale_tasks(self, max_age_seconds: int = 600) -> int:
         """
         Clean up stale tasks (stuck in 'started' status) that haven't been updated.
@@ -330,6 +374,7 @@ class ProgressTracker:
 
         return cleaned_count
 
+    @locked_cleanup
     def cleanup_all_old_tasks(self, max_age_hours: int = 24) -> int:
         """
         Clean up all tasks (regardless of status) older than specified hours.
@@ -374,6 +419,35 @@ class ProgressTracker:
 
         return cleaned_count
 
+    @locked_cleanup
+    def fail_interrupted_tasks(self) -> int:
+        """Mark unfinished tasks as failed; scrape threads do not survive a restart."""
+        if not os.path.exists(self.progress_dir):
+            return 0
+
+        recovered = 0
+        for filename in os.listdir(self.progress_dir):
+            if not filename.endswith(".json"):
+                continue
+            filepath = os.path.join(self.progress_dir, filename)
+            try:
+                with open(filepath, "r") as f:
+                    data = json.load(f)
+            except json.JSONDecodeError, OSError:
+                continue
+            if data.get("status") != "started":
+                continue
+            now = time.time()
+            data["status"] = "failed"
+            data["message"] = (
+                "Data loading was interrupted by a server restart. Please try again."
+            )
+            data["updated_at"] = now
+            data["failed_at"] = now
+            write_json(filepath, data)
+            recovered += 1
+        return recovered
+
     def cleanup_all(self) -> Dict[str, int]:
         """
         Comprehensive cleanup of all old and stale progress files.
@@ -382,8 +456,8 @@ class ProgressTracker:
             Dictionary with counts of different cleanup operations
         """
         completed_count = self.cleanup_completed_tasks(
-            max_age_seconds=180
-        )  # 3 minutes for completed
+            max_age_seconds=self.completed_max_age
+        )
         stale_count = self.cleanup_stale_tasks(
             max_age_seconds=600
         )  # 10 minutes for stale

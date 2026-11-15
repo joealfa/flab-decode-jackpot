@@ -13,7 +13,7 @@ import logging
 import os
 from collections import defaultdict
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from app.config import config
 from app.exceptions import DataNotFoundException, InternalServerException
@@ -39,7 +39,7 @@ class AccuracyAnalyzer:
         Args:
             accuracy_dir: Path to accuracy data directory. Defaults to config.ACCURACY_PATH
         """
-        self.accuracy_dir = accuracy_dir or os.path.join(config.DATA_PATH, "accuracy")
+        self.accuracy_dir = accuracy_dir or config.ACCURACY_PATH
         os.makedirs(self.accuracy_dir, exist_ok=True)
         logger.info(f"AccuracyAnalyzer initialized with directory: {self.accuracy_dir}")
 
@@ -134,7 +134,6 @@ class AccuracyAnalyzer:
                     logger.error(f"Error reading {filename}: {str(e)}")
                     continue
 
-            # Sort by timestamp (most recent first)
             accuracy_files.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
 
             logger.info(f"Loaded {len(accuracy_files)} accuracy files")
@@ -168,7 +167,6 @@ class AccuracyAnalyzer:
                     "No accuracy data found", details={"game_type": game_type or "all"}
                 )
 
-            # Initialize metrics
             metrics = {
                 "total_submissions": len(accuracy_files),
                 "game_type": game_type or "All Games",
@@ -249,7 +247,6 @@ class AccuracyAnalyzer:
         # Calculate metrics
         avg_matches = total_matches / total_predictions if total_predictions > 0 else 0
 
-        # Convert match distribution to percentage
         match_distribution = {}
         for matches in range(7):  # 0-6 matches
             count = match_counts.get(matches, 0)
@@ -305,7 +302,6 @@ class AccuracyAnalyzer:
             actual = file_data.get("actual_numbers", [])
             analysis_snapshot = file_data.get("analysis_snapshot")
 
-            # Check all prediction types
             for pred_type, key in [
                 ("top", "top_predictions_comparison"),
                 ("winning", "winning_predictions_comparison"),
@@ -317,7 +313,6 @@ class AccuracyAnalyzer:
                     matches = self._get_match_count(comparison, actual)
                     matched_numbers = self._get_matched_numbers(comparison, actual)
 
-                    # Update overall highest
                     if matches > best["highest_matches"]["matches"]:
                         best["highest_matches"] = {
                             "matches": matches,
@@ -335,7 +330,6 @@ class AccuracyAnalyzer:
                             },
                         }
 
-                    # Update type-specific best
                     best_key = f"best_{pred_type}_prediction"
                     if matches > best[best_key]["matches"]:
                         best[best_key] = {
@@ -440,7 +434,6 @@ class AccuracyAnalyzer:
                 "analysis_snapshot": file_data.get("analysis_snapshot"),
             }
 
-            # Find best match across all prediction types
             for pred_type, key in [
                 ("Top Predictions", "top_predictions_comparison"),
                 ("Winning Predictions", "winning_predictions_comparison"),
@@ -554,7 +547,6 @@ class AccuracyAnalyzer:
                 }
             )
 
-        # Sort by average matches (primary) and jackpot hits (secondary)
         algorithms.sort(
             key=lambda x: (x["avg_matches"], x["jackpot_hits"]), reverse=True
         )

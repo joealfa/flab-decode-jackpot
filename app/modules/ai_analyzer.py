@@ -5,7 +5,8 @@ based on lottery statistical data.
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
+
 import ollama
 
 from app.config import config
@@ -18,18 +19,22 @@ class AIAnalyzer:
     """
     AI-powered lottery analysis using Ollama.
 
-    Provides intelligent interpretation of statistical analysis and
-    generates recommendations for likely number combinations.
+    Interprets statistical summaries and may suggest combinations without
+    changing the odds of a future draw.
     """
 
-    def __init__(self, model: Optional[str] = None):
+    def __init__(self, model: Optional[str] = None, settings: Any = None):
         """
         Initialize AI Analyzer.
 
         Args:
             model: Ollama model name (defaults to config.OLLAMA_MODEL)
         """
-        self.model = model or config.OLLAMA_MODEL
+        self.settings = settings or config
+        self.model = model or self.settings.OLLAMA_MODEL
+        self.client = ollama.Client(
+            host=self.settings.OLLAMA_HOST, timeout=self.settings.OLLAMA_TIMEOUT
+        )
         logger.info(f"AI Analyzer initialized with model: {self.model}")
 
     def check_ollama_status(self) -> Dict[str, Any]:
@@ -40,10 +45,8 @@ class AIAnalyzer:
             Dictionary with status information
         """
         try:
-            # Try to list available models
-            models_response = ollama.list()
+            models_response = self.client.list()
 
-            # Extract model names from response
             available_models = []
 
             # Handle Pydantic model response (ollama>=0.6.0)
@@ -89,7 +92,6 @@ class AIAnalyzer:
             InternalServerException: If AI analysis fails
         """
         try:
-            # Extract key information from analysis
             game_type = analysis_data.get("game_type", "Unknown")
             total_draws = (
                 analysis_data.get("total_draws")
@@ -98,14 +100,14 @@ class AIAnalyzer:
             )
             date_range = analysis_data.get("date_range", {})
 
-            # Build comprehensive prompt directly from analysis_data
             prompt = self._build_analysis_prompt_v2(analysis_data)
 
             logger.info(f"Sending analysis to AI model: {self.model}")
             logger.debug(f"Prompt length: {len(prompt)} characters")
 
-            # Call Ollama API
-            response = ollama.chat(
+            # Streaming applies the client timeout between chunks rather than to
+            # the whole generation, so long but active responses can finish.
+            stream = self.client.chat(
                 model=self.model,
                 messages=[
                     {
@@ -141,9 +143,12 @@ class AIAnalyzer:
                     "top_p": 0.9,
                     "num_predict": 4096,  # Max tokens for comprehensive response
                 },
+                stream=True,
             )
 
-            ai_response = response["message"]["content"]
+            ai_response = "".join(
+                chunk["message"]["content"] or "" for chunk in stream
+            )
             logger.info(
                 f"AI analysis completed. Response length: {len(ai_response)} characters"
             )
@@ -162,7 +167,7 @@ class AIAnalyzer:
             raise InternalServerException(
                 message="AI analysis failed",
                 details={"error": str(e), "model": self.model},
-            )
+            ) from e
 
     def _build_analysis_prompt_v2(self, analysis_data: Dict) -> str:
         """
@@ -187,7 +192,6 @@ class AIAnalyzer:
             logger.warning(f"Invalid total_draws: {total_draws}. Using 1.")
             total_draws = 1
 
-        # Parse game parameters
         max_num = int(game_type.split("/")[-1])
         numbers_to_pick = int(game_type.split("/")[0].split()[-1])
 
@@ -398,7 +402,6 @@ Remind users about the random nature of lottery draws and responsible gaming.
         """Format a pattern distribution dictionary."""
         if not patterns:
             return "No pattern data available"
-        # Sort by count descending
         sorted_patterns = sorted(patterns.items(), key=lambda x: x[1], reverse=True)
         lines = [f"- {pattern}: {count:,} draws" for pattern, count in sorted_patterns]
         return "\n".join(lines)
@@ -663,7 +666,6 @@ Remind users about the random nature of lottery draws and responsible gaming.
             )
             total_draws = 1
 
-        # Extract max number from game type (e.g., "6/58" -> 58)
         max_num = int(game_type.split("/")[-1])
         numbers_to_pick = int(game_type.split("/")[0].split()[-1])
 
@@ -890,7 +892,6 @@ Please proceed with your comprehensive analysis.
             draw_count = day_data.get("draw_count", 0)
             if draw_count > 0:
                 hot_nums_data = day_data.get("hot_numbers", [])
-                # Ensure it's a list before slicing
                 if isinstance(hot_nums_data, list):
                     hot_nums = hot_nums_data[:5]
                     lines.append(
@@ -909,7 +910,6 @@ Please proceed with your comprehensive analysis.
 
         # Most recent hot numbers
         hot_nums_data = recent_trends.get("hot_numbers", [])
-        # Ensure it's a list before slicing
         if isinstance(hot_nums_data, list):
             hot_nums = hot_nums_data[:10]
             if hot_nums:
@@ -917,7 +917,6 @@ Please proceed with your comprehensive analysis.
 
         # Most recent cold numbers
         cold_nums_data = recent_trends.get("cold_numbers", [])
-        # Ensure it's a list before slicing
         if isinstance(cold_nums_data, list):
             cold_nums = cold_nums_data[:10]
             if cold_nums:
